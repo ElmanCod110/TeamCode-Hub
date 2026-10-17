@@ -140,13 +140,18 @@ final class ProjectRepository
                 'description' => $description,
                 'project_id' => $projectId,
             ]);
-            $this->pdo->commit();
-
-            $project = $this->findAccessibleByUser($userId, $projectId);
-            if ($project === null) {
-                throw new DomainException('Updated project is no longer accessible.');
+            $read = $this->pdo->prepare(
+                'SELECT id, team_id, name, slug, description, status, created_by, created_at, updated_at
+                 FROM projects WHERE id = :project_id LIMIT 1'
+            );
+            $read->execute(['project_id' => $projectId]);
+            $project = $read->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($project)) {
+                throw new DomainException('Updated project could not be read.');
             }
-            return $project;
+
+            $this->pdo->commit();
+            return self::normalize($project);
         } catch (Throwable $error) {
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
