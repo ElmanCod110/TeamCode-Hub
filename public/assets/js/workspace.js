@@ -799,8 +799,16 @@
   async function renderProject(projectId, tab = state.projectTab) {
     // Stop any prior room poller before replacing the project view or its message list.
     stopChatPolling();
-    const project = projectById(projectId) || state.selectedProject;
+    let project = state.selectedProject && Number(state.selectedProject.id) === Number(projectId)
+      ? state.selectedProject
+      : projectById(projectId);
     if (!project) { navigate("projects", false); return; }
+
+    // Dashboard summaries omit descriptions; load the authorized detail record before rendering project metadata.
+    if (typeof project.description === "undefined") {
+      const detail = await request("/api/projects/" + escapePath(projectId));
+      project = detail.project || project;
+    }
     state.selectedProject = project;
     state.projectTab = tab;
     const root = pageRoot();
@@ -1652,10 +1660,21 @@
     });
   }
 
-  function editProjectModal(projectId) {
-    const project = projectById(projectId);
+  async function editProjectModal(projectId) {
+    let project = state.selectedProject && Number(state.selectedProject.id) === Number(projectId)
+      ? state.selectedProject
+      : projectById(projectId);
     if (!project || !canManageTeam(project.team_id)) {
       toast("Project editing requires an active team owner or manager role.", "warning");
+      return;
+    }
+    try {
+      // Fetch the current authorized record so a summary response never overwrites its description with an empty value.
+      const detail = await request("/api/projects/" + escapePath(project.id));
+      project = detail.project || project;
+      state.selectedProject = project;
+    } catch (error) {
+      toast(error.message || "Project details could not be loaded.", "error");
       return;
     }
     const tab = state.projectTab;
@@ -1776,7 +1795,7 @@
     try {
       if (name === "create-team") createTeamModal();
       else if (name === "edit-team") editTeamModal(action.dataset.teamId);
-      else if (name === "edit-project") editProjectModal(action.dataset.projectId);
+      else if (name === "edit-project") await editProjectModal(action.dataset.projectId);
       else if (name === "accept-invitation") acceptInvitationModal();
       else if (name === "create-project") createProjectModal(action.dataset.teamId);
       else if (name === "create-task") createTaskModal(action.dataset.projectId);
