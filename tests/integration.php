@@ -367,6 +367,33 @@ try {
     }
     $assert($memberQuotaReached, 'active memberships consume team member quota');
 
+    // Team/project lifecycle changes are intentionally soft operations: data remains stored.
+    $renamedProject = $projects->updateForTeamManager($manager2Id, $projectId, 'Integration Project Updated', 'Updated project purpose');
+    $assert($renamedProject['name'] === 'Integration Project Updated' && $renamedProject['description'] === 'Updated project purpose', 'active team manager can edit project metadata');
+    $assert($projects->archiveForTeamManager($manager2Id, $projectId), 'active team manager can archive a project');
+    $assert(!$projectAccess->canView($adminId, $projectId) && $projects->findAccessibleByUser($adminId, $projectId) === null, 'archived project immediately loses workspace access');
+    $storedTaskCount = $pdo->prepare('SELECT COUNT(*) FROM tasks WHERE project_id = :project_id');
+    $storedTaskCount->execute(['project_id' => $projectId]);
+    $assert((int) $storedTaskCount->fetchColumn() > 0, 'archiving a project preserves its task history');
+
+    $pdo->prepare('UPDATE teams SET project_limit = 10 WHERE id = :team_id')->execute(['team_id' => $teamId]);
+    $cascadeProjectId = $projects->createForTeamManager($adminId, $teamId, 'Lifecycle Cascade Project', null);
+    $renamedTeam = $teams->renameForManager($manager2Id, $teamId, 'Renamed Integration Team');
+    $assert($renamedTeam['name'] === 'Renamed Integration Team' && $renamedTeam['role'] === 'manager', 'active team manager can rename the team');
+    $managerArchiveRejected = false;
+    try {
+        $teams->archiveForOwner($manager2Id, $teamId);
+    } catch (DomainException) {
+        $managerArchiveRejected = true;
+    }
+    $assert($managerArchiveRejected, 'team managers cannot archive the team itself');
+    $assert($teams->archiveForOwner($adminId, $teamId), 'active team owner can archive a team');
+    $assert($teams->findAccessibleByUser($teamId, $adminId) === null, 'archived team is removed from active team access');
+    $cascadeStatus = $pdo->prepare('SELECT status FROM projects WHERE id = :project_id');
+    $cascadeStatus->execute(['project_id' => $cascadeProjectId]);
+    $assert($cascadeStatus->fetchColumn() === 'archived', 'archiving a team also archives all active projects atomically');
+    $assert(!in_array($teamId, array_column($teams->listForUser($adminId), 'id'), true), 'archived teams are omitted from the active team directory');
+
     $limiter = new LoginRateLimiter($pdo);
     $emailAttemptsAllowed = true;
     for ($i = 0; $i < 8; $i++) {
