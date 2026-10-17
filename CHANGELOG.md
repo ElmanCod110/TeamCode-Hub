@@ -12,5 +12,6 @@ Notable changes to TeamCode Hub are recorded here.
 - Add task listing, member-only creation/status changes, priority, approved member assignment, and UTC due-date support.
 - Add exact scoped permissions, trusted-proxy-aware client IP resolution, and automated PHP lint/smoke tests.
 - Add a MariaDB 10.11 integration suite for migrations, authentication, invitations, quotas, project access, and tasks.
+- Add a personalized dashboard API, user-scoped notifications, and transactional notification events for invitation, project-access, and task workflows.
 
 This is an in-progress development baseline, not a production-ready release.

@@ -11,6 +11,14 @@ All API responses are JSON. Responses are not a stable public contract yet; this
 
 After a successful login, fetch a new CSRF token because authentication rotates the token. Database-backed endpoints require the configured database and all migrations to have been applied.
 
+## Dashboard and notifications
+
+- `GET /api/dashboard` — returns the authenticated user's active teams, approved projects, tasks due today, overdue tasks, recent notifications, and summary counts. Task queries include only projects where the user has approved membership and active team membership. Done tasks are excluded from due/overdue lists.
+- `GET /api/notifications?limit=20` — returns recent notifications and unread count for the signed-in user. `limit` is clamped to 1–50.
+- `POST /api/notifications/{notificationId}/read` — marks a notification as read; requires CSRF protection. A user can only mark their own notification as read.
+
+Notifications are currently generated for team invitation acceptance, project access pending/approval/revocation, task assignment, and task completion. Notification writes occur in the same database transaction as the corresponding workflow. The API does not currently push updates over WebSockets; clients can request a lightweight refresh when needed.
+
 ## Teams and invitations
 
 - `GET /api/teams` — lists teams where the current user has an active membership.

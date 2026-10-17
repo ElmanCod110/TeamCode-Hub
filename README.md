@@ -18,6 +18,8 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 - Seven-day team invitations with hashed tokens, acceptance, and revocation.
 - Project member assignment with pending-by-default status, manager approval, viewer/member access levels, and revocation.
 - Task listing for approved project users, member-only task creation/status changes, priorities, assignees, and UTC due dates.
+- Personalized dashboard API with active teams, approved projects, due-today/overdue tasks, and unread notification counts.
+- User-scoped notification inbox and read-state endpoint; workflow events create notifications transactionally.
 - Automated PHP linting, smoke tests, and MariaDB integration tests on PHP 8.2, 8.3, and 8.4.
 
 ## Setup
@@ -31,7 +33,9 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 
 Authentication: `GET /api/auth/csrf`, `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`.
 
-Teams: team CRUD foundation and invitation lifecycle routes. Projects: project listing/creation, membership assignment/approval/revocation. Tasks: `GET|POST /api/projects/{projectId}/tasks` and `POST /api/projects/{projectId}/tasks/{taskId}/status`.
+Teams: team CRUD foundation and invitation lifecycle routes. Projects: project listing/creation, membership assignment/approval/revocation. Dashboard: `GET /api/dashboard`, `GET /api/notifications`, `POST /api/notifications/{notificationId}/read`.
+
+Tasks: `GET|POST /api/projects/{projectId}/tasks` and `POST /api/projects/{projectId}/tasks/{taskId}/status`.
 
 State-changing routes require a valid CSRF token. Invitation tokens are returned once and are not emailed by the current baseline. See [docs/API.md](docs/API.md) for request bodies, status codes, and access rules.
 
