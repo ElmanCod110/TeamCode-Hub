@@ -193,7 +193,7 @@ final class TeamInvitationRepository
     public function listPendingForManager(int $actorId, int $teamId): array
     {
         $statement = $this->pdo->prepare(
-            "SELECT id, email, role, expires_at, created_at
+            "SELECT ti.id, ti.email, ti.role, ti.expires_at, ti.created_at
              FROM team_invitations ti
              INNER JOIN team_memberships tm ON tm.team_id = ti.team_id AND tm.user_id = :user_id AND tm.status = 'active'
              INNER JOIN teams t ON t.id = ti.team_id AND t.status = 'active'
