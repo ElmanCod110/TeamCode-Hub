@@ -141,6 +141,8 @@
   function projectById(id) { return state.projects.find(project => Number(project.id) === Number(id)); }
   function teamById(id) { return state.teams.find(team => Number(team.id) === Number(id)); }
   function canManageTeam(id) { return ["owner", "manager"].includes(String(teamById(id)?.role || "")); }
+  // Only the owner may archive a team; managers can edit metadata and manage day-to-day work.
+  function canOwnTeam(id) { return String(teamById(id)?.role || "") === "owner"; }
 
   /* Keep the CSRF token in memory and send it only with same-origin mutations. */
   async function loadCsrf() {
@@ -632,7 +634,13 @@
     closeSidebar();
     const root = pageRoot();
     const teamActions = actionGroup();
-    if (canManageTeam(team.id)) append(teamActions, actionButton("Invite member", "invite-member", "btn btn-outline", { "data-team-id": team.id }), actionButton("New project", "create-project", "btn btn-primary", { "data-team-id": team.id }));
+    if (canManageTeam(team.id)) {
+      append(teamActions,
+        actionButton("Edit team", "edit-team", "btn btn-outline", { "data-team-id": team.id }),
+        actionButton("Invite member", "invite-member", "btn btn-outline", { "data-team-id": team.id }),
+        actionButton("New project", "create-project", "btn btn-primary", { "data-team-id": team.id }));
+    }
+    if (canOwnTeam(team.id)) teamActions.appendChild(actionButton("Archive team", "archive-team", "btn btn-danger-outline", { "data-team-id": team.id }));
     root.appendChild(pageHeading("TEAM WORKSPACE", team.name, "Projects and invitations for this team.", teamActions));
     const layout = el("div", "overview-columns");
     const projectContent = el("div", "project-mini-list");
@@ -808,6 +816,10 @@
       append(el("div"), el("div", "eyebrow", "PROJECT WORKSPACE"), el("h1", "", project.name),
         el("p", "", project.description || "Plan work, coordinate the team, and keep decisions in context.")));
     const headActions = actionGroup();
+    if (canManageTeam(project.team_id)) {
+      headActions.appendChild(actionButton("Edit project", "edit-project", "btn btn-outline", { "data-project-id": project.id }));
+      headActions.appendChild(actionButton("Archive project", "archive-project", "btn btn-danger-outline", { "data-project-id": project.id }));
+    }
     if (project.access_level !== "viewer") headActions.appendChild(actionButton("New task", "create-task", "btn btn-primary", { "data-project-id": project.id }));
     headActions.appendChild(actionButton("Back to projects", "navigate-projects", "btn btn-outline"));
     append(root, heading, headActions);
@@ -1616,6 +1628,38 @@
     });
   }
 
+  /** Rename a team without changing its stable slug or membership records. */
+  function editTeamModal(teamId) {
+    const team = teamById(teamId);
+    if (!team || !canManageTeam(teamId)) return;
+    openFormModal("Edit team", "Update the name shown across your workspace. Existing invitations and memberships stay intact.", [
+      { name: "name", label: "Team name", type: "text", value: team.name, required: true, maxLength: 100, full: true }
+    ], "Save changes", async values => {
+      await request("/api/teams/" + escapePath(team.id) + "/edit", { method: "POST", body: { name: values.name.trim() } });
+      await refreshWorkspace(false);
+      toast("Team name updated.");
+      await openTeam(team.id);
+    });
+  }
+
+  /** Update project metadata while keeping tasks, comments, and memberships connected. */
+  function editProjectModal(projectId) {
+    const project = projectById(projectId) || state.selectedProject;
+    if (!project || !canManageTeam(project.team_id)) return;
+    openFormModal("Edit project", "Keep the project title and purpose current without disrupting its tasks or members.", [
+      { name: "name", label: "Project name", type: "text", value: project.name, required: true, maxLength: 120, full: true },
+      { name: "description", label: "Description", type: "textarea", value: project.description || "", maxLength: 5000, full: true }
+    ], "Save changes", async values => {
+      const result = await request("/api/projects/" + escapePath(project.id) + "/edit", {
+        method: "POST",
+        body: { name: values.name.trim(), description: values.description.trim() || null }
+      });
+      await refreshWorkspace(false);
+      toast("Project details updated.");
+      await openProject(result.project || project, true, state.projectTab);
+    });
+  }
+
   function createProjectModal(preselectedTeamId) {
     const manageableTeams = state.teams.filter(team => canManageTeam(team.id));
     if (!manageableTeams.length) { toast("Project creation requires a team owner or manager. Create a new team or ask a manager for access.", "warning"); if (!state.teams.length) createTeamModal(); return; }
@@ -1736,6 +1780,28 @@
       if (name === "create-team") createTeamModal();
       else if (name === "accept-invitation") acceptInvitationModal();
       else if (name === "create-project") createProjectModal(action.dataset.teamId);
+      else if (name === "edit-team") editTeamModal(action.dataset.teamId);
+      else if (name === "edit-project") editProjectModal(action.dataset.projectId);
+      else if (name === "archive-team") {
+        const team = teamById(action.dataset.teamId);
+        if (!team || !canOwnTeam(team.id)) return;
+        if (!window.confirm("Archive “" + team.name + "”? All its projects will also be archived. Existing tasks, messages, reports, and memberships will be preserved but become inaccessible until a future restore workflow is added.")) return;
+        await request("/api/teams/" + escapePath(team.id) + "/archive", { method: "POST", body: {} });
+        stopChatPolling();
+        await refreshWorkspace(false);
+        toast("Team and its projects archived. Historical records were preserved.");
+        navigate("teams");
+      }
+      else if (name === "archive-project") {
+        const project = projectById(action.dataset.projectId) || state.selectedProject;
+        if (!project || !canManageTeam(project.team_id)) return;
+        if (!window.confirm("Archive “" + project.name + "”? Tasks, comments, chat messages, reports, and memberships will be preserved but project access will be disabled.")) return;
+        await request("/api/projects/" + escapePath(project.id) + "/archive", { method: "POST", body: {} });
+        stopChatPolling();
+        await refreshWorkspace(false);
+        toast("Project archived. Its historical records were preserved.");
+        navigate("projects");
+      }
       else if (name === "create-task") createTaskModal(action.dataset.projectId);
       else if (name === "invite-member") inviteMember(action.dataset.teamId);
       else if (name === "navigate-projects") navigate("projects");
