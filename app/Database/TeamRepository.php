@@ -84,6 +84,25 @@ final class TeamRepository
         }
     }
 
+
+    /**
+     * Rename a team only while the caller's active owner/manager membership is locked.
+     * The authorization predicate lives in this query so a stale controller check is insufficient.
+     */
+    public function renameForManager(int $userId, int $teamId, string $name): bool
+    {
+        $statement = $this->pdo->prepare(
+            "UPDATE teams t
+             INNER JOIN team_memberships tm ON tm.team_id = t.id
+             SET t.name = :name
+             WHERE t.id = :team_id AND t.status = 'active'
+               AND tm.user_id = :user_id AND tm.status = 'active'
+               AND tm.role IN ('owner', 'manager')"
+        );
+        $statement->execute(['name' => $name, 'team_id' => $teamId, 'user_id' => $userId]);
+        return $statement->rowCount() > 0;
+    }
+
     /** @param array<string, mixed> $row
      *  @return array<string, mixed>
      */
