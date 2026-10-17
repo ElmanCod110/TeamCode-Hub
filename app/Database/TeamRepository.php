@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace TeamCodeHub\Database;
 
+use DomainException;
 use PDO;
 use Throwable;
 
@@ -63,7 +64,7 @@ final class TeamRepository
             $access->execute(['user_id' => $userId, 'team_id' => $teamId]);
             $team = $access->fetch(PDO::FETCH_ASSOC);
             if (!is_array($team) || $team['role'] !== 'owner') {
-                throw new \\DomainException('Active team owner role required.');
+                throw new DomainException('Active team owner role required.');
             }
 
             $update = $this->pdo->prepare(
