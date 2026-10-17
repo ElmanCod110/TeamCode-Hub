@@ -244,6 +244,13 @@ try {
         $unauthorizedAssigneeSearchRejected = true;
     }
     $assert($unauthorizedAssigneeSearchRejected, 'unapproved users cannot enumerate task assignees');
+    $viewerAssigneeDirectoryRejected = false;
+    try {
+        $projectMemberships->searchTaskAssignees($viewerId, $projectId, 'member');
+    } catch (DomainException) {
+        $viewerAssigneeDirectoryRejected = true;
+    }
+    $assert($viewerAssigneeDirectoryRejected, 'read-only viewers cannot enumerate the task assignee directory');
     $creatorDowngradeRejected = false;
     try {
         $projectMemberships->changeAccessLevel($manager2Id, $projectId, $adminId, 'viewer');
