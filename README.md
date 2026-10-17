@@ -19,38 +19,47 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 
 ## Current foundation
 
-- Front controller at \`public/index.php\`.
+- Public front controller at `public/index.php`.
 - Minimal request and response value objects.
 - Explicit GET/POST route registration and named route parameters.
 - Lazy module registry and module interface contract.
-- \`GET /\` and a lightweight \`GET /health\` endpoint.
-- Apache rewrite rules for pretty routes.
-- Smoke tests and GitHub Actions PHP lint/test workflow.
+- `GET /` and a lightweight `GET /health` endpoint.
+- Validated MySQL connection configuration and PDO connection factory.
+- Explicit CLI migration runner with version registry and advisory lock.
+- Initial users, teams, team memberships, projects, and project memberships schema.
+- Session hardening, session-bound CSRF token helper, and exact scoped permission checks.
+- Smoke tests and GitHub Actions checks on PHP 8.2, 8.3, and 8.4.
 
-Authentication, database persistence, migrations, team/project workflows, chat, Git synchronization, and admin capabilities are not implemented yet.
+Authentication flows, application-level authorization integration, database-backed repositories, team/project workflows, chat, Git synchronization, and admin capabilities are not implemented yet.
 
 ## Requirements
 
 - PHP 8.2+ is the initial CI target.
 - Apache with rewrite support, or equivalent web-server routing configuration.
-- PDO MySQL will be required once database-backed features are introduced.
+- PDO MySQL for database-backed features.
 
 ## Layout
 
-\`\`\`text
+```text
 public/          Web root and front controller
 app/Core/        Request, response, router, module contracts/registry
+app/Database/   PDO connection and migration primitives
+app/Security/   Session, CSRF, and permission primitives
 app/bootstrap.php
+bin/             Trusted CLI commands
+database/        Versioned migrations
 modules/         Feature modules (to be introduced)
-config/          Non-secret configuration templates
-database/        Versioned migrations (to be introduced)
 resources/       Templates and frontend assets (to be introduced)
 storage/         Private runtime storage placeholder
 tests/           Lightweight smoke tests
 docs/            Architecture, security, routing, database, operations
-\`\`\`
+```
 
-Configure the document root to \`public/\` where possible. Do not store secrets in the public directory. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/SECURITY.md](docs/SECURITY.md), [docs/OPERATIONS.md](docs/OPERATIONS.md), [CONTRIBUTING.md](CONTRIBUTING.md), and [SECURITY.md](SECURITY.md).
+Configure the document root to `public/` where possible. Keep secrets and private runtime data outside the public directory. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/SECURITY.md](docs/SECURITY.md), [docs/DATABASE.md](docs/DATABASE.md), [docs/OPERATIONS.md](docs/OPERATIONS.md), [CONTRIBUTING.md](CONTRIBUTING.md), and [SECURITY.md](SECURITY.md).
+
+## Database setup
+
+Copy the variable names in `.env.example` into the hosting provider's environment configuration or a private configuration mechanism. The project does not currently include a `.env` file parser. Run `php bin/migrate.php` from a trusted CLI shell after verifying the target database and taking an appropriate backup.
 
 ## License
 
