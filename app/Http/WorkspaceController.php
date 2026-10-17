@@ -143,6 +143,134 @@ final class WorkspaceController
             : Response::json(['project' => $project]);
     }
 
+    /** Update a team's display name for an active owner or manager. */
+    public function editTeam(Request $request, array $params): Response
+    {
+        SecureSession::start();
+        if (!$this->validCsrf($request)) {
+            return Response::json(['error' => 'Invalid or expired request token.'], 419);
+        }
+        $user = $this->authentication->currentUser();
+        $teamId = $this->positiveId($params['teamId'] ?? null);
+        if ($user === null) {
+            return Response::json(['error' => 'Authentication required.'], 401);
+        }
+        if ($teamId === null || !$this->teamAccess->canManage($user['id'], $teamId)) {
+            return Response::json(['error' => 'Team not found or management permission denied.'], 404);
+        }
+
+        $name = $request->body()['name'] ?? null;
+        if (!is_string($name) || trim($name) === '' || strlen(trim($name)) > 100) {
+            return Response::json(['error' => 'Team name must contain 1 to 100 bytes.'], 422);
+        }
+
+        try {
+            return Response::json(['team' => $this->teams->renameForManager($user['id'], $teamId, trim($name))]);
+        } catch (DomainException) {
+            return Response::json(['error' => 'Team not found or management permission denied.'], 404);
+        }
+    }
+
+    /** Archive a team and its projects without deleting its historical work. */
+    public function archiveTeam(Request $request, array $params): Response
+    {
+        SecureSession::start();
+        if (!$this->validCsrf($request)) {
+            return Response::json(['error' => 'Invalid or expired request token.'], 419);
+        }
+        $user = $this->authentication->currentUser();
+        $teamId = $this->positiveId($params['teamId'] ?? null);
+        if ($user === null) {
+            return Response::json(['error' => 'Authentication required.'], 401);
+        }
+        if ($teamId === null || !$this->teamAccess->canView($user['id'], $teamId)) {
+            return Response::json(['error' => 'Team not found.'], 404);
+        }
+
+        try {
+            if (!$this->teams->archiveForOwner($user['id'], $teamId)) {
+                return Response::json(['error' => 'Team could not be archived.'], 409);
+            }
+            return Response::json(['archived' => true, 'team_id' => $teamId]);
+        } catch (DomainException) {
+            return Response::json(['error' => 'Only the active team owner can archive this team.'], 404);
+        }
+    }
+
+    /** Edit project metadata; the repository independently verifies the team-management role. */
+    public function editProject(Request $request, array $params): Response
+    {
+        SecureSession::start();
+        if (!$this->validCsrf($request)) {
+            return Response::json(['error' => 'Invalid or expired request token.'], 419);
+        }
+        $user = $this->authentication->currentUser();
+        $projectId = $this->positiveId($params['projectId'] ?? null);
+        if ($user === null) {
+            return Response::json(['error' => 'Authentication required.'], 401);
+        }
+        if ($projectId === null || !$this->projectAccess->canView($user['id'], $projectId)) {
+            return Response::json(['error' => 'Project not found.'], 404);
+        }
+        $project = $this->projects->findAccessibleByUser($user['id'], $projectId);
+        if ($project === null || !$this->teamAccess->canManage($user['id'], (int) $project['team_id'])) {
+            return Response::json(['error' => 'Project not found or management permission denied.'], 404);
+        }
+
+        $body = $request->body();
+        $name = $body['name'] ?? null;
+        $description = $body['description'] ?? null;
+        if (!is_string($name) || trim($name) === '' || strlen(trim($name)) > 120) {
+            return Response::json(['error' => 'Project name must contain 1 to 120 bytes.'], 422);
+        }
+        if ($description !== null && (!is_string($description) || strlen($description) > 5000)) {
+            return Response::json(['error' => 'Project description must be at most 5000 bytes.'], 422);
+        }
+
+        try {
+            return Response::json([
+                'project' => $this->projects->updateForTeamManager(
+                    $user['id'],
+                    $projectId,
+                    trim($name),
+                    is_string($description) && trim($description) !== '' ? trim($description) : null,
+                ),
+            ]);
+        } catch (DomainException) {
+            return Response::json(['error' => 'Project not found or management permission denied.'], 404);
+        }
+    }
+
+    /** Archive a project while preserving all associated records for historical reference. */
+    public function archiveProject(Request $request, array $params): Response
+    {
+        SecureSession::start();
+        if (!$this->validCsrf($request)) {
+            return Response::json(['error' => 'Invalid or expired request token.'], 419);
+        }
+        $user = $this->authentication->currentUser();
+        $projectId = $this->positiveId($params['projectId'] ?? null);
+        if ($user === null) {
+            return Response::json(['error' => 'Authentication required.'], 401);
+        }
+        if ($projectId === null || !$this->projectAccess->canView($user['id'], $projectId)) {
+            return Response::json(['error' => 'Project not found.'], 404);
+        }
+        $project = $this->projects->findAccessibleByUser($user['id'], $projectId);
+        if ($project === null || !$this->teamAccess->canManage($user['id'], (int) $project['team_id'])) {
+            return Response::json(['error' => 'Project not found or management permission denied.'], 404);
+        }
+
+        try {
+            if (!$this->projects->archiveForTeamManager($user['id'], $projectId)) {
+                return Response::json(['error' => 'Project could not be archived.'], 409);
+            }
+            return Response::json(['archived' => true, 'project_id' => $projectId]);
+        } catch (DomainException) {
+            return Response::json(['error' => 'Project not found or management permission denied.'], 404);
+        }
+    }
+
     private function currentUser(): ?array
     {
         SecureSession::start();
