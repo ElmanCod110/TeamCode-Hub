@@ -2,7 +2,7 @@
 
 Notable changes to TeamCode Hub are recorded here.
 
-## [0.1.0-dev] - Unreleased
+## [0.2.0-dev] - Unreleased\n\n- Add centralized neutral and semantic design tokens, optional explicit dark-theme tokens, and an installed-system-font stack.\n- Add separate base, responsive layout, component, utility, and design-system entry stylesheets.\n- Add reusable accessible controls, forms, badges, cards, alerts, dashboard metrics, tables, tabs, dropdowns, dialogs, toasts, progress indicators, and empty states.\n- Add dependency-free UI interactions for dropdowns, keyboard-navigable tabs, modal dialogs, mobile sidebars, theme switching, progress semantics, and text-safe notifications.\n- Add an English component showcase with no inline styles or inline JavaScript and no external font downloads.\n- Add frontend asset smoke tests and JavaScript syntax checks to CI.\n\n## [0.1.0-dev] - Foundation baseline
 
 - Establish the PHP front controller, request/response, router, and lazy module registry.
 - Add validated MySQL/MariaDB configuration, PDO repositories, and explicit CLI migrations.
