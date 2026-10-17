@@ -2,10 +2,7 @@
 
 declare(strict_types=1);
 
-use TeamCodeHub\\Core\\Response;
-
-$projectRoot = dirname(__DIR__);
-$bootstrap = $projectRoot . '/app/bootstrap.php';
+$bootstrap = dirname(__DIR__) . '/app/bootstrap.php';
 
 if (!is_file($bootstrap)) {
     http_response_code(500);
@@ -21,13 +18,7 @@ try {
     }
     $run();
 } catch (Throwable $error) {
-    error_log(sprintf(
-        '[TeamCode Hub] Unhandled exception: %s in %s:%d',
-        $error::class,
-        $error->getFile(),
-        $error->getLine()
-    ));
-
+    error_log(sprintf('[TeamCode Hub] Unhandled exception: %s in %s:%d', $error::class, $error->getFile(), $error->getLine()));
     if (!headers_sent()) {
         http_response_code(500);
         header('Content-Type: text/plain; charset=utf-8');
