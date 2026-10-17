@@ -26,7 +26,7 @@ After a successful login, fetch a new CSRF token because authentication rotates 
 - `GET /api/notifications?limit=20` — returns recent notifications and unread count for the signed-in user. `limit` is clamped to 1–50.
 - `POST /api/notifications/{notificationId}/read` — marks a notification as read; requires CSRF protection and only affects the signed-in user's notification.
 
-Notifications are generated for team invitation acceptance, project access changes, task assignment/completion, and chat report receipt/escalation. Notification writes are transactional with the corresponding workflow. There is no WebSocket/push delivery in this baseline.
+Notifications are generated for team invitation acceptance, project access changes, task assignment/completion, and chat report receipt/escalation. Notification writes are transactional with the corresponding workflow. The browser refreshes recent notifications and the authoritative unread count through bounded HTTP polling while the app is visible; there is no WebSocket/push delivery.
 
 ## Teams and invitations
 
