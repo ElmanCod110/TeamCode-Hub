@@ -32,7 +32,7 @@ ob_start();
 $notFound = $router->dispatch(new Request('POST', '/projects/alpha'));
 $notFound->send();
 $body = ob_get_clean();
-$assert($body === 'Not Found' && http_response_code() === 404, 'wrong HTTP method does not match route');
+$assert($body === 'Not Found' && $notFound->statusCode() === 404, 'wrong HTTP method returns a 404 response');
 
 ob_start();
 $encodedSlash = $router->dispatch(new Request('GET', '/projects/a%2Fb'));
