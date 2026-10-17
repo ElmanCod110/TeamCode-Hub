@@ -17,7 +17,7 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 - Task creation, editing/reassignment, status changes, priorities, UTC due-date conversion, threaded comments, checklist items, and task filtering/search.
 - Searchable project-member assignment by display name, email, or exact user ID, pending membership approval, member/viewer access changes, and access revocation where the signed-in user has management permission.
 - Text-only project chat with incremental polling, periodic bounded-window reconciliation for edits/deletions, own-message editing/deletion, and message reporting.
-- Notification inbox with user-scoped read-state changes.
+- Notification inbox with user-scoped read-state changes, background refresh, and authoritative unread badges.
 - Personal preferences for light/dark/system theme; an expanded token-driven design system with responsive forms, feedback, navigation, upload controls, pagination, accordions, workflow steps, and reusable content patterns. No external fonts or UI framework are required.
 
 ## Security and backend foundation

@@ -19,6 +19,9 @@
     projects: [],
     tasks: [],
     notifications: [],
+    unreadNotificationCount: null,
+    notificationTimer: null,
+    notificationBusy: false,
     github: null,
     githubError: null,
     page: "overview",
@@ -214,6 +217,7 @@
 
   function showAuth() {
     stopChatPolling();
+    stopNotificationPolling();
     $("#application").hidden = true;
     $("#auth-screen").hidden = false;
     $("#login-password").value = "";
@@ -223,6 +227,7 @@
   function showApplication() {
     $("#auth-screen").hidden = true;
     $("#application").hidden = false;
+    startNotificationPolling();
     $("#sidebar-user-name").textContent = state.user?.display_name || state.user?.email || "Your account";
     $("#sidebar-user-role").textContent = (state.user?.roles || []).includes("site_admin") ? "Site administrator" : "Workspace member";
     $("#user-avatar").textContent = initials(state.user?.display_name || state.user?.email || "User");
@@ -333,6 +338,7 @@
       state.tasks = await loadAllTasks();
       const notifications = await request("/api/notifications?limit=20");
       state.notifications = Array.isArray(notifications.notifications) ? notifications.notifications : [];
+      state.unreadNotificationCount = Number.isFinite(Number(notifications.unread_count)) ? Number(notifications.unread_count) : state.notifications.filter(item => !item.is_read).length;
       updateNavigationCounts();
       if (showNotice) toast("Workspace data refreshed.");
       if (state.page === "overview") renderOverview();
@@ -395,7 +401,9 @@
     $("#nav-project-count").textContent = String(state.projects.length);
     const openTasks = state.tasks.filter(task => task.status !== "done").length;
     $("#nav-task-count").textContent = String(openTasks);
-    const unread = state.notifications.filter(item => !item.is_read).length;
+    const unread = Number.isFinite(state.unreadNotificationCount)
+      ? state.unreadNotificationCount
+      : state.notifications.filter(item => !item.is_read).length;
     $("#nav-notification-count").textContent = String(unread);
     $("#nav-notification-count").hidden = unread === 0;
     $("#topbar-notification-dot").hidden = unread === 0;
@@ -2148,7 +2156,8 @@
   }
 
   async function markNotificationRead(id) {
-    await request("/api/notifications/" + escapePath(id) + "/read", { method: "POST", body: {} });
+    const result = await request("/api/notifications/" + escapePath(id) + "/read", { method: "POST", body: {} });
+    if (Number.isFinite(Number(result.unread_count))) state.unreadNotificationCount = Number(result.unread_count);
     const item = state.notifications.find(notification => Number(notification.id) === Number(id));
     if (item) item.is_read = true;
     updateNavigationCounts();
@@ -2156,14 +2165,62 @@
     else if (state.page === "overview") renderOverview();
   }
 
+  function startNotificationPolling() {
+    stopNotificationPolling();
+    state.notificationTimer = window.setInterval(() => {
+      if (!document.hidden) void pollNotifications();
+    }, 30000);
+  }
+
+  function stopNotificationPolling() {
+    if (state.notificationTimer) window.clearInterval(state.notificationTimer);
+    state.notificationTimer = null;
+    state.notificationBusy = false;
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) void pollNotifications();
+  });
+
+  async function pollNotifications() {
+    if (!state.user || document.hidden || $("#application").hidden || state.notificationBusy) return;
+    state.notificationBusy = true;
+    try {
+      const result = await request("/api/notifications?limit=20");
+      const incoming = Array.isArray(result.notifications) ? result.notifications : [];
+      const previousSnapshot = JSON.stringify(state.notifications.map(item => [item.id, item.is_read, item.title, item.message]));
+      const nextSnapshot = JSON.stringify(incoming.map(item => [item.id, item.is_read, item.title, item.message]));
+      state.notifications = incoming;
+      state.unreadNotificationCount = Number.isFinite(Number(result.unread_count))
+        ? Number(result.unread_count)
+        : incoming.filter(item => !item.is_read).length;
+      updateNavigationCounts();
+      if (state.page === "notifications" && previousSnapshot !== nextSnapshot) renderNotifications();
+    } catch (error) {
+      // A single notification poll failure should not interrupt the active workspace.
+      if (error.status === 401) showAuth();
+    } finally {
+      state.notificationBusy = false;
+    }
+  }
+
   async function markAllVisibleRead() {
     const unread = state.notifications.filter(item => !item.is_read);
     for (const item of unread) {
       try {
-        await request("/api/notifications/" + escapePath(item.id) + "/read", { method: "POST", body: {} });
+        const result = await request("/api/notifications/" + escapePath(item.id) + "/read", { method: "POST", body: {} });
         item.is_read = true;
+        if (Number.isFinite(Number(result.unread_count))) state.unreadNotificationCount = Number(result.unread_count);
       } catch (_) { /* Continue marking other visible items even if one has expired. */ }
     }
+    // Refresh the authoritative unread count, including unread items outside this visible page.
+    try {
+      const refreshed = await request("/api/notifications?limit=20");
+      state.notifications = Array.isArray(refreshed.notifications) ? refreshed.notifications : [];
+      state.unreadNotificationCount = Number.isFinite(Number(refreshed.unread_count))
+        ? Number(refreshed.unread_count)
+        : state.notifications.filter(item => !item.is_read).length;
+    } catch (_) { /* Keep the latest locally confirmed state if refresh fails. */ }
     updateNavigationCounts();
     renderNotifications();
     toast("Visible notifications marked as read.");

@@ -47,6 +47,13 @@ Notable changes to TeamCode Hub are recorded here.
 - Add connected edit dialogs in the English workspace, refresh the relevant records after save, and retain task, membership, and chat history.
 - Add MariaDB integration coverage for authorized edits and rejected owner/manager/member permission boundaries.
 
+### Live notification synchronization
+
+- Refresh recent notifications and authoritative unread counts every 30 seconds while the authenticated workspace is visible.
+- Trigger a refresh when the user returns to the tab and stop polling when the authentication screen is shown.
+- Update the open notification inbox only when its visible data changes, avoiding unnecessary re-renders and scroll disruption.
+- Keep notification polling failures isolated from the rest of the workspace and add UI contract checks.
+
 ### Project chat synchronization
 
 - Fix the background reconciliation counter so the bounded full sync actually runs every fourth poll.

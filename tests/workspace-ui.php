@@ -80,6 +80,8 @@ $assert(str_contains($js, 'if (messages.length > 0)') && str_contains($js, 'cons
 $assert(str_contains($js, '/comments') && str_contains($js, '/subtasks') && str_contains($js, 'openTaskDetails'), 'task details UI connects comment threads, checklists, and editing');
 $assert(str_contains($js, '/details') && str_contains($js, '/edit'), 'task details UI calls the read and edit endpoints');
 $assert(str_contains($bootstrap, '/api/projects/{projectId}/assignees') && str_contains($js, '/assignees?q='), 'task assignee search is connected to the project-scoped API');
+$assert(str_contains($js, 'function startNotificationPolling') && str_contains($js, 'function pollNotifications') && str_contains($js, 'visibilitychange'), 'recent notifications and unread badges synchronize while the app is visible');
+$assert(str_contains($js, 'unreadNotificationCount') && str_contains($js, 'notificationBusy') && str_contains($js, 'stopNotificationPolling'), 'notification sync maintains authoritative unread counts and stops on sign-out');
 $assert(str_contains($js, 'type: "member-picker"') && str_contains($js, 'mountAssigneePicker') && str_contains($js, 'makeAssigneeField'), 'task create and edit forms use the searchable assignee picker');
 $assert(str_contains($css, '.assignee-picker-option') && str_contains($css, '.assignee-picker-selection'), 'task assignee search has dedicated responsive styles');
 $assert(str_contains($css, '.task-details-modal') && str_contains($css, '.task-checklist') && str_contains($css, '.task-comment-row'), 'task collaboration views have dedicated responsive styles');
