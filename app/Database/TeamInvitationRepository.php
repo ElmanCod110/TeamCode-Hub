@@ -39,8 +39,12 @@ final class TeamInvitationRepository
                 'SELECT tm.status FROM team_memberships tm INNER JOIN users u ON u.id = tm.user_id WHERE tm.team_id = :team_id AND u.email = :email LIMIT 1 FOR UPDATE'
             );
             $member->execute(['team_id' => $teamId, 'email' => $email]);
-            if ($member->fetchColumn() === 'active') {
+            $memberStatus = $member->fetchColumn();
+            if ($memberStatus === 'active') {
                 throw new DomainException('Email is already a member.');
+            }
+            if ($memberStatus === 'suspended') {
+                throw new DomainException('Email belongs to a suspended member.');
             }
 
             $existing = $this->pdo->prepare(
@@ -162,7 +166,7 @@ final class TeamInvitationRepository
         $this->pdo->beginTransaction();
         try {
             $access = $this->pdo->prepare(
-                "SELECT role FROM team_memberships WHERE user_id = :user_id AND team_id = :team_id AND status = 'active' LIMIT 1 FOR UPDATE"
+                "SELECT tm.role FROM team_memberships tm INNER JOIN teams t ON t.id = tm.team_id AND t.status = 'active' WHERE tm.user_id = :user_id AND tm.team_id = :team_id AND tm.status = 'active' LIMIT 1 FOR UPDATE"
             );
             $access->execute(['user_id' => $actorId, 'team_id' => $teamId]);
             if (!in_array($access->fetchColumn(), ['owner', 'manager'], true)) {
@@ -186,15 +190,18 @@ final class TeamInvitationRepository
     }
 
     /** @return list<array<string, mixed>> */
-    public function listPendingForTeam(int $teamId): array
+    public function listPendingForManager(int $actorId, int $teamId): array
     {
         $statement = $this->pdo->prepare(
             "SELECT id, email, role, expires_at, created_at
-             FROM team_invitations
-             WHERE team_id = :team_id AND status = 'pending' AND expires_at > CURRENT_TIMESTAMP
-             ORDER BY created_at DESC, id DESC"
+             FROM team_invitations ti
+             INNER JOIN team_memberships tm ON tm.team_id = ti.team_id AND tm.user_id = :user_id AND tm.status = 'active'
+             INNER JOIN teams t ON t.id = ti.team_id AND t.status = 'active'
+             WHERE ti.team_id = :team_id AND ti.status = 'pending' AND ti.expires_at > CURRENT_TIMESTAMP
+               AND tm.role IN ('owner', 'manager')
+             ORDER BY ti.created_at DESC, ti.id DESC"
         );
-        $statement->execute(['team_id' => $teamId]);
+        $statement->execute(['user_id' => $actorId, 'team_id' => $teamId]);
         $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
         return array_map(static function (array $row): array {
             $row['id'] = (int) $row['id'];
