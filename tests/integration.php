@@ -105,6 +105,15 @@ try {
     $teams = new TeamRepository($pdo);
     $team = $teams->createForOwner($adminId, 'Integration Team');
     $teamId = $team['id'];
+    $teams->updateNameForManager($adminId, $teamId, 'Updated Integration Team');
+    $assert($teams->findAccessibleByUser($teamId, $adminId)['name'] === 'Updated Integration Team', 'team owner can update team display name');
+    $teamEditDenied = false;
+    try {
+        $teams->updateNameForManager($outsiderId, $teamId, 'Unauthorized Team Rename');
+    } catch (DomainException) {
+        $teamEditDenied = true;
+    }
+    $assert($teamEditDenied, 'non-members cannot update team settings');
     $assert($teams->findAccessibleByUser($teamId, $adminId) !== null, 'team creator receives active owner membership');
     $assert($teams->listForUser($outsiderId) === [], 'unrelated user cannot discover team in their list');
 
@@ -150,6 +159,16 @@ try {
 
     $projects = new ProjectRepository($pdo);
     $projectId = $projects->createForTeamManager($adminId, $teamId, 'Integration Project', 'Testing project access');
+    $projects->updateForTeamManager($adminId, $projectId, 'Updated Integration Project', 'Updated project description');
+    $updatedProject = $projects->findAccessibleByUser($adminId, $projectId);
+    $assert(is_array($updatedProject) && $updatedProject['name'] === 'Updated Integration Project' && $updatedProject['description'] === 'Updated project description', 'team owner can update project name and description');
+    $projectEditDenied = false;
+    try {
+        $projects->updateForTeamManager($outsiderId, $projectId, 'Unauthorized Project Rename', null);
+    } catch (DomainException) {
+        $projectEditDenied = true;
+    }
+    $assert($projectEditDenied, 'non-members cannot update project settings');
     $projectMemberships = new ProjectMembershipRepository($pdo);
 
     $projectMemberships->assignPending($adminId, $projectId, $memberId, 'member');
