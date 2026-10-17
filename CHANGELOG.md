@@ -15,6 +15,7 @@ Notable changes to TeamCode Hub are recorded here.
 - Add task creation, status changes, search/filter controls, and conversion of local date input to UTC API values.
 - Add project chat send/edit/delete/report controls with eight-second incremental polling and periodic bounded-window reconciliation for existing-message edits/deletions.
 - Add user-scoped notification read actions and safe, text-only toast feedback.
+- Add permission-gated moderation queues with captured conversation context and server-authorized report review actions.
 - Add a same-origin Content Security Policy to HTML responses and keep product CSS/JavaScript in external versioned files.
 - Add workspace UI contract tests and CI syntax checks for the new controller.
 
