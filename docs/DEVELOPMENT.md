@@ -13,7 +13,7 @@ The repository includes core routing/module primitives, database configuration a
 
 ## Validation
 
-Run syntax checks on changed PHP files with `php -l path/to/file.php`. Run the fast smoke suite with `php tests/run.php`.
+Run syntax checks on changed PHP files with `php -l path/to/file.php`. Run the fast smoke suite with `php tests/run.php`. Run design-system checks with `php tests/design-system.php`, and check browser-script syntax with `node --check public/assets/js/ui.js` and `node --check public/assets/js/design-system-demo.js`.
 
 For database integration testing, configure `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, and `DB_PASSWORD` to point at a disposable test database, then run `php tests/integration.php`. The integration suite applies versioned migrations and exercises invitations, access approval, project/task authorization, quotas, login throttling, and authentication. Do not point this test at production data; it inserts and modifies rows.
 
