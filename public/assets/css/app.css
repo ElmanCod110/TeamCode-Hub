@@ -9,6 +9,7 @@
 @import url("./base.css?v=0.2.0-dev");
 @import url("./layout.css?v=0.2.0-dev");
 @import url("./components.css?v=0.2.0-dev");
+@import url("./patterns.css?v=0.2.0-dev");
 @import url("./utilities.css?v=0.2.0-dev");
 
 /* Keep the document canvas consistent when pages use a full-height shell. */
