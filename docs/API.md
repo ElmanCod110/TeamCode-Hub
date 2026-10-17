@@ -58,6 +58,19 @@ Pending and revoked project memberships cannot access project routes. Only appro
 - `POST /api/projects/{projectId}/tasks` — creates a task; requires approved `member` access and CSRF protection. Body: `{"title":"Review pull request","description":"Optional","priority":"normal","assigned_to":123,"due_at":"2026-11-01 12:00:00"}`. Priorities: `low`, `normal`, `high`, `urgent`. Due dates use UTC `YYYY-MM-DD HH:MM:SS`. An assignee must have approved `member` access to the same project.
 - `POST /api/projects/{projectId}/tasks/{taskId}/status` — changes task status; requires approved `member` access and CSRF protection. Body: `{"status":"in_progress"}`. Statuses: `todo`, `in_progress`, `blocked`, `done`.
 
+## Task details, comments, and checklists
+
+- `POST /api/projects/{projectId}/tasks/{taskId}/edit` — updates title, description, priority, assignee, and UTC due date. Requires CSRF protection and approved member-level access. Reassignment is restricted to active approved member-level project users.
+- `GET /api/projects/{projectId}/tasks/{taskId}/details` — returns the task, up to 100 comments, and up to 50 checklist items for approved project members/viewers.
+- `POST /api/projects/{projectId}/tasks/{taskId}/comments` — body: `{"body":"Implementation note"}`. Requires approved member-level access and CSRF protection; body is limited to 4,000 bytes. A new comment notifies the task creator and current assignee, excluding the author.
+- `POST /api/projects/{projectId}/tasks/{taskId}/comments/{commentId}/edit` — body: `{"body":"Updated note"}`. Only the comment author may edit within 15 minutes.
+- `POST /api/projects/{projectId}/tasks/{taskId}/comments/{commentId}/delete` — soft-deletes the author's comment and preserves a visible deletion marker in the thread.
+- `POST /api/projects/{projectId}/tasks/{taskId}/subtasks` — body: `{"title":"Add regression coverage"}`. Creates a checklist item; at most 50 items per task.
+- `POST /api/projects/{projectId}/tasks/{taskId}/subtasks/{subtaskId}/toggle` — toggles completion for a checklist item; requires approved member-level access.
+- `POST /api/projects/{projectId}/tasks/{taskId}/subtasks/{subtaskId}/delete` — deletion is limited to the checklist item's creator or the task creator.
+
+Viewers can read task details, comments, and checklist items but cannot edit tasks, post comments, or mutate checklist state. These permissions are checked in the repository layer, not just in the browser.
+
 ## Project chat
 
 - `GET /api/projects/{projectId}/chat` — returns at most 50 visible messages. The first request returns the latest 50 in chronological order. Pass `?after_id=<last_message_id>` to retrieve newer messages incrementally; there are no page-number controls.
