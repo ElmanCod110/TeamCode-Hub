@@ -238,6 +238,10 @@ return static function (): void {
     $router->get('/api/teams/{teamId}', static fn (Request $request, array $params): Response =>
         $modules->get('workspace.controller')->showTeam($request, $params)
     );
+
+    $router->get('/api/teams/{teamId}/members', static fn (Request $request, array $params): Response =>
+        $modules->get('workspace.controller')->listTeamMembers($request, $params)
+    );
     $router->get('/api/teams/{teamId}/projects', static fn (Request $request, array $params): Response =>
         $modules->get('workspace.controller')->listProjects($request, $params)
     );
