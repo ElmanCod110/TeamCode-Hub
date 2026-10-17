@@ -11,8 +11,11 @@ use Throwable;
 
 final class TeamInvitationRepository
 {
+    private readonly NotificationRepository $notifications;
+
     public function __construct(private readonly PDO $pdo)
     {
+        $this->notifications = new NotificationRepository($pdo);
     }
 
     /** @return array{id:int,team_id:int,email:string,token:string,expires_at:string} */
@@ -151,6 +154,13 @@ final class TeamInvitationRepository
                 "UPDATE team_invitations SET status = 'accepted', accepted_by = :user_id, accepted_at = CURRENT_TIMESTAMP WHERE id = :id"
             );
             $accept->execute(['user_id' => $userId, 'id' => $invitation['id']]);
+            $this->notifications->create(
+                (int) $invitation['invited_by'],
+                'team_invitation_accepted',
+                'Team invitation accepted',
+                'A pending team invitation was accepted.',
+                ['team_id' => (int) $invitation['team_id'], 'user_id' => $userId],
+            );
             $this->pdo->commit();
             return (int) $invitation['team_id'];
         } catch (Throwable $error) {
