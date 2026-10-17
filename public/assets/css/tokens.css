@@ -131,6 +131,10 @@
   --g700: #e4e4e7;
   --g800: #f4f4f5;
   --g900: #fafafa;
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  --info: #93c5fd;
   --success-bg: #102719;
   --warning-bg: #2b2110;
   --danger-bg: #2b1414;
