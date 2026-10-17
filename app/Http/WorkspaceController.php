@@ -85,6 +85,28 @@ final class WorkspaceController
         return Response::json(['team' => $team]);
     }
 
+    /**
+     * Expose the team roster only to active owners/managers.
+     * TeamRepository repeats the role predicate in the member-list query.
+     */
+    public function listTeamMembers(Request $request, array $params): Response
+    {
+        $user = $this->currentUser();
+        $teamId = $this->positiveId($params['teamId'] ?? null);
+        if ($user === null) {
+            return Response::json(['error' => 'Authentication required.'], 401);
+        }
+        if ($teamId === null || !$this->teamAccess->canManage($user['id'], $teamId)) {
+            return Response::json(['error' => 'Team not found or management permission denied.'], 404);
+        }
+
+        try {
+            return Response::json(['members' => $this->teams->listActiveMembersForManager($user['id'], $teamId)]);
+        } catch (DomainException) {
+            return Response::json(['error' => 'Team not found or management permission denied.'], 404);
+        }
+    }
+
     public function showTeam(Request $request, array $params): Response
     {
         $user = $this->currentUser();
