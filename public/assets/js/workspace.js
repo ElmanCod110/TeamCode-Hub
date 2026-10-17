@@ -1456,7 +1456,6 @@
 
   $("#login-form").addEventListener("submit", login);
   document.addEventListener("click", event => {
-    if (event.target.closest("[data-sidebar-toggle]")) openSidebar();
     if (event.target.closest("[data-sidebar-close]")) closeSidebar();
   });
   window.addEventListener("hashchange", routeFromHash);
