@@ -141,10 +141,10 @@ final class ProjectRepository
                 'project_id' => $projectId,
             ]);
             if ($update->rowCount() < 0) {
-                throw new \\RuntimeException('Project settings could not be saved.');
+                throw new \RuntimeException('Project settings could not be saved.');
             }
             $this->pdo->commit();
-        } catch (\\Throwable $error) {
+        } catch (\Throwable $error) {
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
