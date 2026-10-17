@@ -8,6 +8,8 @@ use TeamCodeHub\Core\Response;
 use TeamCodeHub\Core\Router;
 use TeamCodeHub\Database\DatabaseConfig;
 use TeamCodeHub\Security\PermissionChecker;
+use TeamCodeHub\Security\CsrfToken;
+use TeamCodeHub\Security\SecureSession;
 
 require dirname(__DIR__) . '/app/bootstrap.php';
 
@@ -103,6 +105,6 @@ $assert(session_status() === PHP_SESSION_ACTIVE, 'secure session starts successf
 SecureSession::destroy();
 $assert(session_status() !== PHP_SESSION_ACTIVE, 'logout destroys the active session');
 
-echo "\\n{$passed} assertions passed.\\n";
+echo "\n{$passed} assertions passed.\n";
 $output = ob_get_clean();
 echo $output;
