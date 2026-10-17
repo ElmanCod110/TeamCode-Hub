@@ -33,6 +33,7 @@ Notable changes to TeamCode Hub are recorded here.
 - Add responsive sidebar, mobile navigation, connection state, notifications indicator, and light/dark/system theme preference.
 - Connect overview metrics and recent activity to the dashboard, team, task, and notification APIs.
 - Add team listing, team creation, team project views, and one-time invitation creation for authorized team owners/managers.
+- Add a manager-only active team roster with member IDs, display names, email addresses, roles, and join timestamps; credential fields are never selected.
 - Add project directory, project details, task/member/chat tabs, project-member assignment and moderation controls.
 - Add task creation, status changes, search/filter controls, and conversion of local date input to UTC API values.
 - Add transactional task editing and reassignment with approved member-level assignee validation.
