@@ -19,3 +19,7 @@
 @media (max-width: 720px) {
   .demo-foot-note { margin-inline-start: 0; }
 }
+
+/* Typography samples are classes rather than inline declarations, keeping markup clean. */
+.demo-type-display { font-size: clamp(2rem, 5vw, 2.5rem); letter-spacing: -.04em; }
+.demo-type-heading { font-size: 24px; }
