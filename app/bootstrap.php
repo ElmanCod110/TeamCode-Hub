@@ -11,9 +11,11 @@ use TeamCodeHub\Database\DatabaseConfig;
 use TeamCodeHub\Database\MembershipRepository;
 use TeamCodeHub\Database\ProjectRepository;
 use TeamCodeHub\Database\TeamRepository;
+use TeamCodeHub\Database\TeamInvitationRepository;
 use TeamCodeHub\Database\UserRepository;
 use TeamCodeHub\Http\AuthController;
 use TeamCodeHub\Http\WorkspaceController;
+use TeamCodeHub\Http\TeamInvitationController;
 use TeamCodeHub\Security\AuthenticationService;
 use TeamCodeHub\Security\CsrfToken;
 use TeamCodeHub\Security\LoginRateLimiter;
@@ -43,6 +45,17 @@ return static function (): void {
         return new AuthController(
             new AuthenticationService(new UserRepository($pdo)),
             new LoginRateLimiter($pdo),
+        );
+    });
+
+    $modules->register('team-invitation.controller', static function (): object {
+        $pdo = ConnectionFactory::connect(DatabaseConfig::fromEnvironment());
+        $users = new UserRepository($pdo);
+        $memberships = new MembershipRepository($pdo);
+        return new TeamInvitationController(
+            new AuthenticationService($users),
+            new TeamAccessService($memberships),
+            new TeamInvitationRepository($pdo),
         );
     });
 
@@ -103,6 +116,19 @@ return static function (): void {
     );
     $router->get('/api/projects/{projectId}', static fn (Request $request, array $params): Response =>
         $modules->get('workspace.controller')->showProject($request, $params)
+    );
+
+    $router->get('/api/teams/{teamId}/invitations', static fn (Request $request, array $params): Response =>
+        $modules->get('team-invitation.controller')->list($request, $params)
+    );
+    $router->post('/api/teams/{teamId}/invitations', static fn (Request $request, array $params): Response =>
+        $modules->get('team-invitation.controller')->create($request, $params)
+    );
+    $router->add('DELETE', '/api/teams/{teamId}/invitations/{invitationId}', static fn (Request $request, array $params): Response =>
+        $modules->get('team-invitation.controller')->revoke($request, $params)
+    );
+    $router->post('/api/team-invitations/accept', static fn (Request $request, array $params): Response =>
+        $modules->get('team-invitation.controller')->accept($request)
     );
 
     $response = $router->dispatch(Request::fromGlobals());
