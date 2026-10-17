@@ -45,12 +45,12 @@ $demoPage = $read('public/design-system.html');
 $demoCss = $read('public/assets/css/design-system-demo.css');
 
 $expectedImports = [
-    '@import url("./tokens.css?v=0.2.0-dev");',
-    '@import url("./base.css?v=0.2.0-dev");',
-    '@import url("./layout.css?v=0.2.0-dev");',
-    '@import url("./components.css?v=0.2.0-dev");',
-    '@import url("./patterns.css?v=0.2.0-dev");',
-    '@import url("./utilities.css?v=0.2.0-dev");',
+    '@import url("./tokens.css?v=0.2.1-dev");',
+    '@import url("./base.css?v=0.2.1-dev");',
+    '@import url("./layout.css?v=0.2.1-dev");',
+    '@import url("./components.css?v=0.2.1-dev");',
+    '@import url("./patterns.css?v=0.2.1-dev");',
+    '@import url("./utilities.css?v=0.2.1-dev");',
 ];
 $lastPosition = -1;
 foreach ($expectedImports as $import) {
