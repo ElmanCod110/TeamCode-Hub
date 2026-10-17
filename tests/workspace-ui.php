@@ -71,6 +71,7 @@ $assert(str_contains($bootstrap, '/members/{userId}/access') && str_contains($js
 $assert(str_contains($js, '!member.is_project_creator') && str_contains($js, 'member.access_level === "member" ? "viewer" : "member"'), 'UI protects the project creator and offers explicit viewer/member transitions');
 $assert(str_contains($js, 'chatPollCount: 0') && str_contains($js, 'chatMessageVersion'), 'chat polling tracks bounded reconciliation and message revisions');
 $assert(str_contains($js, 'incomingIds') && str_contains($js, 'existing.dataset.messageVersion') && str_contains($js, 'previousScrollHeight'), 'chat polling reconciles edited/deleted messages while preserving the reading position');
+$assert(str_contains($js, 'if (messages.length > 0)') && str_contains($js, 'const placeholder = $(".empty-state", list)'), 'new incremental chat messages clear the empty-conversation placeholder');
 $assert(str_contains($js, '/comments') && str_contains($js, '/subtasks') && str_contains($js, 'openTaskDetails'), 'task details UI connects comment threads, checklists, and editing');
 $assert(str_contains($js, '/details') && str_contains($js, '/edit'), 'task details UI calls the read and edit endpoints');
 $assert(str_contains($css, '.task-details-modal') && str_contains($css, '.task-checklist') && str_contains($css, '.task-comment-row'), 'task collaboration views have dedicated responsive styles');
