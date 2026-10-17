@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Added owner/manager-only team renaming with CSRF validation and repository-level authorization.
+- Added owner/manager-only project name and description editing without changing membership or access levels.
+- Added workspace dialogs for team and project settings and expanded authorization/integration checks.
+
 Notable changes to TeamCode Hub are recorded here.
 
 ## [0.2.0-dev] - Unreleased
