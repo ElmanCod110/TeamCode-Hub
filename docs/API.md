@@ -51,6 +51,7 @@ Invitation creation reserves a team member slot. Active memberships plus unexpir
 - `POST /api/projects/{projectId}/restore` — restores an archived project for an active team owner/manager. Requires CSRF protection and available active project quota; returns `409` if restoring would exceed the team's active project limit.
 - `GET /api/projects/{projectId}` — returns project details only when the user's project membership is approved and team membership is active. Viewers have read-only access.
 - `GET /api/projects/{projectId}/members` — lists membership details for active team owners/managers only.
+- `GET /api/projects/{projectId}/members/candidates?q=<term>` — searches up to 12 active users who belong to the project's team and do not already have approved project access. Search matches display name/email or an exact user ID. A pending membership is returned with its status so managers can update the pending access level. Requires active team owner/manager access; the query must contain 1–80 valid UTF-8 bytes.
 - `POST /api/projects/{projectId}/members` — assigns an active team member with body `{"user_id":123,"access_level":"viewer"}` or `member`. Assignment is pending by default and requires CSRF protection.
 - `POST /api/projects/{projectId}/members/{userId}/approve` — approves a pending project membership. Requires CSRF protection and active team owner/manager permissions.
 - `POST /api/projects/{projectId}/members/{userId}/revoke` — revokes pending or approved access. The project creator cannot be revoked through this endpoint. Requires CSRF protection.
@@ -107,4 +108,4 @@ Only one report per reporter per reported person per UTC day is accepted. A vali
 
 ## Current limits
 
-Public registration, email verification, password recovery, invitation email delivery, team editing/deletion, project editing/deletion, task editing/assignment after creation, comments, subtasks, chat UI/polling client, Git integration, and admin UI are not implemented yet. Future routes must repeat authorization checks in their data-access path rather than trusting a prior UI check alone.
+Public registration, email verification, password recovery, automatic invitation email delivery, permanent team/project deletion, Git provider synchronization, richer administrative pages, and browser-level visual/accessibility tests are not implemented yet. Project chat uses bounded HTTP polling rather than WebSockets or push delivery. Future routes must repeat authorization checks in their data-access path rather than trusting a prior UI check alone.

@@ -189,6 +189,26 @@ try {
     $managerMembers = $projectMemberships->listForManager($adminId, $projectId);
     $assert(count($managerMembers) === 3, 'project manager can list approved project memberships');
 
+    $candidateId = $insertUser('candidate@example.test', 'Directory Candidate', 'A-Strong-Test-Password-47');
+    $pdo->prepare("INSERT INTO team_memberships (team_id, user_id, role, status) VALUES (:team_id, :user_id, 'member', 'active')")
+        ->execute(['team_id' => $teamId, 'user_id' => $candidateId]);
+    $candidateSearch = $projectMemberships->searchAssignableTeamMembers($adminId, $projectId, 'Directory Candidate');
+    $assert(count($candidateSearch) === 1 && $candidateSearch[0]['user_id'] === $candidateId, 'manager can search active team members eligible for project assignment');
+    $candidateById = $projectMemberships->searchAssignableTeamMembers($adminId, $projectId, (string) $candidateId);
+    $assert(count($candidateById) === 1 && $candidateById[0]['user_id'] === $candidateId, 'member search supports exact user ID lookup');
+    $approvedMemberSearch = $projectMemberships->searchAssignableTeamMembers($adminId, $projectId, 'admin@example.test');
+    $assert($approvedMemberSearch === [], 'member search excludes users who already have approved project access');
+    $projectMemberships->assignPending($adminId, $projectId, $candidateId, 'member');
+    $pendingCandidateSearch = $projectMemberships->searchAssignableTeamMembers($adminId, $projectId, 'candidate@example.test');
+    $assert(count($pendingCandidateSearch) === 1 && $pendingCandidateSearch[0]['existing_status'] === 'pending', 'member search returns pending assignments with their current status');
+    $unauthorizedDirectorySearchRejected = false;
+    try {
+        $projectMemberships->searchAssignableTeamMembers($outsiderId, $projectId, 'candidate');
+    } catch (DomainException) {
+        $unauthorizedDirectorySearchRejected = true;
+    }
+    $assert($unauthorizedDirectorySearchRejected, 'unrelated users cannot search a project team directory');
+
     // A second active manager enables the multi-reporter escalation path.
     $pdo->prepare("INSERT INTO team_memberships (team_id, user_id, role, status) VALUES (:team_id, :user_id, 'manager', 'active')")
         ->execute(['team_id' => $teamId, 'user_id' => $manager2Id]);

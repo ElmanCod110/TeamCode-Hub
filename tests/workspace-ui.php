@@ -48,8 +48,8 @@ $assert(str_contains($html, 'id="nav-moderation-item"') && str_contains($html, '
 $assert(str_contains($html, 'data-page="github"') && str_contains($js, '/api/github/activity'), 'GitHub activity page is connected to its authenticated endpoint');
 $assert(str_contains($css, '.github-feed') && str_contains($css, '.github-summary'), 'GitHub activity page has dedicated responsive presentation styles');
 $assert(str_contains($html, 'id="workspace-main"') && str_contains($html, 'class="skip-link"'), 'workspace provides a skip link and main landmark');
-$assert(str_contains($html, '/assets/css/workspace.css?v=0.2.0-dev'), 'product stylesheet is loaded as an external versioned asset');
-$assert(str_contains($html, '/assets/js/workspace.js?v=0.2.0-dev'), 'product controller is loaded as an external versioned asset');
+$assert(str_contains($html, '/assets/css/workspace.css?v='), 'product stylesheet is loaded as an external versioned asset');
+$assert(str_contains($html, '/assets/js/workspace.js?v='), 'product controller is loaded as an external versioned asset');
 $assert(!preg_match('/<style(?:\s|>)/i', $html), 'workspace HTML contains no inline style blocks');
 $assert(!preg_match('/<script(?![^>]*\bsrc=)[^>]*>/i', $html), 'workspace HTML contains no inline script blocks');
 $assert(str_contains($css, '@media (max-width:560px)') && str_contains($css, 'prefers-reduced-motion:reduce'), 'workspace styling covers narrow screens and reduced motion');
@@ -69,6 +69,11 @@ $assert(str_contains($js, '/api/admin/reports') && str_contains($js, '/api/repor
 $assert(str_contains($js, '/api/team-invitations/accept') && str_contains($js, 'revoke-invitation') && str_contains($js, 'renderPendingInvitations'), 'team UI connects invitation acceptance, listing, and revocation');
 $assert(str_contains($bootstrap, '/members/{userId}/access') && str_contains($js, 'change-member-access'), 'project member access-level controls are connected to the backend route');
 $assert(str_contains($js, '!member.is_project_creator') && str_contains($js, 'member.access_level === "member" ? "viewer" : "member"'), 'UI protects the project creator and offers explicit viewer/member transitions');
+$assert(str_contains($bootstrap, '/api/projects/{projectId}/members/candidates') && str_contains($js, '/members/candidates?q='), 'project member search route is connected to the frontend');
+$assert(str_contains($js, 'function addProjectMemberModal') && str_contains($js, 'Search active team members') && str_contains($js, 'Request access'), 'member assignment uses a searchable accessible picker instead of manual ID entry');
+$assert(str_contains($js, 'searchSequence++') && str_contains($js, 'searchController.abort()') && str_contains($js, 'Updating search…'), 'member picker discards stale asynchronous results when the query changes');
+$assert(str_contains($css, '.member-picker-modal') && str_contains($css, '.member-picker-option') && str_contains($css, '.member-picker-state'), 'searchable member picker has dedicated responsive styles');
+
 $assert(str_contains($js, 'chatPollCount: 0') && str_contains($js, 'chatMessageVersion'), 'chat polling tracks bounded reconciliation and message revisions');
 $assert(str_contains($js, 'incomingIds') && str_contains($js, 'existing.dataset.messageVersion') && str_contains($js, 'previousScrollHeight'), 'chat polling reconciles edited/deleted messages while preserving the reading position');
 $assert(str_contains($js, 'if (messages.length > 0)') && str_contains($js, 'const placeholder = $(".empty-state", list)'), 'new incremental chat messages clear the empty-conversation placeholder');

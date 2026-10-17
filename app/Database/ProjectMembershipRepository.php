@@ -47,6 +47,63 @@ final class ProjectMembershipRepository
         }
     }
 
+    /**
+     * Search active members of the project's team who can be assigned to the project.
+     *
+     * @return list<array{user_id:int,display_name:string,email:string,team_role:string,existing_status:?string}>
+     */
+    public function searchAssignableTeamMembers(int $actorId, int $projectId, string $query): array
+    {
+        $query = trim($query);
+        if ($query === '' || strlen($query) > 80 || preg_match('//u', $query) !== 1) {
+            throw new DomainException('Search query must contain 1 to 80 valid UTF-8 bytes.');
+        }
+
+        $this->pdo->beginTransaction();
+        try {
+            $project = $this->lockProjectForManager($actorId, $projectId);
+            $statement = $this->pdo->prepare(
+                "SELECT u.id AS user_id, u.display_name, u.email, tm.role AS team_role,
+                        pm.status AS existing_status
+                 FROM team_memberships tm
+                 INNER JOIN users u ON u.id = tm.user_id AND u.status = 'active'
+                 LEFT JOIN project_memberships pm
+                   ON pm.project_id = :project_id AND pm.user_id = tm.user_id
+                 WHERE tm.team_id = :team_id AND tm.status = 'active'
+                   AND (pm.status IS NULL OR pm.status <> 'approved')
+                   AND (u.display_name LIKE :name_query OR u.email LIKE :email_query
+                        OR CAST(u.id AS CHAR) = :exact_id)
+                 ORDER BY
+                   CASE WHEN CAST(u.id AS CHAR) = :sort_id THEN 0 ELSE 1 END,
+                   u.display_name ASC, u.id ASC
+                 LIMIT 12"
+            );
+            $term = '%' . $query . '%';
+            $statement->execute([
+                'project_id' => $projectId,
+                'team_id' => $project['team_id'],
+                'name_query' => $term,
+                'email_query' => $term,
+                'exact_id' => $query,
+                'sort_id' => $query,
+            ]);
+            $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+            $this->pdo->commit();
+            return array_map(static fn (array $row): array => [
+                'user_id' => (int) $row['user_id'],
+                'display_name' => (string) $row['display_name'],
+                'email' => (string) $row['email'],
+                'team_role' => (string) $row['team_role'],
+                'existing_status' => $row['existing_status'] === null ? null : (string) $row['existing_status'],
+            ], $rows);
+        } catch (Throwable $error) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $error;
+        }
+    }
+
     public function assignPending(int $actorId, int $projectId, int $targetUserId, string $accessLevel): int
     {
         if (!in_array($accessLevel, ['viewer', 'member'], true)) {
