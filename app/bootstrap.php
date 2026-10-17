@@ -235,6 +235,12 @@ return static function (): void {
     $router->get('/api/teams/{teamId}', static fn (Request $request, array $params): Response =>
         $modules->get('workspace.controller')->showTeam($request, $params)
     );
+    $router->post('/api/teams/{teamId}/edit', static fn (Request $request, array $params): Response =>
+        $modules->get('workspace.controller')->editTeam($request, $params)
+    );
+    $router->post('/api/teams/{teamId}/archive', static fn (Request $request, array $params): Response =>
+        $modules->get('workspace.controller')->archiveTeam($request, $params)
+    );
     $router->get('/api/teams/{teamId}/projects', static fn (Request $request, array $params): Response =>
         $modules->get('workspace.controller')->listProjects($request, $params)
     );
@@ -243,6 +249,12 @@ return static function (): void {
     );
     $router->get('/api/projects/{projectId}', static fn (Request $request, array $params): Response =>
         $modules->get('workspace.controller')->showProject($request, $params)
+    );
+    $router->post('/api/projects/{projectId}/edit', static fn (Request $request, array $params): Response =>
+        $modules->get('workspace.controller')->editProject($request, $params)
+    );
+    $router->post('/api/projects/{projectId}/archive', static fn (Request $request, array $params): Response =>
+        $modules->get('workspace.controller')->archiveProject($request, $params)
     );
 
     $router->get('/api/projects/{projectId}/tasks', static fn (Request $request, array $params): Response =>
