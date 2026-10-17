@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace TeamCodeHub\Http;
 
 use TeamCodeHub\Core\Response;
-use TeamCodeHub\Database\UserRepository;
 use TeamCodeHub\Security\AuthenticationService;
 use TeamCodeHub\Security\SecureSession;
 use TeamCodeHub\Services\GitHubActivityService;
