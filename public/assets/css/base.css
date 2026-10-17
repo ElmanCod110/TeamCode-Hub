@@ -1,0 +1,117 @@
+/* ==========================================================================
+   TeamCode Hub Design System — Base styles
+   File: public/assets/css/base.css
+   Purpose: Predictable browser defaults, accessible typography, and safe media.
+   All user-facing copy and labels are authored in English. No web font is loaded.
+   ========================================================================== */
+
+/* Use border-box sizing so component dimensions remain predictable. */
+*, *::before, *::after { box-sizing: border-box; }
+
+/* Keep document behavior smooth only when the user has not reduced motion. */
+html {
+  min-width: 320px;
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  scrollbar-gutter: stable;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Form controls inherit the app font rather than browser-specific defaults. */
+button, input, select, textarea { font: inherit; }
+button, [role="button"], input[type="button"], input[type="submit"] { touch-action: manipulation; }
+button { color: inherit; }
+button:disabled, input:disabled, select:disabled, textarea:disabled { cursor: not-allowed; }
+textarea { resize: vertical; }
+fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+legend { padding: 0; }
+progress { vertical-align: baseline; }
+
+/* Reset margins on common content elements; spacing belongs to components. */
+h1, h2, h3, h4, h5, h6, p, figure, blockquote, dl, dd { margin: 0; }
+h1, h2, h3, h4, h5, h6 { font-weight: 650; line-height: 1.2; text-wrap: balance; }
+p { text-wrap: pretty; }
+ul, ol { margin: 0; padding-inline-start: 1.35em; }
+li + li { margin-block-start: .25em; }
+a { color: inherit; text-decoration: none; }
+a:hover { text-decoration-thickness: 1px; }
+img, picture, video, canvas, svg { display: block; max-width: 100%; }
+img, video { height: auto; }
+svg { flex: 0 0 auto; }
+table { border-collapse: collapse; border-spacing: 0; }
+code, pre, kbd, samp { font-family: var(--font-mono); }
+pre { overflow: auto; }
+code { font-size: .92em; }
+hr { height: 1px; margin: 0; border: 0; background: var(--border); }
+[hidden] { display: none !important; }
+
+/* Keep text selection legible in both supported themes. */
+::selection { color: var(--white); background: var(--g900); }
+
+/* Strong focus styles are available to keyboard and switch-device users. */
+:focus { outline-color: var(--g500); outline-offset: 2px; }
+:focus:not(:focus-visible) { outline: none; }
+:focus-visible { outline: 2px solid var(--g700); outline-offset: 3px; }
+a:focus-visible, button:focus-visible, input:focus-visible,
+select:focus-visible, textarea:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--g700);
+  outline-offset: 3px;
+}
+
+/* Accessible skip link remains hidden until focused. */
+.skip-link {
+  position: fixed;
+  z-index: var(--z-toast);
+  inset-block-start: var(--space-3);
+  inset-inline-start: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  color: var(--white);
+  background: var(--g900);
+  border-radius: var(--r);
+  transform: translateY(-160%);
+  transition: transform var(--t-fast);
+}
+.skip-link:focus { transform: translateY(0); }
+
+/* Use consistent native scrollbar styling where supported. */
+* {
+  scrollbar-color: var(--g300) var(--g50);
+  scrollbar-width: thin;
+}
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--g50); }
+::-webkit-scrollbar-thumb {
+  background: var(--g300);
+  border: 2px solid var(--g50);
+  border-radius: var(--r-full);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--g400); }
+
+/* The app shell can request left-to-right text for IDs, code, and numeric values. */
+.ltr, [dir="ltr"] { direction: ltr; }
+.text-ltr { direction: ltr; text-align: left; unicode-bidi: isolate; }
+.numeric { font-variant-numeric: tabular-nums; }
+
+/* Motion and transparency are reduced for users who request less animation. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}

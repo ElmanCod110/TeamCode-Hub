@@ -1,0 +1,32 @@
+/* ==========================================================================
+   TeamCode Hub Design System — Public entry point
+   File: public/assets/css/app.css
+   Purpose: Import design tokens first, then reset, layout, components, utilities.
+   Production pages should load this single stylesheet with a versioned URL.
+   ========================================================================== */
+
+@import url("./tokens.css?v=0.2.0-dev");
+@import url("./base.css?v=0.2.0-dev");
+@import url("./layout.css?v=0.2.0-dev");
+@import url("./components.css?v=0.2.0-dev");
+@import url("./utilities.css?v=0.2.0-dev");
+
+/* Keep the document canvas consistent when pages use a full-height shell. */
+body { background: var(--surface); color: var(--text); }
+
+/* Avoid horizontal page overflow from long names, IDs, and API responses. */
+main, section, article, aside, header, footer { min-width: 0; }
+pre, code, .break-long-content { overflow-wrap: anywhere; }
+
+/* Provide a quiet placeholder for unpopulated async content. */
+[data-loading="true"] { cursor: progress; }
+[data-loading="true"] .loading-target { opacity: .62; }
+
+/* Print pages without navigation chrome, overlays, or motion. */
+@media print {
+  .app-sidebar, .app-topbar, .site-header, .site-footer, .no-print,
+  .modal-overlay, .toast-region, .btn { display: none !important; }
+  body { color: #000; background: #fff; font-size: 11pt; }
+  .card, .stat, .table-wrap { border-color: #bbb; box-shadow: none; break-inside: avoid; }
+  a { text-decoration: underline; }
+}

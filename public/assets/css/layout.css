@@ -1,0 +1,89 @@
+/* ==========================================================================
+   TeamCode Hub Design System — Layout primitives
+   File: public/assets/css/layout.css
+   Purpose: Reusable containers, application shell, responsive grids, and spacing.
+   ========================================================================== */
+
+/* Main page width and readable article width. */
+.wrap { width: min(100% - 48px, var(--content-width)); margin-inline: auto; }
+.wrap-narrow { width: min(100% - 48px, var(--reading-width)); margin-inline: auto; }
+.page { min-height: 100vh; display: flex; flex-direction: column; }
+.page-main { flex: 1; min-width: 0; padding-block: var(--space-8) var(--space-16); }
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-5); margin-block-end: var(--space-8); }
+.page-header__copy { min-width: 0; }
+.page-title { font-size: clamp(1.65rem, 2.5vw, 2.35rem); letter-spacing: -.04em; line-height: 1.12; }
+.page-description { max-width: 680px; margin-block-start: var(--space-3); color: var(--text-secondary); }
+.eyebrow { color: var(--text-muted); font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+.section { padding-block: var(--space-10); border-block-end: 1px solid var(--border); }
+.section:last-child { border-block-end: 0; }
+.section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-4); margin-block-end: var(--space-5); }
+.section-title { font-size: var(--text-xl); letter-spacing: -.025em; }
+.section-hint { color: var(--text-muted); font-size: var(--text-sm); }
+
+/* Responsive grid primitives collapse naturally on smaller screens. */
+.grid { display: grid; gap: var(--space-4); min-width: 0; }
+.grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.grid-auto { grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+.stack { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+.stack-sm { gap: var(--space-2); }
+.stack-lg { gap: var(--space-6); }
+.cluster { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); min-width: 0; }
+.cluster-sm { gap: var(--space-2); }
+.cluster-lg { gap: var(--space-5); }
+.split { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
+.split-start { align-items: flex-start; }
+.flow > * + * { margin-block-start: var(--space-4); }
+.flow-sm > * + * { margin-block-start: var(--space-2); }
+.flow-lg > * + * { margin-block-start: var(--space-6); }
+
+/* Dashboard shell: sidebar stays separate from the main content column. */
+.app-shell { min-height: 100vh; display: grid; grid-template-columns: var(--sidebar-width) minmax(0, 1fr); }
+.app-sidebar { position: sticky; inset-block-start: 0; height: 100vh; overflow-y: auto; border-inline-end: 1px solid var(--border); background: var(--surface); }
+.app-main { min-width: 0; }
+.app-topbar { position: sticky; z-index: var(--z-sticky); inset-block-start: 0; display: flex; align-items: center; gap: var(--space-4); min-height: var(--header-height); padding-inline: var(--space-6); background: color-mix(in srgb, var(--surface) 92%, transparent); border-block-end: 1px solid var(--border); backdrop-filter: blur(12px); }
+.app-content { width: min(100% - 48px, var(--content-width)); margin-inline: auto; padding-block: var(--space-8) var(--space-16); }
+
+/* Horizontal overflow is isolated to the component that needs it. */
+.overflow-x { overflow-x: auto; max-width: 100%; }
+.min-w-0 { min-width: 0; }
+.w-full { width: 100%; }
+.max-w-prose { max-width: var(--reading-width); }
+.center { display: grid; place-items: center; }
+.center-inline { margin-inline: auto; }
+
+/* Common page header, navigation, and footer layouts. */
+.site-header { border-block-end: 1px solid var(--border); background: var(--surface); }
+.site-header__inner { display: flex; align-items: center; gap: var(--space-6); min-height: var(--header-height); }
+.site-footer { margin-block-start: auto; padding-block: var(--space-8); background: var(--surface-muted); border-block-start: 1px solid var(--border); }
+.site-footer__inner { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; color: var(--text-muted); font-size: var(--text-sm); }
+
+/* The backdrop sits below the mobile drawer and prevents accidental page interaction. */
+.sidebar-backdrop { position: fixed; z-index: calc(var(--z-overlay) - 1); inset: 0; border: 0; background: rgb(10 10 10 / 42%); }
+.sidebar-open { overflow: hidden; }
+
+/* Tablet layouts prioritize content width over a permanently visible sidebar. */
+@media (max-width: 960px) {
+  .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .app-shell { grid-template-columns: 76px minmax(0, 1fr); }
+  .app-sidebar .nav-label, .app-sidebar .nav-text { display: none; }
+  .app-sidebar .nav-item { justify-content: center; padding-inline: var(--space-2); }
+}
+@media (max-width: 720px) {
+  .wrap, .wrap-narrow { width: min(100% - 36px, var(--content-width)); }
+  .page-main { padding-block-start: var(--space-6); }
+  .page-header { flex-direction: column; align-items: stretch; }
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: minmax(0, 1fr); }
+  .section { padding-block: var(--space-8); }
+  .section-heading { align-items: flex-start; flex-direction: column; }
+  .app-shell { display: block; }
+  .app-sidebar { position: fixed; z-index: var(--z-overlay); inset-block: 0; inset-inline-start: 0; width: min(86vw, 300px); height: 100dvh; box-shadow: var(--sh-lg); transform: translateX(-105%); transition: transform var(--t); }
+  [dir="rtl"] .app-sidebar { transform: translateX(105%); }
+  .app-sidebar.is-open, [dir="rtl"] .app-sidebar.is-open { transform: translateX(0); }
+  .app-sidebar .nav-label, .app-sidebar .nav-text { display: initial; }
+  .app-sidebar .nav-item { justify-content: flex-start; padding-inline: var(--space-3); }
+  .app-topbar { padding-inline: 18px; }
+  .app-content { width: min(100% - 36px, var(--content-width)); padding-block: var(--space-6) var(--space-12); }
+  .site-footer__inner { align-items: flex-start; flex-direction: column; }
+}
