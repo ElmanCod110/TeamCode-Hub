@@ -12,10 +12,12 @@ use TeamCodeHub\Database\MembershipRepository;
 use TeamCodeHub\Database\ProjectRepository;
 use TeamCodeHub\Database\ProjectMembershipRepository;
 use TeamCodeHub\Database\TeamRepository;
+use TeamCodeHub\Database\TaskRepository;
 use TeamCodeHub\Database\TeamInvitationRepository;
 use TeamCodeHub\Database\UserRepository;
 use TeamCodeHub\Http\AuthController;
 use TeamCodeHub\Http\WorkspaceController;
+use TeamCodeHub\Http\TaskController;
 use TeamCodeHub\Http\ProjectMembershipController;
 use TeamCodeHub\Http\TeamInvitationController;
 use TeamCodeHub\Security\AuthenticationService;
@@ -66,6 +68,16 @@ return static function (): void {
         return new ProjectMembershipController(
             new AuthenticationService(new UserRepository($pdo)),
             new ProjectMembershipRepository($pdo),
+        );
+    });
+
+    $modules->register('task.controller', static function (): object {
+        $pdo = ConnectionFactory::connect(DatabaseConfig::fromEnvironment());
+        $memberships = new MembershipRepository($pdo);
+        return new TaskController(
+            new AuthenticationService(new UserRepository($pdo)),
+            new ProjectAccessService($memberships),
+            new TaskRepository($pdo),
         );
     });
 
@@ -126,6 +138,16 @@ return static function (): void {
     );
     $router->get('/api/projects/{projectId}', static fn (Request $request, array $params): Response =>
         $modules->get('workspace.controller')->showProject($request, $params)
+    );
+
+    $router->get('/api/projects/{projectId}/tasks', static fn (Request $request, array $params): Response =>
+        $modules->get('task.controller')->list($request, $params)
+    );
+    $router->post('/api/projects/{projectId}/tasks', static fn (Request $request, array $params): Response =>
+        $modules->get('task.controller')->create($request, $params)
+    );
+    $router->post('/api/projects/{projectId}/tasks/{taskId}/status', static fn (Request $request, array $params): Response =>
+        $modules->get('task.controller')->updateStatus($request, $params)
     );
 
     $router->get('/api/projects/{projectId}/members', static fn (Request $request, array $params): Response =>
