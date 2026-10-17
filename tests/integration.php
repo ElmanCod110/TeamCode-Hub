@@ -190,6 +190,8 @@ try {
     $pdo->prepare("INSERT INTO project_memberships (project_id, user_id, access_level, status, approved_by, approved_at)
         VALUES (:project_id, :user_id, 'member', 'approved', :approved_by, CURRENT_TIMESTAMP)")
         ->execute(['project_id' => $projectId, 'user_id' => $manager2Id, 'approved_by' => $adminId]);
+    $assert($teams->renameForManager($manager2Id, $teamId, 'Integration Team Managed'), 'active team manager can rename a team');
+    $assert($projects->updateForTeamManager($manager2Id, $projectId, 'Integration Project Managed', 'Manager updated the description'), 'active team manager can edit project settings');
 
     $chat = new ChatRepository($pdo);
     $reports = new ChatReportRepository($pdo);
