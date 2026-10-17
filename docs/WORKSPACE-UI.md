@@ -71,3 +71,10 @@ node --check public/assets/js/workspace.js
 ```
 
 These checks validate the static asset contract and JavaScript syntax. They do not replace manual browser testing across supported devices, keyboard-only interaction, screen-reader review, or visual regression tests.
+
+
+## Team and project settings
+
+- Team owners and managers can rename a team from its detail page.
+- Team owners and managers can edit a project's name and description from the project header.
+- Settings updates use CSRF-protected JSON endpoints and do not change membership or permission state.
