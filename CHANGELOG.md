@@ -8,7 +8,9 @@ Notable changes to TeamCode Hub are recorded here.
 - Add validated MySQL/MariaDB configuration and a PDO connection factory.
 - Add an explicit CLI migration runner with a migration registry and advisory lock.
 - Add initial identity, team, and project membership schema.
-- Add secure session defaults, a session-bound CSRF token helper, and exact scoped permission checks.
+- Add prepared user and membership repositories.
+- Add session hardening, session-bound CSRF tokens, authentication service, and exact scoped permission checks.
+- Add team and project access services that enforce active and approved memberships.
 - Add automated linting and smoke tests across PHP 8.2, 8.3, and 8.4.
 - Document architecture, security, routing, database, operations, and deployment assumptions.
 

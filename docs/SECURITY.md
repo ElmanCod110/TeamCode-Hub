@@ -1,42 +1,29 @@
 # Security Baseline
 
-This document is a design checklist, not a certification or a claim that all controls are already implemented.
+This document distinguishes implemented primitives from controls still required before production.
 
-## Request and identity
+## Implemented primitives
 
-- Validate request method, content type, size, and input shape.
-- Configure sessions with strict mode, cookie-only IDs, HttpOnly, Secure under HTTPS, and an appropriate SameSite policy.
-- Regenerate session identifiers after authentication and privilege changes.
-- Apply CSRF defenses to browser-based state-changing requests.
-- Use password hashing APIs and generic authentication failure responses.
+- Session startup enables strict mode, cookie-only session IDs, HttpOnly cookies, SameSite=Lax, and Secure cookies when direct HTTPS is detected or `APP_HTTPS=true` is configured.
+- Session IDs can be rotated after authentication; logout clears session data and expires the session cookie.
+- `CsrfToken` generates cryptographically random session-bound tokens and validates them with `hash_equals`. State-changing routes must validate the token before performing work.
+- `AuthenticationService` checks password hashes, only accepts accounts whose status is `active`, rotates the session ID after successful authentication, and uses a generic boolean failure result.
+- `ProjectAccessService` allows access only when a project membership is approved, the user's team membership is active, and the project is active. Viewers can view but cannot edit.
+- `TeamAccessService` requires active membership; only active `owner` and `manager` roles can manage a team.
+- Permission checks are exact-match only; wildcard permissions are not supported.
 
-## Authorization
+## Required controls before exposing endpoints
 
-- Default to deny.
-- Check permissions on every protected route and resource access, including AJAX endpoints, downloads, chat history, and file operations.
-- Model system, team, and project scope separately.
-- Do not trust client-supplied role, owner, team, project, or approval fields.
-- Prevent a reviewer from deciding a report about themselves; escalate conflicts to a higher authorized reviewer.
+- Add rate limiting and monitoring for authentication attempts, invitation workflows, and other sensitive actions.
+- Validate and normalize email addresses during account creation; verify password policy and account recovery flows.
+- Add authorization checks to every protected route, API, file download, chat history, and mutation. A service existing in the codebase does not mean routes already use it.
+- Validate CSRF tokens on all browser-based state-changing routes; do not rely on SameSite cookies alone.
+- Keep real secrets outside the web root and never log passwords, session tokens, secret keys, or sensitive request bodies.
+- Trust forwarded client-IP headers only from explicitly configured trusted proxies.
+- Define retention and access restrictions for IP/security logs.
 
-## Data and output
+## Data and migrations
 
-- Use PDO prepared statements for SQL values.
-- Encode output for its HTML/attribute/JavaScript/URL context.
-- Validate upload type, size, names, storage location, and download authorization.
-- Never treat a report as conclusive proof of abuse.
+Use PDO prepared statements for values and context-appropriate output encoding. Validate upload type, size, names, storage location, and download authorization before adding upload features. Versioned migrations are run explicitly through a trusted CLI command; MySQL DDL may partially apply if interrupted, so inspect state before retrying.
 
-## Network and logs
-
-- Trust `Forwarded` or `X-Forwarded-For` only from explicitly trusted proxies.
-- Limit access and retention for IP/security logs; IP addresses alone do not prove an attack.
-- Never log passwords, session tokens, secret keys, or full sensitive request bodies.
-
-## Database migrations
-
-- Use versioned, ordered migrations with a lock and a migration registry.
-- Never execute arbitrary migrations merely because a request encountered a SQL error.
-- Back up before destructive schema changes and document rollback limits.
-
-## Operational checks
-
-Before production, validate HTTPS, secret placement, directory access restrictions, session settings, error display off, error logging on, database least privilege, backup/restore, and rate limits. Security controls require tests and review; no numerical security percentage is promised.
+Security controls require tests and review. No numerical security percentage is promised.
