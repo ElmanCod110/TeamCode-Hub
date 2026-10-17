@@ -83,7 +83,7 @@ final class ProjectMembershipController
                 'assignees' => $this->memberships->searchTaskAssignees($user['id'], $projectId, trim($query)),
             ]);
         } catch (DomainException) {
-            return Response::json(['error' => 'Project not found or approved project membership required.'], 404);
+            return Response::json(['error' => 'Project not found or writable project membership required.'], 404);
         }
     }
 
