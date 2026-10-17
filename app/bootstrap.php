@@ -132,7 +132,7 @@ return static function (): void {
 
     $router->get('/', static fn (Request $request, array $params): Response => Response::json([
         'name' => 'TeamCode Hub',
-        'version' => '0.1.0-dev',
+        'version' => '0.2.0-dev',
         'status' => 'foundation',
         'message' => 'Core, authentication, team, and project APIs are available; additional product features remain in development.',
     ]));
