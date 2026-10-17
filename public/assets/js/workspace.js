@@ -1158,7 +1158,7 @@
     [["light","Light"],["dark","Dark"],["system","System preference"]].forEach(([value,label]) => {
       const option = el("option","",label); option.value=value; themeSelect.appendChild(option);
     });
-    themeSelect.value = localStorage.getItem("tch-theme") || "system";
+    let savedTheme = "system";\n    try { savedTheme = localStorage.getItem("tch-theme") || "system"; } catch (_) { /* The selector still works when storage is disabled. */ }\n    themeSelect.value = savedTheme;
     themeSelect.addEventListener("change", () => setTheme(themeSelect.value));
     append(themeRow, copy, themeSelect);
     const accountRow = el("div", "settings-row");
@@ -1191,7 +1191,7 @@
     const close = actionButton("×", "close-modal", "btn btn-ghost btn-icon", { "aria-label": "Close dialog" });
     append(header, titleBlock, close);
     const form = el("form", "tch-modal-body");
-    const error = el("div", "inline-error"); error.hidden = true;
+    const error = el("div", "inline-error"); error.hidden = true; error.setAttribute("role", "alert");
     const controls = {};
     fields.forEach(field => {
       const wrap = el("div", "field" + (field.full ? " field-full" : ""));
