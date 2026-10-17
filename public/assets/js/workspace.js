@@ -766,6 +766,8 @@
   }
 
   async function renderProject(projectId, tab = state.projectTab) {
+    // Stop any prior room poller before replacing the project view or its message list.
+    stopChatPolling();
     const project = projectById(projectId) || state.selectedProject;
     if (!project) { navigate("projects", false); return; }
     state.selectedProject = project;
