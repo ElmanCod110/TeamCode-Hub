@@ -20,6 +20,8 @@ Notable changes to TeamCode Hub are recorded here.
 - Connect overview metrics and recent activity to the dashboard, team, task, and notification APIs.
 - Add team listing, team creation, team project views, and one-time invitation creation for authorized team owners/managers.
 - Add project directory, project details, task/member/chat tabs, project-member assignment and moderation controls.
+- Add project metadata editing with role-aware controls, transactional updates, and server-side active team owner/manager authorization.
+- Preserve project slugs, task records, memberships, and chat history when project names or descriptions change.
 - Add task creation, status changes, search/filter controls, and conversion of local date input to UTC API values.
 - Add transactional task editing and reassignment with approved member-level assignee validation.
 - Add persistent task comments with creator/assignee notifications, a 15-minute edit window, and soft-delete markers.
