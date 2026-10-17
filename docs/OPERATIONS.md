@@ -39,6 +39,8 @@ The command is CLI-only, refuses to run if a `site_admin` role already exists, c
 
 After applying all migrations, schedule `php /absolute/path/to/TeamCode-Hub/bin/cleanup-chat.php` through the hosting provider's cron interface at least once per day. Run it from a trusted CLI environment with the database environment variables configured. It deletes only chat rows whose expiry has passed; unresolved reported messages have no expiry and remain held. Resolved/rejected reports resume a 24-hour retention period before cleanup can remove the message and its context snapshot.
 
-## Shared-hosting constraints
+## GitHub public activity cache
+
+Set `GITHUB_USERNAME` to the public GitHub username whose public events should appear in the workspace. If unset, the current default is `ElmanCod110`. No GitHub token is required or stored; only the public events endpoint is queried. Apply migrations with `php bin/migrate.php` before using the integration.\n\nThe first authenticated request on a UTC day claims the single refresh attempt under a row lock, then makes one HTTPS request to GitHub. Other visits on that day serve the database snapshot without another outbound request. Failed refreshes do not trigger repeated retries and the last successful snapshot is preserved. The `/api/github/activity` endpoint is authenticated and reports whether data is stale. This is a read-only public activity feed, not a private repository integration.\n\n## Shared-hosting constraints
 
 Do not require a long-running worker or WebSocket server for the baseline. Use bounded AJAX polling and incremental cursors where real-time updates are introduced. Keep logs and caches bounded and define retention policies for personal/security data.
