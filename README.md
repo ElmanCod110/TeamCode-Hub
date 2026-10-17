@@ -12,7 +12,7 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 - English workspace shell at `/` and `/login`, with an accessible sign-in form.
 - Responsive application navigation, mobile sidebar, light/dark/system theme preference, loading states, and safe toast notifications.
 - Overview dashboard connected to personalized teams, projects, due-today tasks, overdue tasks, and recent notifications.
-- Team list and detail views, owner-only team renaming, project creation and metadata editing for authorized team managers, and one-time team invitation creation for owners/managers.
+- Team list and detail views, owner-only team renaming, project creation and metadata editing for authorized team managers, a manager-only active member directory, and one-time team invitation creation for owners/managers.
 - Project directory and project detail views with overview, task, member-access, and chat tabs.
 - Task creation, editing/reassignment, status changes, priorities, UTC due-date conversion, threaded comments, checklist items, and task filtering/search.
 - Project member assignment, pending membership approval, member/viewer access changes, and access revocation where the signed-in user has management permission.
