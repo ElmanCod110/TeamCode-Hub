@@ -148,6 +148,18 @@ try {
 
     $viewerInvitation = $invitations->createForManager($adminId, $teamId, 'viewer@example.test');
     $invitations->accept($viewerId, 'viewer@example.test', $viewerInvitation['token']);
+
+    $teamRoster = $teams->listActiveMembersForManager($adminId, $teamId);
+    $rosterIds = array_column($teamRoster, 'user_id');
+    $assert(count($teamRoster) === 3 && in_array($adminId, $rosterIds, true) && in_array($memberId, $rosterIds, true) && in_array($viewerId, $rosterIds, true), 'team owner can view the active roster including accepted invitees');
+    $assert(!array_key_exists('password_hash', $teamRoster[0]), 'team roster exposes account metadata without credential fields');
+    $unauthorizedRosterDenied = false;
+    try {
+        $teams->listActiveMembersForManager($outsiderId, $teamId);
+    } catch (DomainException) {
+        $unauthorizedRosterDenied = true;
+    }
+    $assert($unauthorizedRosterDenied, 'unrelated user cannot access the manager-only team roster');
     $pendingInvitation = $invitations->createForManager($adminId, $teamId, 'outsider@example.test');
     $listedInvitations = $invitations->listPendingForManager($adminId, $teamId);
     $assert(count($listedInvitations) === 1 && !array_key_exists('token', $listedInvitations[0]), 'manager invitation listing never returns raw tokens');
