@@ -12,8 +12,8 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 - English workspace shell at `/` and `/login`, with an accessible sign-in form.
 - Responsive application navigation, mobile sidebar, light/dark/system theme preference, loading states, and safe toast notifications.
 - Overview dashboard connected to personalized teams, projects, due-today tasks, overdue tasks, and recent notifications.
-- Team list and detail views, project creation, and one-time team invitation creation for owners/managers.
-- Project directory and project detail views with overview, task, member-access, and chat tabs.
+- Team list and detail views, owner/manager team-name editing, project creation, and one-time team invitation creation.
+- Project directory and project detail views with owner/manager metadata editing, overview, task, member-access, and chat tabs.
 - Task creation, editing/reassignment, status changes, priorities, UTC due-date conversion, threaded comments, checklist items, and task filtering/search.
 - Project member assignment, pending membership approval, and access revocation where the signed-in user has management permission.
 - Text-only project chat with incremental polling, periodic bounded-window reconciliation for edits/deletions, own-message editing/deletion, and message reporting.
@@ -74,7 +74,7 @@ node --check public/assets/js/workspace.js
 
 ## Remaining product work
 
-Public registration, email verification, password recovery, automatic invitation email delivery, team editing/deletion, project editing/deletion, Git synchronization, richer administrative pages, and automated browser-level visual/accessibility tests are not implemented yet. There is no automatic admin bypass of team/project access checks. Every protected route must continue to enforce authorization on the server.
+Public registration, email verification, password recovery, automatic invitation email delivery, team/project deletion, Git synchronization, richer administrative pages, and automated browser-level visual/accessibility tests are not implemented yet. There is no automatic admin bypass of team/project access checks. Every protected route must continue to enforce authorization on the server.
 
 ## Repository layout
 
