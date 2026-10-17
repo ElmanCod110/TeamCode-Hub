@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace TeamCodeHub\Database;
 
 use DomainException;
-use TeamCodeHub\\Core\\QuotaExceededException;
+use TeamCodeHub\Core\QuotaExceededException;
 use PDO;
 use Throwable;
 
@@ -69,8 +69,8 @@ final class ProjectRepository
         $this->pdo->beginTransaction();
         try {
             $role->execute(['team_id' => $teamId, 'user_id' => $userId]);
-            $currentRole = $role->fetchColumn();
-            if (!is_array($roleRow = $role->fetch(PDO::FETCH_ASSOC)) || !in_array($roleRow['role'], ['owner', 'manager'], true)) {
+            $roleRow = $role->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($roleRow) || !in_array($roleRow['role'], ['owner', 'manager'], true)) {
                 throw new DomainException('Active team manager role required.');
             }
 
