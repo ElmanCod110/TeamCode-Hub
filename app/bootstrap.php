@@ -119,7 +119,7 @@ return static function (): void {
     );
 
     $router->get('/api/teams/{teamId}/invitations', static fn (Request $request, array $params): Response =>
-        $modules->get('team-invitation.controller')->list($request, $params)
+        $modules->get('team-invitation.controller')->listPending($request, $params)
     );
     $router->post('/api/teams/{teamId}/invitations', static fn (Request $request, array $params): Response =>
         $modules->get('team-invitation.controller')->create($request, $params)
