@@ -89,7 +89,7 @@ final class ChatController
         }
 
         $body = $request->body()['body'] ?? null;
-        if (!is_string($body) || trim($body) === '' || strlen(trim($body)) > 2000) {
+        if (!is_string($body) || trim($body) === '' || strlen(trim($body)) > 2000 || preg_match('//u', trim($body)) !== 1) {
             return Response::json(['error' => 'Message must contain 1 to 2000 bytes.'], 422);
         }
         try {
