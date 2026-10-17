@@ -10,8 +10,11 @@ use Throwable;
 
 final class TaskRepository
 {
+    private readonly NotificationRepository $notifications;
+
     public function __construct(private readonly PDO $pdo)
     {
+        $this->notifications = new NotificationRepository($pdo);
     }
 
     /** @return list<array<string, mixed>> */
@@ -72,6 +75,15 @@ final class TaskRepository
                 'due_at' => $dueAt,
             ]);
             $id = (int) $this->pdo->lastInsertId();
+            if ($assignedTo !== null && $assignedTo !== $userId) {
+                $this->notifications->create(
+                    $assignedTo,
+                    'task_assigned',
+                    'New task assigned',
+                    $title,
+                    ['project_id' => $projectId, 'task_id' => $id],
+                );
+            }
             $this->pdo->commit();
             return $id;
         } catch (Throwable $error) {
@@ -91,9 +103,10 @@ final class TaskRepository
         $this->pdo->beginTransaction();
         try {
             $this->lockProjectAccess($userId, $projectId, true);
-            $task = $this->pdo->prepare('SELECT id FROM tasks WHERE id = :task_id AND project_id = :project_id LIMIT 1 FOR UPDATE');
+            $task = $this->pdo->prepare('SELECT id, created_by, title FROM tasks WHERE id = :task_id AND project_id = :project_id LIMIT 1 FOR UPDATE');
             $task->execute(['task_id' => $taskId, 'project_id' => $projectId]);
-            if ($task->fetchColumn() === false) {
+            $taskRow = $task->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($taskRow)) {
                 throw new DomainException('Task not found.');
             }
 
@@ -108,6 +121,15 @@ final class TaskRepository
                 'task_id' => $taskId,
                 'project_id' => $projectId,
             ]);
+            if ($status === 'done' && (int) $taskRow['created_by'] !== $userId) {
+                $this->notifications->create(
+                    (int) $taskRow['created_by'],
+                    'task_completed',
+                    'Task completed',
+                    (string) $taskRow['title'],
+                    ['project_id' => $projectId, 'task_id' => $taskId],
+                );
+            }
             $this->pdo->commit();
         } catch (Throwable $error) {
             if ($this->pdo->inTransaction()) {
