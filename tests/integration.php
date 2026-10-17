@@ -205,6 +205,30 @@ try {
     $projects->updateMetadataForTeamManager($manager2Id, $projectId, 'Manager Updated Project', 'Manager edited the project description');
     $managerUpdatedProject = $projects->findAccessibleByUser($manager2Id, $projectId);
     $assert(is_array($managerUpdatedProject) && $managerUpdatedProject['name'] === 'Manager Updated Project', 'approved team manager can edit project metadata');
+    $demotedToViewer = $projectMemberships->changeAccessLevel($manager2Id, $projectId, $memberId, 'viewer');
+    $assert($demotedToViewer, 'team manager can change an approved member to read-only viewer access');
+    $assert(!$projectAccess->canEdit($memberId, $projectId), 'viewer access immediately removes task and chat write capability');
+    $promotedToMember = $projectMemberships->changeAccessLevel($manager2Id, $projectId, $memberId, 'member');
+    $assert($promotedToMember && $projectAccess->canEdit($memberId, $projectId), 'team manager can restore approved member-level edit access');
+    $creatorDowngradeRejected = false;
+    try {
+        $projectMemberships->changeAccessLevel($manager2Id, $projectId, $adminId, 'viewer');
+    } catch (DomainException) {
+        $creatorDowngradeRejected = true;
+    }
+    $assert($creatorDowngradeRejected, 'project creator cannot be demoted to viewer access');
+    $unauthorizedAccessChangeRejected = false;
+    try {
+        $projectMemberships->changeAccessLevel($memberId, $projectId, $viewerId, 'member');
+    } catch (DomainException) {
+        $unauthorizedAccessChangeRejected = true;
+    }
+    $assert($unauthorizedAccessChangeRejected, 'ordinary project member cannot change another member access level');
+    $memberAccessNotices = array_filter(
+        $notifications->listRecentForUser($memberId),
+        static fn (array $item): bool => $item['type'] === 'project_access_level_changed',
+    );
+    $assert(count($memberAccessNotices) === 2, 'access-level changes notify the affected member');
 
     $chat = new ChatRepository($pdo);
     $reports = new ChatReportRepository($pdo);
