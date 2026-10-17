@@ -642,6 +642,14 @@
     const invitePanel = panel("Team invitations", "Create a secure one-time invitation token", memberContent);
     append(layout, projectsPanel, invitePanel);
     root.appendChild(layout);
+
+    // Show account identifiers and email addresses only in the manager-authorized roster.
+    let rosterContent = null;
+    if (canManageTeam(team.id)) {
+      rosterContent = el("div", "team-list");
+      root.appendChild(panel("Team members", "Active members and account IDs for project access management", rosterContent));
+    }
+
     try {
       const data = await request("/api/teams/" + escapePath(team.id) + "/projects");
       const projects = data.projects || [];
@@ -680,6 +688,36 @@
       }
     } catch (error) {
       projectContent.appendChild(el("div", "inline-error", error.message));
+    }
+
+    if (rosterContent) await renderTeamMembers(team, rosterContent);
+  }
+
+  /**
+   * Render the manager-only team directory using text nodes for all account data.
+   * The server remains responsible for enforcing the roster's access boundary.
+   */
+  async function renderTeamMembers(team, container) {
+    container.replaceChildren();
+    try {
+      const data = await request("/api/teams/" + escapePath(team.id) + "/members");
+      const members = Array.isArray(data.members) ? data.members : [];
+      if (!members.length) {
+        container.appendChild(emptyState("No active members", "Active team memberships will appear here."));
+        return;
+      }
+
+      members.forEach(member => {
+        const row = el("div", "member-row");
+        const name = member.display_name || "Team member";
+        const main = el("div", "row-main");
+        const details = "ID #" + member.user_id + " · " + (member.email || "No email available");
+        append(main, el("span", "row-title", name), el("span", "row-subtitle", details));
+        append(row, avatar(name), main, badge(member.role || "member"));
+        container.appendChild(row);
+      });
+    } catch (error) {
+      container.appendChild(el("div", "inline-error", error.message || "The team directory could not be loaded."));
     }
   }
 
