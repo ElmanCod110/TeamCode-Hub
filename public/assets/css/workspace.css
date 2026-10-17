@@ -486,7 +486,7 @@
 }
 
 /* Task details modal combines editable metadata, checklists, and threaded discussion. */
-.task-details-modal { width:min(100%,900px); }
+.task-details-modal { width:min(100%,900px); max-width:900px; }
 .task-details-header { padding-bottom:18px; border-bottom:1px solid var(--border); }
 .task-details-header h2 { overflow-wrap:anywhere; font-size:21px; letter-spacing:-.045em; }
 .task-details-header p { margin-top:5px; color:var(--text-muted); font-size:10px; }
