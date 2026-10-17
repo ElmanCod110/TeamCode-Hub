@@ -444,3 +444,6 @@
 .invitation-row:last-child { border-bottom:0; }
 .invitation-row .row-main { min-width:0; }
 .invitation-row .btn { flex:0 0 auto; }
+
+.task-check:not(button) { cursor:default; }
+.task-check:not(button):hover { border-color:var(--border-strong); background:var(--surface); }
