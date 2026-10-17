@@ -12,6 +12,13 @@ Notable changes to TeamCode Hub are recorded here.
 - Add an authenticated GitHub activity endpoint, overview preview, profile/repository links, and a dedicated activity view.
 - Add deterministic integration tests for daily request limits, event normalization, and stale-cache fallback.
 
+### Project lifecycle
+
+- Add reversible project archival that removes a project from active access/list queries without deleting tasks, memberships, comments, or chat history.
+- Add a manager-only archived-project list and restore controls in the team workspace.
+- Enforce the active project quota transactionally during restoration and return a conflict when capacity is full.
+- Add integration coverage for authorization, historical data preservation, archived-list visibility, and quota-blocked restoration.
+
 ### Project access management
 
 - Add a CSRF-protected access-level endpoint for approved project memberships.
