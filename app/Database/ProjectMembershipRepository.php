@@ -10,8 +10,11 @@ use Throwable;
 
 final class ProjectMembershipRepository
 {
+    private readonly NotificationRepository $notifications;
+
     public function __construct(private readonly PDO $pdo)
     {
+        $this->notifications = new NotificationRepository($pdo);
     }
 
     /** @return list<array<string, mixed>> */
@@ -85,6 +88,15 @@ final class ProjectMembershipRepository
                 $membershipId = (int) $this->pdo->lastInsertId();
             }
 
+            if ($targetUserId !== $actorId) {
+                $this->notifications->create(
+                    $targetUserId,
+                    'project_access_pending',
+                    'Project access awaiting approval',
+                    'A team manager assigned you to a project. Access is pending approval.',
+                    ['project_id' => $projectId, 'access_level' => $accessLevel],
+                );
+            }
             $this->pdo->commit();
             return $membershipId;
         } catch (Throwable $error) {
@@ -116,6 +128,15 @@ final class ProjectMembershipRepository
             if ($update->rowCount() !== 1) {
                 throw new DomainException('Pending project membership not found.');
             }
+            $level = $this->pdo->prepare('SELECT access_level FROM project_memberships WHERE project_id = :project_id AND user_id = :user_id');
+            $level->execute(['project_id' => $projectId, 'user_id' => $targetUserId]);
+            $this->notifications->create(
+                $targetUserId,
+                'project_access_approved',
+                'Project access approved',
+                'Your project access has been approved.',
+                ['project_id' => $projectId, 'access_level' => (string) $level->fetchColumn()],
+            );
             $this->pdo->commit();
         } catch (Throwable $error) {
             if ($this->pdo->inTransaction()) {
@@ -142,6 +163,13 @@ final class ProjectMembershipRepository
             if ($update->rowCount() !== 1) {
                 throw new DomainException('Project membership not found.');
             }
+            $this->notifications->create(
+                $targetUserId,
+                'project_access_revoked',
+                'Project access revoked',
+                'Your project access has been revoked.',
+                ['project_id' => $projectId],
+            );
             $this->pdo->commit();
         } catch (Throwable $error) {
             if ($this->pdo->inTransaction()) {
