@@ -12,6 +12,13 @@ Notable changes to TeamCode Hub are recorded here.
 - Add an authenticated GitHub activity endpoint, overview preview, profile/repository links, and a dedicated activity view.
 - Add deterministic integration tests for daily request limits, event normalization, and stale-cache fallback.
 
+### Project access management
+
+- Add a CSRF-protected access-level endpoint for approved project memberships.
+- Let active team owners/managers switch eligible members between read-only viewer and writable member access without recreating memberships.
+- Prevent demoting the project creator, reject unauthorized actors at the repository boundary, and notify the affected member when access changes.
+- Add UI controls with confirmation, explicit current access badges, and automated MariaDB/UI contract coverage.
+
 ### Workspace management
 
 - Add CSRF-protected team renaming restricted to the active team owner; preserve the team's stable slug and all existing relationships.
