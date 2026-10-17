@@ -33,6 +33,7 @@ Notifications are generated for team invitation acceptance, project access chang
 - `GET /api/teams` — lists teams where the current user has an active membership.
 - `POST /api/teams` — creates a team and makes the authenticated user its active owner. Body: `{"name":"Team name"}`. Requires CSRF protection.
 - `GET /api/teams/{teamId}` — returns a team only to an active team member.
+- `POST /api/teams/{teamId}/edit` — body: `{"name":"Updated team name"}`. Requires CSRF protection and an active owner/manager role. Updates the display name while preserving the stable team slug.
 - `GET /api/teams/{teamId}/invitations` — lists pending invitation metadata for an active team owner/manager. Tokens are not returned by this listing.
 - `POST /api/teams/{teamId}/invitations` — creates a seven-day invitation for an email. Body: `{"email":"person@example.com"}`. Requires CSRF protection and owner/manager access. The raw random token is returned once; only its SHA-256 hash is stored. The baseline does not send email, so the inviter must deliver the token through a trusted channel.
 - `DELETE /api/teams/{teamId}/invitations/{invitationId}` — revokes a pending invitation; requires CSRF protection and owner/manager access.
@@ -45,6 +46,7 @@ Invitation creation reserves a team member slot. Active memberships plus unexpir
 - `GET /api/teams/{teamId}/projects` — lists active projects with approved project membership and active team membership for the current user.
 - `POST /api/teams/{teamId}/projects` — creates a project for an active team owner/manager. Body: `{"name":"Project name","description":"Optional description"}`. Requires CSRF protection. The creator receives approved `member` access. Active project quota is enforced transactionally; quota exhaustion returns `409`.
 - `GET /api/projects/{projectId}` — returns project details only when the user's project membership is approved and team membership is active. Viewers have read-only access.
+- `POST /api/projects/{projectId}/edit` — body: `{"name":"Updated project name","description":"Optional project description"}`. Requires CSRF protection and an active owner/manager role in the parent team. Updates metadata without changing the stable project slug or membership rules.
 - `GET /api/projects/{projectId}/members` — lists membership details for active team owners/managers only.
 - `POST /api/projects/{projectId}/members` — assigns an active team member with body `{"user_id":123,"access_level":"viewer"}` or `member`. Assignment is pending by default and requires CSRF protection.
 - `POST /api/projects/{projectId}/members/{userId}/approve` — approves a pending project membership. Requires CSRF protection and active team owner/manager permissions.
@@ -101,4 +103,4 @@ Only one report per reporter per reported person per UTC day is accepted. A vali
 
 ## Current limits
 
-Public registration, email verification, password recovery, invitation email delivery, team editing/deletion, project editing/deletion, task editing/assignment after creation, comments, subtasks, chat UI/polling client, Git integration, and admin UI are not implemented yet. Future routes must repeat authorization checks in their data-access path rather than trusting a prior UI check alone.
+Public registration, email verification, password recovery, invitation email delivery, team deletion, project deletion, Git synchronization, repository/branch operations, and the full site-administration interface are not implemented yet. The current settings endpoints edit team and project metadata only; they do not alter quotas, membership roles, invitations, or access grants. Every route must continue to enforce authorization in its data-access path rather than trusting UI visibility alone.
