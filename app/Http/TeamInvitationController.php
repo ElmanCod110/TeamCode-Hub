@@ -23,7 +23,7 @@ final class TeamInvitationController
     ) {
     }
 
-    public function list(Request $request, array $params): Response
+    public function listPending(Request $request, array $params): Response
     {
         $user = $this->currentUser();
         $teamId = $this->positiveId($params['teamId'] ?? null);
