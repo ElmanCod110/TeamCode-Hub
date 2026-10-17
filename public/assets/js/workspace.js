@@ -1000,6 +1000,12 @@
       const query = fullSync ? "" : "?after_id=" + encodeURIComponent(state.chatCursor);
       const data = await request("/api/projects/" + escapePath(project.id) + "/chat" + query);
       const messages = Array.isArray(data.messages) ? data.messages : [];
+      if (messages.length > 0) {
+        // Remove the initial empty state when the first new message arrives on an
+        // incremental poll, not only during a full-window reconciliation.
+        const placeholder = $(".empty-state", list);
+        if (placeholder) placeholder.remove();
+      }
       if (fullSync) {
         // Reconcile the bounded window instead of rebuilding every message. This
         // makes edits and deletions visible without re-announcing unchanged chat.
