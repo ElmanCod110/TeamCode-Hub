@@ -24,7 +24,7 @@
 .btn-subtle:hover { background: var(--g200); }
 .btn-ghost { color: var(--text-secondary); }
 .btn-ghost:hover { color: var(--text); background: var(--g100); }
-.btn-danger { color: #fff; background: var(--danger); border-color: var(--danger); }
+.btn-danger { color: var(--surface); background: var(--danger); border-color: var(--danger); }
 .btn-danger:hover { filter: brightness(1.08); }
 .btn-danger-outline { color: var(--danger); background: var(--surface); border-color: #efb8b8; }
 .btn-danger-outline:hover { background: var(--danger-bg); }
