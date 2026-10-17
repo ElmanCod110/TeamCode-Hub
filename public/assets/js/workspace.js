@@ -632,7 +632,12 @@
     closeSidebar();
     const root = pageRoot();
     const teamActions = actionGroup();
-    if (canManageTeam(team.id)) append(teamActions, actionButton("Invite member", "invite-member", "btn btn-outline", { "data-team-id": team.id }), actionButton("New project", "create-project", "btn btn-primary", { "data-team-id": team.id }));
+    if (canManageTeam(team.id)) append(
+      teamActions,
+      actionButton("Edit team", "edit-team", "btn btn-outline", { "data-team-id": team.id }),
+      actionButton("Invite member", "invite-member", "btn btn-outline", { "data-team-id": team.id }),
+      actionButton("New project", "create-project", "btn btn-primary", { "data-team-id": team.id })
+    );
     root.appendChild(pageHeading("TEAM WORKSPACE", team.name, "Projects and invitations for this team.", teamActions));
     const layout = el("div", "overview-columns");
     const projectContent = el("div", "project-mini-list");
@@ -808,6 +813,7 @@
       append(el("div"), el("div", "eyebrow", "PROJECT WORKSPACE"), el("h1", "", project.name),
         el("p", "", project.description || "Plan work, coordinate the team, and keep decisions in context.")));
     const headActions = actionGroup();
+    if (canManageTeam(project.team_id)) headActions.appendChild(actionButton("Edit project", "edit-project", "btn btn-outline", { "data-project-id": project.id }));
     if (project.access_level !== "viewer") headActions.appendChild(actionButton("New task", "create-task", "btn btn-primary", { "data-project-id": project.id }));
     headActions.appendChild(actionButton("Back to projects", "navigate-projects", "btn btn-outline"));
     append(root, heading, headActions);
@@ -1616,6 +1622,46 @@
     });
   }
 
+  /**
+   * Edit only the selected team's display name; server-side role checks remain authoritative.
+   */
+  function editTeamModal(teamId) {
+    const team = teamById(teamId);
+    if (!team || !canManageTeam(team.id)) return;
+    openFormModal("Edit team", "Update the name shown to everyone in this team.", [
+      { name: "name", label: "Team name", type: "text", required: true, maxLength: 100, value: team.name, full: true }
+    ], "Save changes", async values => {
+      const result = await request("/api/teams/" + escapePath(team.id) + "/edit", {
+        method: "POST",
+        body: { name: values.name.trim() }
+      });
+      await refreshWorkspace(false);
+      toast("Team details updated.");
+      await openTeam(result.team?.id || team.id);
+    });
+  }
+
+  /**
+   * Edit a project's descriptive metadata without changing membership or access level.
+   */
+  function editProjectModal(projectId) {
+    const project = projectById(projectId);
+    if (!project || !canManageTeam(project.team_id)) return;
+    openFormModal("Edit project", "Update the project name and description. Existing access rules remain unchanged.", [
+      { name: "name", label: "Project name", type: "text", required: true, maxLength: 120, value: project.name, full: true },
+      { name: "description", label: "Description", type: "textarea", maxLength: 5000, value: project.description || "", full: true }
+    ], "Save changes", async values => {
+      const result = await request("/api/projects/" + escapePath(project.id) + "/edit", {
+        method: "POST",
+        body: { name: values.name.trim(), description: values.description.trim() || null }
+      });
+      await refreshWorkspace(false);
+      toast("Project details updated.");
+      const refreshed = projectById(project.id) || result.project || project;
+      await openProject(refreshed, true, state.projectTab);
+    });
+  }
+
   function createProjectModal(preselectedTeamId) {
     const manageableTeams = state.teams.filter(team => canManageTeam(team.id));
     if (!manageableTeams.length) { toast("Project creation requires a team owner or manager. Create a new team or ask a manager for access.", "warning"); if (!state.teams.length) createTeamModal(); return; }
@@ -1734,6 +1780,8 @@
     const name = action.dataset.action;
     try {
       if (name === "create-team") createTeamModal();
+      else if (name === "edit-team") editTeamModal(action.dataset.teamId);
+      else if (name === "edit-project") editProjectModal(action.dataset.projectId);
       else if (name === "accept-invitation") acceptInvitationModal();
       else if (name === "create-project") createProjectModal(action.dataset.teamId);
       else if (name === "create-task") createTaskModal(action.dataset.projectId);
