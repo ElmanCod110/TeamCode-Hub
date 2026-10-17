@@ -10,6 +10,7 @@ use TeamCodeHub\Database\DatabaseConfig;
 use TeamCodeHub\Security\PermissionChecker;
 use TeamCodeHub\Security\CsrfToken;
 use TeamCodeHub\Security\SecureSession;
+use TeamCodeHub\Security\ClientIpResolver;
 
 require dirname(__DIR__) . '/app/bootstrap.php';
 
@@ -87,6 +88,9 @@ try {
     $unsafeDatabaseRejected = true;
 }
 $assert($unsafeDatabaseRejected, 'unsafe database identifier is rejected');
+
+$assert(ClientIpResolver::resolve('198.51.100.20', '203.0.113.9', ['10.0.0.2']) === '198.51.100.20', 'forwarded IP is ignored for an untrusted peer');
+$assert(ClientIpResolver::resolve('10.0.0.2', '198.51.100.99, 203.0.113.10', ['10.0.0.2']) === '203.0.113.10', 'trusted proxy chain ignores spoofed left-side entries');
 
 $grants = ['team:42:members:invite', 'project:8:read'];
 $assert(PermissionChecker::allows($grants, 'team:42:members:invite'), 'exact scoped permission is granted');
