@@ -633,6 +633,7 @@
     const root = pageRoot();
     const teamActions = actionGroup();
     if (canManageTeam(team.id)) append(teamActions, actionButton("Invite member", "invite-member", "btn btn-outline", { "data-team-id": team.id }), actionButton("New project", "create-project", "btn btn-primary", { "data-team-id": team.id }));
+    if (team.role === "owner") teamActions.appendChild(actionButton("Edit team", "edit-team", "btn btn-outline", { "data-team-id": team.id }));
     root.appendChild(pageHeading("TEAM WORKSPACE", team.name, "Projects and invitations for this team.", teamActions));
     const layout = el("div", "overview-columns");
     const projectContent = el("div", "project-mini-list");
@@ -798,8 +799,16 @@
   async function renderProject(projectId, tab = state.projectTab) {
     // Stop any prior room poller before replacing the project view or its message list.
     stopChatPolling();
-    const project = projectById(projectId) || state.selectedProject;
+    let project = state.selectedProject && Number(state.selectedProject.id) === Number(projectId)
+      ? state.selectedProject
+      : projectById(projectId);
     if (!project) { navigate("projects", false); return; }
+
+    // Dashboard summaries omit descriptions; load the authorized detail record before rendering project metadata.
+    if (typeof project.description === "undefined") {
+      const detail = await request("/api/projects/" + escapePath(projectId));
+      project = detail.project || project;
+    }
     state.selectedProject = project;
     state.projectTab = tab;
     const root = pageRoot();
@@ -809,6 +818,7 @@
         el("p", "", project.description || "Plan work, coordinate the team, and keep decisions in context.")));
     const headActions = actionGroup();
     if (project.access_level !== "viewer") headActions.appendChild(actionButton("New task", "create-task", "btn btn-primary", { "data-project-id": project.id }));
+    if (canManageTeam(project.team_id)) headActions.appendChild(actionButton("Edit project", "edit-project", "btn btn-outline", { "data-project-id": project.id }));
     headActions.appendChild(actionButton("Back to projects", "navigate-projects", "btn btn-outline"));
     append(root, heading, headActions);
     const tabs = el("div", "project-tabs");
@@ -1616,6 +1626,23 @@
     });
   }
 
+  function editTeamModal(teamId) {
+    const team = teamById(teamId);
+    if (!team || team.role !== "owner") {
+      toast("Only the team owner can rename this team.", "warning");
+      return;
+    }
+    openFormModal("Edit team", "Update the team name. Existing project links and team membership remain unchanged.", [
+      { name: "name", label: "Team name", type: "text", required: true, maxLength: 100, value: team.name, full: true }
+    ], "Save team", async values => {
+      await request("/api/teams/" + escapePath(team.id) + "/edit", { method: "POST", body: { name: values.name.trim() } });
+      await refreshWorkspace(false);
+      const updated = teamById(team.id);
+      toast("Team details updated.");
+      if (updated) await openTeam(updated.id);
+    });
+  }
+
   function createProjectModal(preselectedTeamId) {
     const manageableTeams = state.teams.filter(team => canManageTeam(team.id));
     if (!manageableTeams.length) { toast("Project creation requires a team owner or manager. Create a new team or ask a manager for access.", "warning"); if (!state.teams.length) createTeamModal(); return; }
@@ -1630,6 +1657,39 @@
       toast("Project created successfully.");
       if (result.project) await openProject(result.project, true);
       else navigate("projects");
+    });
+  }
+
+  async function editProjectModal(projectId) {
+    let project = state.selectedProject && Number(state.selectedProject.id) === Number(projectId)
+      ? state.selectedProject
+      : projectById(projectId);
+    if (!project || !canManageTeam(project.team_id)) {
+      toast("Project editing requires an active team owner or manager role.", "warning");
+      return;
+    }
+    try {
+      // Fetch the current authorized record so a summary response never overwrites its description with an empty value.
+      const detail = await request("/api/projects/" + escapePath(project.id));
+      project = detail.project || project;
+      state.selectedProject = project;
+    } catch (error) {
+      toast(error.message || "Project details could not be loaded.", "error");
+      return;
+    }
+    const tab = state.projectTab;
+    openFormModal("Edit project", "Update project details without changing its members, tasks, or conversation history.", [
+      { name: "name", label: "Project name", type: "text", required: true, maxLength: 120, value: project.name, full: true },
+      { name: "description", label: "Description", type: "textarea", maxLength: 5000, value: project.description || "", full: true }
+    ], "Save project", async values => {
+      const result = await request("/api/projects/" + escapePath(project.id) + "/edit", {
+        method: "POST",
+        body: { name: values.name.trim(), description: values.description.trim() || null }
+      });
+      await refreshWorkspace(false);
+      const updated = projectById(project.id) || result.project;
+      toast("Project details updated.");
+      if (updated) await openProject(updated, true, tab);
     });
   }
 
@@ -1734,6 +1794,8 @@
     const name = action.dataset.action;
     try {
       if (name === "create-team") createTeamModal();
+      else if (name === "edit-team") editTeamModal(action.dataset.teamId);
+      else if (name === "edit-project") await editProjectModal(action.dataset.projectId);
       else if (name === "accept-invitation") acceptInvitationModal();
       else if (name === "create-project") createProjectModal(action.dataset.teamId);
       else if (name === "create-task") createTaskModal(action.dataset.projectId);

@@ -32,6 +32,7 @@ Notifications are generated for team invitation acceptance, project access chang
 
 - `GET /api/teams` — lists teams where the current user has an active membership.
 - `POST /api/teams` — creates a team and makes the authenticated user its active owner. Body: `{"name":"Team name"}`. Requires CSRF protection.
+- `POST /api/teams/{teamId}/edit` — renames a team using body `{"name":"New team name"}`. Requires CSRF protection and active owner role; managers and members cannot rename a team. The existing slug and invitation/project relationships remain unchanged.
 - `GET /api/teams/{teamId}` — returns a team only to an active team member.
 - `GET /api/teams/{teamId}/invitations` — lists pending invitation metadata for an active team owner/manager. Tokens are not returned by this listing.
 - `POST /api/teams/{teamId}/invitations` — creates a seven-day invitation for an email. Body: `{"email":"person@example.com"}`. Requires CSRF protection and owner/manager access. The raw random token is returned once; only its SHA-256 hash is stored. The baseline does not send email, so the inviter must deliver the token through a trusted channel.
@@ -44,6 +45,7 @@ Invitation creation reserves a team member slot. Active memberships plus unexpir
 
 - `GET /api/teams/{teamId}/projects` — lists active projects with approved project membership and active team membership for the current user.
 - `POST /api/teams/{teamId}/projects` — creates a project for an active team owner/manager. Body: `{"name":"Project name","description":"Optional description"}`. Requires CSRF protection. The creator receives approved `member` access. Active project quota is enforced transactionally; quota exhaustion returns `409`.
+- `POST /api/projects/{projectId}/edit` — updates project name and description using body `{"name":"New project name","description":"Updated description"}`. Requires CSRF protection, active team owner/manager role, and approved project membership. Empty descriptions are stored as `NULL`; project slug, memberships, tasks, and chat history are preserved.
 - `GET /api/projects/{projectId}` — returns project details only when the user's project membership is approved and team membership is active. Viewers have read-only access.
 - `GET /api/projects/{projectId}/members` — lists membership details for active team owners/managers only.
 - `POST /api/projects/{projectId}/members` — assigns an active team member with body `{"user_id":123,"access_level":"viewer"}` or `member`. Assignment is pending by default and requires CSRF protection.

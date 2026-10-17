@@ -10,6 +10,7 @@ This document distinguishes implemented primitives from controls still required 
 - Authentication accepts only active accounts and uses generic failure responses. Login attempts are throttled with database-backed per-IP and per-email-hash buckets.
 - Forwarded client IP data is ignored unless `REMOTE_ADDR` matches an exact IP in `TRUSTED_PROXIES`.
 - Team/project/task/chat access is checked server-side; project access requires approved membership plus active team membership. Viewers can read but cannot mutate tasks or send/edit/delete chat messages.
+- Team renaming is owner-only and is rechecked inside the team repository transaction. Project metadata updates require an active team owner/manager role plus approved project membership, with both checks repeated inside the project repository transaction.
 - Project assignments start as `pending`; active team owners/managers approve them.
 - Normal chat messages expire after 24 hours. A reported message is held with a null expiry while any related report is pending/valid. CLI cleanup deletes only rows whose expiry has passed.
 - Chat report creation stores a context snapshot of the reported message and adjacent messages. Only one report per reporter per reported person per UTC day is accepted.
