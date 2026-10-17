@@ -374,6 +374,7 @@
     $("#topbar-notification-dot").hidden = unread === 0;
     const canReview = (state.user?.roles || []).includes("site_admin") || state.teams.some(team => canManageTeam(team.id));
     $("#nav-moderation-item").hidden = !canReview;
+    $("#nav-report-count").textContent = "Open";
   }
 
   function routeFromHash() {
