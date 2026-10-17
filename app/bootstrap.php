@@ -7,6 +7,7 @@ use TeamCodeHub\Core\Request;
 use TeamCodeHub\Core\Response;
 use TeamCodeHub\Core\Router;
 use TeamCodeHub\Database\ConnectionFactory;
+use TeamCodeHub\Database\AdminRepository;
 use TeamCodeHub\Database\ChatRepository;
 use TeamCodeHub\Database\DashboardRepository;
 use TeamCodeHub\Database\GitHubActivityCacheRepository;
@@ -22,6 +23,7 @@ use TeamCodeHub\Database\TaskCollaborationRepository;
 use TeamCodeHub\Database\TeamInvitationRepository;
 use TeamCodeHub\Database\UserRepository;
 use TeamCodeHub\Http\AuthController;
+use TeamCodeHub\Http\AdminController;
 use TeamCodeHub\Http\ChatController;
 use TeamCodeHub\Http\ChatReportController;
 use TeamCodeHub\Http\DashboardController;
@@ -114,6 +116,14 @@ return static function (): void {
         );
     });
 
+    $modules->register('admin.controller', static function (): object {
+        $pdo = ConnectionFactory::connect(DatabaseConfig::fromEnvironment());
+        return new AdminController(
+            new AuthenticationService(new UserRepository($pdo)),
+            new AdminRepository($pdo),
+        );
+    });
+
     $modules->register('dashboard.controller', static function (): object {
         $pdo = ConnectionFactory::connect(DatabaseConfig::fromEnvironment());
         return new DashboardController(
@@ -191,6 +201,13 @@ return static function (): void {
     $router->get('/api/teams/{teamId}/reports', static fn (Request $request, array $params): Response =>
         $modules->get('chat-report.controller')->teamQueue($request, $params)
     );
+    $router->get('/api/admin/overview', static fn (Request $request, array $params): Response =>
+        $modules->get('admin.controller')->overview($request)
+    );
+    $router->get('/api/admin/users', static fn (Request $request, array $params): Response =>
+        $modules->get('admin.controller')->listUsers($request)
+    );
+
     $router->get('/api/admin/reports', static fn (Request $request, array $params): Response =>
         $modules->get('chat-report.controller')->adminQueue($request)
     );
