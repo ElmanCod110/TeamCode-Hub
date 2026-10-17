@@ -61,6 +61,9 @@ $assert(str_contains($js, '/api/admin/reports') && str_contains($js, '/api/repor
 $assert(str_contains($js, '/api/team-invitations/accept') && str_contains($js, 'revoke-invitation') && str_contains($js, 'renderPendingInvitations'), 'team UI connects invitation acceptance, listing, and revocation');
 $assert(str_contains($js, '/comments') && str_contains($js, '/subtasks') && str_contains($js, 'openTaskDetails'), 'task details UI connects comment threads, checklists, and editing');
 $assert(str_contains($js, '/details') && str_contains($js, '/edit'), 'task details UI calls the read and edit endpoints');
+$assert(str_contains($js, 'editTeamModal') && str_contains($js, 'editProjectModal') && str_contains($js, 'archive-team') && str_contains($js, 'archive-project'), 'workspace UI exposes team/project edit and archive workflows');
+$assert(str_contains($bootstrap, "post('/api/teams/{teamId}/edit'") && str_contains($bootstrap, "post('/api/teams/{teamId}/archive'"), 'team lifecycle routes are registered');
+$assert(str_contains($bootstrap, "post('/api/projects/{projectId}/edit'") && str_contains($bootstrap, "post('/api/projects/{projectId}/archive'"), 'project lifecycle routes are registered');
 $assert(str_contains($css, '.task-details-modal') && str_contains($css, '.task-checklist') && str_contains($css, '.task-comment-row'), 'task collaboration views have dedicated responsive styles');
 $assert(str_contains($bootstrap, "'/public/app.html'") && str_contains($bootstrap, "get('/login'"), 'front controller serves the workspace shell at root and login paths');
 $assert(str_contains($response, 'public static function html') && str_contains($response, 'Content-Security-Policy'), 'HTML responses include a restrictive same-origin content security policy');
