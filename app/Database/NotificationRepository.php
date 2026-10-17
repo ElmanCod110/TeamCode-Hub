@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace TeamCodeHub\Database;
 
-use JsonException;
 use PDO;
 
 final class NotificationRepository
