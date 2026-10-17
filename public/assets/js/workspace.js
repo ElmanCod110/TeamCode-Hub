@@ -1705,6 +1705,7 @@
       projectControl.addEventListener("change", () => {
         sequence++;
         if (controller) controller.abort();
+        if (timer) window.clearTimeout(timer);
         control.value = "";
         search.value = "";
         showSelection(null);
