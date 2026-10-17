@@ -13,6 +13,9 @@ Notable changes to TeamCode Hub are recorded here.
 - Add deterministic integration tests for daily request limits, event normalization, and stale-cache fallback.
 
 ### Workspace interface
+- Add owner/manager-only team name editing while preserving stable team URLs.
+- Add owner/manager-only project name and description editing with transactional permission re-checks.
+- Add responsive edit forms, CSRF-protected API wiring, and accessible success/error feedback for team and project settings.
 
 - Add an English application shell with an accessible sign-in form and authenticated workspace navigation.
 - Serve the product shell at `/` and `/login` through the PHP front controller.
