@@ -6,6 +6,7 @@ use TeamCodeHub\Database\ConnectionFactory;
 use TeamCodeHub\Database\ChatRepository;
 use TeamCodeHub\Database\ChatReportRepository;
 use TeamCodeHub\Database\DashboardRepository;
+use TeamCodeHub\Database\GitHubActivityCacheRepository;
 use TeamCodeHub\Database\NotificationRepository;
 use TeamCodeHub\Database\DatabaseConfig;
 use TeamCodeHub\Database\MembershipRepository;
@@ -22,6 +23,7 @@ use TeamCodeHub\Security\ProjectAccessService;
 use TeamCodeHub\Security\SecureSession;
 use TeamCodeHub\Security\TeamAccessService;
 use TeamCodeHub\Core\QuotaExceededException;
+use TeamCodeHub\Services\GitHubActivityService;
 
 require dirname(__DIR__) . '/app/bootstrap.php';
 
@@ -42,8 +44,42 @@ try {
     $pdo = ConnectionFactory::connect($config);
     $runner = new MigrationRunner($pdo, dirname(__DIR__) . '/database/migrations');
     $applied = $runner->migrate();
-    $assert(count($applied) >= 7, 'all versioned migrations are applied to MariaDB');
+    $assert(count($applied) >= 8, 'all versioned migrations are applied to MariaDB');
     $assert($runner->migrate() === [], 'migration runner is idempotent on a migrated schema');
+
+    // Exercise the daily GitHub cache through an injected transport; tests never call GitHub.
+    $githubCache = new GitHubActivityCacheRepository($pdo);
+    $githubFetchCount = 0;
+    $githubFetcher = static function (string $username) use (&$githubFetchCount): array {
+        $githubFetchCount++;
+        return [[
+            'id' => 'fixture-event-1',
+            'type' => 'PushEvent',
+            'repo' => ['name' => 'fixture/project'],
+            'actor' => ['login' => $username],
+            'created_at' => '2026-10-17T12:00:00Z',
+            'payload' => ['size' => 1, 'commits' => [['message' => 'Integration fixture commit']]],
+        ]];
+    };
+    $githubDate = gmdate('Y-m-d');
+    $githubService = new GitHubActivityService('integration-fixture', $githubCache, $githubFetcher);
+    $githubFirst = $githubService->activity($githubDate);
+    $githubSecond = $githubService->activity($githubDate);
+    $assert($githubFetchCount === 1, 'GitHub activity cache claims at most one refresh per username per UTC day');
+    $assert($githubFirst['available'] && !$githubFirst['stale'] && count($githubFirst['events']) === 1, 'GitHub public activity is normalized and cached after a successful refresh');
+    $assert($githubSecond['events'][0]['summary'] === 'Pushed 1 commit: Integration fixture commit', 'cached GitHub activity is served without another transport request');
+
+    $failureFetchCount = 0;
+    $failureFetcher = static function (string $username) use (&$failureFetchCount): array {
+        $failureFetchCount++;
+        throw new RuntimeException('Simulated GitHub transport outage.');
+    };
+    $nextUtcDay = gmdate('Y-m-d', strtotime($githubDate . ' +1 day UTC'));
+    $failureService = new GitHubActivityService('integration-fixture', $githubCache, $failureFetcher);
+    $staleResult = $failureService->activity($nextUtcDay);
+    $failureAgain = $failureService->activity($nextUtcDay);
+    $assert($failureFetchCount === 1, 'failed GitHub refresh is not retried repeatedly on the same UTC day');
+    $assert($staleResult['stale'] && count($staleResult['events']) === 1 && $failureAgain['events'] === $staleResult['events'], 'failed daily refresh preserves and serves the last good public snapshot');
 
     $insertUser = static function (string $email, string $name, string $password) use ($pdo): int {
         $statement = $pdo->prepare(
