@@ -37,6 +37,11 @@ final class Response
         ]);
     }
 
+    public function statusCode(): int
+    {
+        return $this->status;
+    }
+
     public function send(): void
     {
         if (!headers_sent()) {
