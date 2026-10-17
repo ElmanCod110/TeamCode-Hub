@@ -66,11 +66,6 @@ final class AdminRepository
              LIMIT 8'
         )->fetchAll(PDO::FETCH_ASSOC);
 
-        foreach ([$recentUsers, $recentTeams, $recentProjects] as $rows) {
-            foreach ($rows as $row) {
-                // IDs are normalized below in each dedicated loop.
-            }
-        }
         foreach ($recentUsers as &$row) {
             $row['id'] = (int) $row['id'];
         }
