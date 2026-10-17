@@ -71,7 +71,7 @@ final class ChatReportController
         try {
             $result = $this->reports->review($user['id'], $reportId, $action);
         } catch (DomainException $error) {
-            if (str_contains($error->getMessage(), 'themselves')) {
+            if (str_contains($error->getMessage(), 'themselves') || str_contains($error->getMessage(), 'involved in a report')) {
                 return Response::json(['error' => 'You cannot review a report against yourself.'], 403);
             }
             if (str_contains($error->getMessage(), 'Site administrator role')) {
