@@ -29,7 +29,7 @@ final class ChatReportRepository
                  INNER JOIN projects p ON p.id = m.project_id AND p.status = 'active'
                  INNER JOIN project_memberships pm ON pm.project_id = p.id AND pm.user_id = :reporter_id AND pm.status = 'approved'
                  INNER JOIN team_memberships tm ON tm.team_id = p.team_id AND tm.user_id = pm.user_id AND tm.status = 'active'
-                 WHERE m.id = :message_id AND m.project_id = :project_id
+                 WHERE m.id = :message_id AND m.project_id = :project_id AND m.deleted_at IS NULL
                    AND (m.expires_at IS NULL OR m.expires_at > CURRENT_TIMESTAMP)
                  LIMIT 1 FOR UPDATE"
             );
@@ -196,8 +196,8 @@ final class ChatReportRepository
                 throw new DomainException('Report not found.');
             }
             $reportedUserId = (int) $report['reported_user_id'];
-            if ($reportedUserId === $actorId) {
-                throw new DomainException('A person cannot review a report against themselves.');
+            if ($reportedUserId === $actorId || (int) $report['reporter_user_id'] === $actorId) {
+                throw new DomainException('A person involved in a report cannot review that case.');
             }
 
             if ($report['reviewer_scope'] === 'team_manager') {
@@ -250,6 +250,13 @@ final class ChatReportRepository
                 );
                 $validCount->execute(['user_id' => $reportedUserId]);
                 if ((int) $validCount->fetchColumn() >= 2) {
+                    $alreadyEscalated = $this->pdo->prepare(
+                        "SELECT COUNT(*) FROM chat_reports WHERE reported_user_id = :user_id
+                         AND reviewer_scope = 'site_admin' AND created_at >= CURRENT_TIMESTAMP - INTERVAL 1 DAY
+                         AND status IN ('pending', 'valid')"
+                    );
+                    $alreadyEscalated->execute(['user_id' => $reportedUserId]);
+                    $notifyAdmins = (int) $alreadyEscalated->fetchColumn() === 0;
                     $queue = $this->pdo->prepare(
                         "UPDATE chat_reports SET reviewer_scope = 'site_admin'
                          WHERE reported_user_id = :user_id
@@ -257,7 +264,7 @@ final class ChatReportRepository
                            AND status IN ('pending', 'valid')"
                     );
                     $queue->execute(['user_id' => $reportedUserId]);
-                    foreach ($this->siteAdminIds() as $adminId) {
+                    foreach ($notifyAdmins ? $this->siteAdminIds() : [] as $adminId) {
                         $this->notifications->create(
                             $adminId,
                             'chat_report_escalated',
