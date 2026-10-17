@@ -62,7 +62,7 @@ Pending and revoked project memberships cannot access project routes. Only appro
 ## Tasks
 
 - `GET /api/projects/{projectId}/tasks` — lists tasks for any user with approved project access, including viewers.
-- `GET /api/projects/{projectId}/assignees?q=<term>` — searches up to 12 approved, active member-level project users by display name, email, or exact user ID. Requires approved project access; viewers can read the eligible-assignee list but cannot create or edit tasks.
+- `GET /api/projects/{projectId}/assignees?q=<term>` — searches up to 12 approved, active member-level project users by display name, email, or exact user ID. Requires approved member-level project access. Viewers cannot enumerate the assignee directory.
 - `POST /api/projects/{projectId}/tasks` — creates a task; requires approved `member` access and CSRF protection. Body: `{"title":"Review pull request","description":"Optional","priority":"normal","assigned_to":123,"due_at":"2026-11-01 12:00:00"}`. Priorities: `low`, `normal`, `high`, `urgent`. Due dates use UTC `YYYY-MM-DD HH:MM:SS`. An assignee must have approved `member` access to the same project.
 - `POST /api/projects/{projectId}/tasks/{taskId}/status` — changes task status; requires approved `member` access and CSRF protection. Body: `{"status":"in_progress"}`. Statuses: `todo`, `in_progress`, `blocked`, `done`.
 
