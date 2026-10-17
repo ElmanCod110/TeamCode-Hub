@@ -53,6 +53,15 @@ final class UserRepository
         ];
     }
 
+    /** @return list<string> */
+    public function systemRoles(int $userId): array
+    {
+        $statement = $this->pdo->prepare('SELECT role FROM user_system_roles WHERE user_id = :user_id ORDER BY role ASC');
+        $statement->execute(['user_id' => $userId]);
+        $roles = $statement->fetchAll(PDO::FETCH_COLUMN);
+        return array_values(array_filter($roles, static fn ($role): bool => is_string($role)));
+    }
+
     public function updateLastLogin(int $id): void
     {
         $statement = $this->pdo->prepare('UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = :id');
