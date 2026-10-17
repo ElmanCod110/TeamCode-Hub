@@ -66,7 +66,7 @@
 .switch { display:inline-flex; align-items:center; gap:11px; cursor:pointer; user-select:none; color:var(--text-secondary); font-size:var(--text-sm); }
 .switch input { position:absolute; width:1px; height:1px; opacity:0; }
 .switch .track { position:relative; width:38px; height:22px; flex:0 0 38px; border-radius:var(--r-full); background:var(--g300); transition:background var(--t); }
-.switch .track::after { position:absolute; inset-block-start:2px; inset-inline-start:2px; width:18px; height:18px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgb(0 0 0 / 20%); content:""; transition:transform var(--t); }
+.switch .track::after { position:absolute; inset-block-start:2px; inset-inline-start:2px; width:18px; height:18px; border-radius:50%; background:var(--surface); box-shadow:0 1px 3px rgb(0 0 0 / 20%); content:""; transition:transform var(--t); }
 .switch input:checked + .track { background:var(--g900); }
 .switch input:checked + .track::after { transform:translateX(-16px); }
 [dir="ltr"] .switch input:checked + .track::after { transform:translateX(16px); }
