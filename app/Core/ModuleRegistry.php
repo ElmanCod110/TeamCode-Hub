@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace TeamCodeHub\\Core;
+namespace TeamCodeHub\Core;
 
 use Closure;
 use LogicException;
@@ -24,7 +24,6 @@ final class ModuleRegistry
         if (isset($this->factories[$id]) || isset($this->instances[$id])) {
             throw new LogicException('Module is already registered: ' . $id);
         }
-
         $this->factories[$id] = Closure::fromCallable($factory);
     }
 
@@ -38,17 +37,14 @@ final class ModuleRegistry
         if (isset($this->instances[$id])) {
             return $this->instances[$id];
         }
-
         $factory = $this->factories[$id] ?? null;
         if ($factory === null) {
             throw new LogicException('Unknown module: ' . $id);
         }
-
         $instance = $factory();
         if (!is_object($instance)) {
             throw new LogicException('Module factory must return an object: ' . $id);
         }
-
         $this->instances[$id] = $instance;
         return $instance;
     }
@@ -56,9 +52,6 @@ final class ModuleRegistry
     /** @return list<string> */
     public function registeredIds(): array
     {
-        return array_values(array_unique(array_merge(
-            array_keys($this->factories),
-            array_keys($this->instances),
-        )));
+        return array_values(array_unique(array_merge(array_keys($this->factories), array_keys($this->instances))));
     }
 }
