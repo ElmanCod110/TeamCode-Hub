@@ -23,14 +23,14 @@ jobs:
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ matrix.php }}
+          php-version: "${{ matrix.php }}"
           coverage: none
 
       - name: Lint PHP files
         shell: bash
         run: |
           set -euo pipefail
-          find app public tests -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+          find app public tests bin database -type f -name '*.php' -print0 | xargs -0 -n1 php -l
 
       - name: Run smoke tests
         run: php tests/run.php

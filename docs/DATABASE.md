@@ -2,18 +2,23 @@
 
 ## Supported baseline
 
-The intended primary database is MySQL/MariaDB through PDO. SQLite is not assumed to be supported unless it is explicitly added and tested as a separate target.
+The primary database is MySQL/MariaDB through PDO. SQLite is not assumed to be supported unless it is explicitly added and tested as a separate target.
 
 ## Connection policy
 
 - Read credentials from environment variables or a private configuration file outside the web root.
 - Do not commit real credentials.
-- Enable PDO exception mode and disable emulated prepares where supported.
+- Enable PDO exception mode and disable emulated prepares.
 - Use utf8mb4 and explicit transaction boundaries.
 - Use parameterized statements for values; dynamic identifiers require a strict allowlist.
+- `DatabaseConfig` validates the host, port, database identifier, and username before constructing a DSN. Passwords are not embedded in the DSN.
 
 ## Migration policy
 
-Migrations must be versioned, ordered, recorded in a migration registry/table, and protected against concurrent execution. A migration runner should be invoked through an explicit deployment/maintenance operation, not triggered by arbitrary SQL errors during normal web requests.
+Migrations use filenames of the form `YYYYMMDDHHMMSS_description.php` and return a `MigrationInterface` object. The runner sorts versions, records successful migrations in `schema_migrations`, and acquires a MySQL advisory lock to avoid concurrent runs.
 
-For destructive changes, document backup requirements and whether a safe rollback exists. A schema change is not complete until its migration and relevant tests are included.
+Run migrations explicitly from a trusted CLI shell with `php bin/migrate.php`. The web request path does not run migrations. Configure `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, and `DB_PASSWORD` first. The database account needs permission to create/alter the application schema and the migration registry during deployment; runtime permissions should be reduced where practical after setup.
+
+MySQL DDL can implicitly commit. If a migration is interrupted part-way through, inspect the database before retrying. Keep migrations focused and design them for safe recovery. Back up before destructive schema changes and document rollback limits.
+
+The initial migration creates `users`, `teams`, `team_memberships`, `projects`, and `project_memberships`. It is a storage foundation only: it does not implement registration, authentication, membership approval flows, or enforcement of project-level access. Those rules must be implemented in services and verified on every protected request.
