@@ -108,6 +108,53 @@ final class ProjectRepository
         }
     }
 
+    /**
+     * Update project metadata only for an active owner/manager in its active team.
+     * The authorization predicate is repeated inside the transaction so the repository
+     * remains safe when called outside the HTTP controller.
+     */
+    public function updateForTeamManager(int $userId, int $projectId, string $name, ?string $description): array
+    {
+        $this->pdo->beginTransaction();
+        try {
+            $access = $this->pdo->prepare(
+                "SELECT p.id
+                 FROM projects p
+                 INNER JOIN teams t ON t.id = p.team_id AND t.status = 'active'
+                 INNER JOIN team_memberships tm ON tm.team_id = t.id AND tm.user_id = :user_id
+                 WHERE p.id = :project_id AND p.status = 'active'
+                   AND tm.status = 'active' AND tm.role IN ('owner', 'manager')
+                 LIMIT 1 FOR UPDATE"
+            );
+            $access->execute(['user_id' => $userId, 'project_id' => $projectId]);
+            if ($access->fetchColumn() === false) {
+                throw new DomainException('Active team owner or manager role required.');
+            }
+
+            $update = $this->pdo->prepare(
+                'UPDATE projects SET name = :name, description = :description
+                 WHERE id = :project_id AND status = \'active\''
+            );
+            $update->execute([
+                'name' => $name,
+                'description' => $description,
+                'project_id' => $projectId,
+            ]);
+            $this->pdo->commit();
+
+            $project = $this->findAccessibleByUser($userId, $projectId);
+            if ($project === null) {
+                throw new DomainException('Updated project is no longer accessible.');
+            }
+            return $project;
+        } catch (Throwable $error) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $error;
+        }
+    }
+
     /** @param array<string, mixed> $row
      *  @return array<string, mixed>
      */
