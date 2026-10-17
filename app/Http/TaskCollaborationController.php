@@ -198,6 +198,7 @@ final class TaskCollaborationController
 
     private function validCsrf(Request $request): bool
     {
+        SecureSession::start();
         $token = $request->header('X-Csrf-Token');
         $body = $request->body();
         if ($token === null && isset($body['csrf_token']) && is_string($body['csrf_token'])) {
