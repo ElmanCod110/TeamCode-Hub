@@ -164,6 +164,12 @@ try {
     $projects->updateMetadataForTeamManager($adminId, $projectId, 'Integration Project Updated', 'Updated project description');
     $updatedProject = $projects->findAccessibleByUser($adminId, $projectId);
     $assert(is_array($updatedProject) && $updatedProject['name'] === 'Integration Project Updated' && $updatedProject['description'] === 'Updated project description', 'team owner can update project name and description');
+    $projectMemberships = new ProjectMembershipRepository($pdo);
+
+    $projectMemberships->assignPending($adminId, $projectId, $memberId, 'member');
+    $assert(!$projectAccess->canView($memberId, $projectId), 'pending project membership grants no access');
+    $projectMemberships->approve($adminId, $projectId, $memberId);
+    $assert($projectAccess->canView($memberId, $projectId) && $projectAccess->canEdit($memberId, $projectId), 'approved member can view and edit project');
     $memberProjectEditRejected = false;
     try {
         $projects->updateMetadataForTeamManager($memberId, $projectId, 'Unauthorized Project Name', null);
@@ -171,12 +177,6 @@ try {
         $memberProjectEditRejected = true;
     }
     $assert($memberProjectEditRejected, 'ordinary project member cannot update project metadata');
-    $projectMemberships = new ProjectMembershipRepository($pdo);
-
-    $projectMemberships->assignPending($adminId, $projectId, $memberId, 'member');
-    $assert(!$projectAccess->canView($memberId, $projectId), 'pending project membership grants no access');
-    $projectMemberships->approve($adminId, $projectId, $memberId);
-    $assert($projectAccess->canView($memberId, $projectId) && $projectAccess->canEdit($memberId, $projectId), 'approved member can view and edit project');
     $memberNotices = $notifications->listRecentForUser($memberId);
     $assert(count(array_filter($memberNotices, static fn (array $item): bool => $item['type'] === 'project_access_approved')) === 1, 'project access approval creates a notification');
 
