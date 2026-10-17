@@ -6,6 +6,8 @@ use TeamCodeHub\Core\ModuleRegistry;
 use TeamCodeHub\Core\Request;
 use TeamCodeHub\Core\Response;
 use TeamCodeHub\Core\Router;
+use TeamCodeHub\Database\DatabaseConfig;
+use TeamCodeHub\Security\PermissionChecker;
 
 require dirname(__DIR__) . '/app/bootstrap.php';
 
@@ -66,5 +68,24 @@ try {
     $unknownRejected = true;
 }
 $assert($unknownRejected, 'unknown module lookup fails closed');
+
+$db = new DatabaseConfig('localhost', 3306, 'teamcode_hub', 'app_user', 'test-secret');
+$assert(
+    $db->dsn() === 'mysql:host=localhost;port=3306;dbname=teamcode_hub;charset=utf8mb4',
+    'database DSN uses MySQL and utf8mb4 without embedding credentials'
+);
+
+$unsafeDatabaseRejected = false;
+try {
+    new DatabaseConfig('localhost', 3306, 'db;DROP_TABLE', 'app_user', 'secret');
+} catch (InvalidArgumentException) {
+    $unsafeDatabaseRejected = true;
+}
+$assert($unsafeDatabaseRejected, 'unsafe database identifier is rejected');
+
+$grants = ['team:42:members:invite', 'project:8:read'];
+$assert(PermissionChecker::allows($grants, 'team:42:members:invite'), 'exact scoped permission is granted');
+$assert(!PermissionChecker::allows($grants, 'team:43:members:invite'), 'permission does not cross team scope');
+$assert(!PermissionChecker::allows($grants, 'team:*:members:invite'), 'wildcard permissions are rejected');
 
 echo "\n{$passed} assertions passed.\n";
