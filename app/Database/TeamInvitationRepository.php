@@ -35,6 +35,14 @@ final class TeamInvitationRepository
                 throw new DomainException('Active team manager role required.');
             }
 
+            $member = $this->pdo->prepare(
+                'SELECT tm.status FROM team_memberships tm INNER JOIN users u ON u.id = tm.user_id WHERE tm.team_id = :team_id AND u.email = :email LIMIT 1 FOR UPDATE'
+            );
+            $member->execute(['team_id' => $teamId, 'email' => $email]);
+            if ($member->fetchColumn() === 'active') {
+                throw new DomainException('Email is already a member.');
+            }
+
             $existing = $this->pdo->prepare(
                 "SELECT id FROM team_invitations
                  WHERE team_id = :team_id AND email = :email AND status = 'pending'
