@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace TeamCodeHub\\Core;
+namespace TeamCodeHub\Core;
 
 use Closure;
 use InvalidArgumentException;
@@ -39,15 +39,8 @@ final class Router
         ];
     }
 
-    public function get(string $pattern, callable $handler): void
-    {
-        $this->add('GET', $pattern, $handler);
-    }
-
-    public function post(string $pattern, callable $handler): void
-    {
-        $this->add('POST', $pattern, $handler);
-    }
+    public function get(string $pattern, callable $handler): void { $this->add('GET', $pattern, $handler); }
+    public function post(string $pattern, callable $handler): void { $this->add('POST', $pattern, $handler); }
 
     public function dispatch(Request $request): Response
     {
@@ -55,7 +48,6 @@ final class Router
             if ($route['method'] !== $request->method()) {
                 continue;
             }
-
             if (preg_match($route['regex'], $request->path(), $matches) !== 1) {
                 continue;
             }
@@ -71,13 +63,8 @@ final class Router
             }
 
             $response = ($route['handler'])($request, $params);
-            if (!$response instanceof Response) {
-                return Response::text('Internal Server Error', 500);
-            }
-
-            return $response;
+            return $response instanceof Response ? $response : Response::text('Internal Server Error', 500);
         }
-
         return Response::text('Not Found', 404);
     }
 }
