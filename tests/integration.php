@@ -106,6 +106,17 @@ try {
     $team = $teams->createForOwner($adminId, 'Integration Team');
     $teamId = $team['id'];
     $assert($teams->findAccessibleByUser($teamId, $adminId) !== null, 'team creator receives active owner membership');
+    $originalTeamSlug = $team['slug'];
+    $renamedTeam = $teams->updateNameForOwner($adminId, $teamId, 'Integration Team Updated');
+    $assert($renamedTeam['name'] === 'Integration Team Updated', 'team owner can update team display name');
+    $assert($renamedTeam['slug'] === $originalTeamSlug, 'renaming a team preserves its stable slug');
+    $outsiderTeamRenameRejected = false;
+    try {
+        $teams->updateNameForOwner($outsiderId, $teamId, 'Unauthorized Team Name');
+    } catch (DomainException) {
+        $outsiderTeamRenameRejected = true;
+    }
+    $assert($outsiderTeamRenameRejected, 'unrelated user cannot rename a team');
     $assert($teams->listForUser($outsiderId) === [], 'unrelated user cannot discover team in their list');
 
     $invitations = new TeamInvitationRepository($pdo);
@@ -150,6 +161,16 @@ try {
 
     $projects = new ProjectRepository($pdo);
     $projectId = $projects->createForTeamManager($adminId, $teamId, 'Integration Project', 'Testing project access');
+    $projects->updateMetadataForTeamManager($adminId, $projectId, 'Integration Project Updated', 'Updated project description');
+    $updatedProject = $projects->findAccessibleByUser($adminId, $projectId);
+    $assert(is_array($updatedProject) && $updatedProject['name'] === 'Integration Project Updated' && $updatedProject['description'] === 'Updated project description', 'team owner can update project name and description');
+    $memberProjectEditRejected = false;
+    try {
+        $projects->updateMetadataForTeamManager($memberId, $projectId, 'Unauthorized Project Name', null);
+    } catch (DomainException) {
+        $memberProjectEditRejected = true;
+    }
+    $assert($memberProjectEditRejected, 'ordinary project member cannot update project metadata');
     $projectMemberships = new ProjectMembershipRepository($pdo);
 
     $projectMemberships->assignPending($adminId, $projectId, $memberId, 'member');
@@ -174,6 +195,16 @@ try {
     $pdo->prepare("INSERT INTO project_memberships (project_id, user_id, access_level, status, approved_by, approved_at)
         VALUES (:project_id, :user_id, 'member', 'approved', :approved_by, CURRENT_TIMESTAMP)")
         ->execute(['project_id' => $projectId, 'user_id' => $manager2Id, 'approved_by' => $adminId]);
+    $managerTeamRenameRejected = false;
+    try {
+        $teams->updateNameForOwner($manager2Id, $teamId, 'Manager Cannot Rename Team');
+    } catch (DomainException) {
+        $managerTeamRenameRejected = true;
+    }
+    $assert($managerTeamRenameRejected, 'team manager cannot rename the team reserved for its owner');
+    $projects->updateMetadataForTeamManager($manager2Id, $projectId, 'Manager Updated Project', 'Manager edited the project description');
+    $managerUpdatedProject = $projects->findAccessibleByUser($manager2Id, $projectId);
+    $assert(is_array($managerUpdatedProject) && $managerUpdatedProject['name'] === 'Manager Updated Project', 'approved team manager can edit project metadata');
 
     $chat = new ChatRepository($pdo);
     $reports = new ChatReportRepository($pdo);
