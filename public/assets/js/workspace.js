@@ -375,7 +375,7 @@
 
   function routeFromHash() {
     const hash = location.hash.replace(/^#/, "");
-    if (hash.startsWith("project/")) {
+    if (hash.startsWith("team/")) {\n      const teamId = Number(hash.split("/")[1]);\n      if (teamById(teamId)) openTeam(teamId);\n      else navigate("teams", false);\n      return;\n    }\n    if (hash.startsWith("project/")) {
       const id = Number(hash.split("/")[1]);
       const project = projectById(id);
       if (project) openProject(project, false);
@@ -864,10 +864,16 @@
     if (!project || !list || state.chatBusy) return;
     state.chatBusy = true;
     try {
-      const query = initial ? "" : "?after_id=" + encodeURIComponent(state.chatCursor);
+      // Periodically reconcile the latest bounded window so edits and deletions
+      // to existing messages become visible even though the API cursor is ID-based.
+      const fullSync = initial || (!forceScroll && (++state.chatPollCount % 4 === 0));
+      const wasNearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 48;
+      const previousScrollHeight = list.scrollHeight;
+      const previousScrollTop = list.scrollTop;
+      const query = fullSync ? "" : "?after_id=" + encodeURIComponent(state.chatCursor);
       const data = await request("/api/projects/" + escapePath(project.id) + "/chat" + query);
       const messages = Array.isArray(data.messages) ? data.messages : [];
-      if (initial) list.replaceChildren();
+      if (fullSync) list.replaceChildren();
       messages.forEach(message => {
         if ($("#chat-message-" + message.id, list)) return;
         list.appendChild(renderChatMessage(message));
