@@ -70,7 +70,7 @@ final class TaskCollaborationRepository
                     $recipientId,
                     'task_comment',
                     'New task comment',
-                    mb_substr($body, 0, 160),
+                    (string) $task['title'],
                     ['project_id' => $projectId, 'task_id' => $taskId, 'comment_id' => $commentId],
                 );
             }
