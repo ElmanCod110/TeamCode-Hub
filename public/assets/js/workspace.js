@@ -901,8 +901,14 @@
       members.forEach(member => {
         const row = el("div", "member-row");
         append(row, avatar(member.display_name || member.email), append(el("div", "row-main"), el("span", "row-title", member.display_name || member.email), el("span", "row-subtitle", member.email || ("User #" + member.user_id))),
-          badge(member.status || member.access_level || "member"));
+          badge(member.status === "approved" ? (member.access_level || "member") : (member.status || "pending")));
         if (canManageTeam(project.team_id) && member.status === "pending") row.appendChild(actionButton("Approve", "approve-member", "btn btn-outline btn-sm", { "data-project-id": project.id, "data-user-id": member.user_id }));
+        if (canManageTeam(project.team_id) && member.status === "approved" && !member.is_project_creator && Number(member.user_id) !== Number(state.user.id)) {
+          const nextLevel = member.access_level === "member" ? "viewer" : "member";
+          row.appendChild(actionButton(nextLevel === "viewer" ? "Make viewer" : "Grant edit access", "change-member-access", "btn btn-outline btn-sm", {
+            "data-project-id": project.id, "data-user-id": member.user_id, "data-access-level": nextLevel
+          }));
+        }
         if (canManageTeam(project.team_id) && member.status !== "revoked" && Number(member.user_id) !== Number(state.user.id)) row.appendChild(actionButton("Revoke", "revoke-member", "btn btn-ghost btn-sm", { "data-project-id": project.id, "data-user-id": member.user_id }));
         list.appendChild(row);
       });
@@ -1881,6 +1887,18 @@
       else if (name === "approve-member") {
         await request("/api/projects/" + escapePath(action.dataset.projectId) + "/members/" + escapePath(action.dataset.userId) + "/approve", { method: "POST", body: {} });
         toast("Project membership approved."); await renderProject(action.dataset.projectId, "members");
+      }
+      else if (name === "change-member-access") {
+        const accessLevel = action.dataset.accessLevel;
+        const explanation = accessLevel === "viewer"
+          ? "Make this member read-only? They will no longer be able to edit project tasks or send chat messages."
+          : "Grant this member edit access to project tasks and chat?";
+        if (!window.confirm(explanation)) return;
+        const result = await request("/api/projects/" + escapePath(action.dataset.projectId) + "/members/" + escapePath(action.dataset.userId) + "/access", {
+          method: "POST", body: { access_level: accessLevel }
+        });
+        toast(result.changed === false ? "This member already has that access level." : (accessLevel === "viewer" ? "Member is now read-only." : "Member edit access granted."));
+        await renderProject(action.dataset.projectId, "members");
       }
       else if (name === "revoke-member") {
         if (!window.confirm("Revoke this member's project access?")) return;

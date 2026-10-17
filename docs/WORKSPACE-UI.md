@@ -24,7 +24,7 @@ The HTML has no inline style or script blocks. The front controller returns HTML
 | Projects | Dashboard projection and `GET /api/projects/{projectId}` | Search projects, edit name/description as an authorized team manager, and open a project workspace |
 | Project overview | Project detail and task endpoints | View task metrics and navigate to task/member/chat panels |
 | Tasks | Task list/create/edit/status endpoints and task detail/comment/checklist endpoints | Search/filter, edit/reassign, view task details, discuss work, and manage a bounded checklist; viewer access remains read-only |
-| Members | Project member listing/assignment/approval/revocation endpoints | Assign existing user IDs, select member/viewer access, approve pending access, revoke access when permitted |
+| Members | Project member listing/assignment/approval/revocation endpoints | Assign existing user IDs, select member/viewer access, approve pending access, change approved member/viewer access, and revoke access when permitted |
 | Project chat | `GET|POST /api/projects/{projectId}/chat` and message edit/delete/report endpoints | Send text, edit/delete own messages, report another member's message |
 | Notifications | `GET /api/notifications`, `POST /api/notifications/{id}/read` | Mark individual or visible notifications as read |
 | Moderation | `GET /api/admin/reports`, `GET /api/teams/{teamId}/reports`, `POST /api/reports/{reportId}/review` | Review scoped report queues, inspect preserved message context, mark reports valid/rejected, or resolve valid cases |
