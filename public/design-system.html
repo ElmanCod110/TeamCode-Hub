@@ -10,8 +10,10 @@
   <title>Design System — TeamCode Hub</title>
   <!-- The design system uses the device's installed system font stack; no font download is required. -->
   <link rel="stylesheet" href="/assets/css/app.css">
+  <link rel="stylesheet" href="/assets/css/design-system-demo.css">
   <!-- Load interactions separately so styles remain usable without JavaScript. -->
   <script src="/assets/js/ui.js" defer></script>
+  <script src="/assets/js/design-system-demo.js" defer></script>
 </head>
 <body>
   <!-- Keyboard users can bypass repeated navigation and jump directly to the page content. -->
@@ -48,7 +50,7 @@
           <a class="btn btn-outline" href="#foundations">View foundations</a>
         </div>
       </div>
-      <div class="card card-pad" style="width:min(100%, 300px)" aria-label="Design principles">
+      <div class="card card-pad demo-principles" aria-label="Design principles">
         <p class="eyebrow">Principles</p>
         <div class="list mt-3">
           <div class="list-item"><span class="badge badge-solid">01</span><div class="list-item__main"><p class="list-item__title">Clarity first</p><p class="list-item__desc">Content before decoration.</p></div></div>
@@ -65,10 +67,10 @@
         <p class="section-hint">Neutral base · Semantic status colors</p>
       </div>
       <div class="grid grid-4">
-        <article class="card"><div style="height:78px;background:#0a0a0a"></div><div class="card-pad"><p class="t-strong">Primary</p><p class="t-caption">#0A0A0A</p></div></article>
-        <article class="card"><div style="height:78px;background:#f4f4f5"></div><div class="card-pad"><p class="t-strong">Muted surface</p><p class="t-caption">#F4F4F5</p></div></article>
-        <article class="card"><div style="height:78px;background:#15803d"></div><div class="card-pad"><p class="t-strong">Success</p><p class="t-caption">#15803D</p></div></article>
-        <article class="card"><div style="height:78px;background:#b91c1c"></div><div class="card-pad"><p class="t-strong">Danger</p><p class="t-caption">#B91C1C</p></div></article>
+        <article class="card"><div class="demo-swatch demo-swatch-primary" aria-hidden="true"></div><div class="card-pad"><p class="t-strong">Primary</p><p class="t-caption">#0A0A0A</p></div></article>
+        <article class="card"><div class="demo-swatch demo-swatch-muted" aria-hidden="true"></div><div class="card-pad"><p class="t-strong">Muted surface</p><p class="t-caption">#F4F4F5</p></div></article>
+        <article class="card"><div class="demo-swatch demo-swatch-success" aria-hidden="true"></div><div class="card-pad"><p class="t-strong">Success</p><p class="t-caption">#15803D</p></div></article>
+        <article class="card"><div class="demo-swatch demo-swatch-danger" aria-hidden="true"></div><div class="card-pad"><p class="t-strong">Danger</p><p class="t-caption">#B91C1C</p></div></article>
       </div>
 
       <div class="section-heading mt-8">
@@ -76,9 +78,9 @@
         <p class="section-hint">No external font request</p>
       </div>
       <div class="card card-pad stack">
-        <div><p class="eyebrow">Display / 40px</p><h2 style="font-size:clamp(2rem,5vw,2.5rem);letter-spacing:-.04em">Build better together.</h2></div>
+        <div><p class="eyebrow">Display / 40px</p><h2 class="demo-type-display">Build better together.</h2></div>
         <div class="divider"></div>
-        <div><p class="eyebrow">Heading / 24px</p><h3 style="font-size:24px">Project activity</h3></div>
+        <div><p class="eyebrow">Heading / 24px</p><h3 class="demo-type-heading">Project activity</h3></div>
         <div class="divider"></div>
         <div><p class="eyebrow">Body / 15px</p><p class="t-soft">Keep interface copy concise and actionable. Use spacing and contrast to establish hierarchy instead of adding unnecessary visual effects.</p></div>
         <div class="divider"></div>
@@ -143,7 +145,7 @@
             <div class="dropdown-menu" id="example-menu" hidden>
               <button class="menu-item" type="button">Edit details</button>
               <button class="menu-item" type="button">Copy project link</button>
-              <div class="divider my-1"></div>
+              <div class="divider demo-divider"></div>
               <button class="menu-item menu-item-danger" type="button">Archive project</button>
             </div>
           </div>
@@ -165,7 +167,7 @@
 
       <div class="card mt-6">
         <div class="card-head"><div><h3>Recent activity</h3><p class="card-head__sub">A compact table pattern for project updates</p></div><button class="btn btn-outline btn-sm" type="button">View all</button></div>
-        <div class="table-wrap" style="border:0;border-radius:0">
+        <div class="table-wrap demo-table-wrap">
           <table class="tbl">
             <thead><tr><th scope="col">Project</th><th scope="col">Activity</th><th scope="col">Status</th><th scope="col">Updated</th></tr></thead>
             <tbody>
@@ -175,7 +177,7 @@
             </tbody>
           </table>
         </div>
-        <div class="card-foot"><span class="t-muted t-small">Showing 3 of 12 activities</span><span class="t-muted t-small" style="margin-inline-start:auto">Demo content only</span></div>
+        <div class="card-foot"><span class="t-muted t-small">Showing 3 of 12 activities</span><span class="t-muted t-small demo-foot-note">Demo content only</span></div>
       </div>
 
       <div class="grid grid-2 mt-6">
@@ -200,9 +202,9 @@
             <button class="tab" id="tab-members" type="button" role="tab" data-tab="members" aria-controls="panel-members" aria-selected="false">Members</button>
             <button class="tab" id="tab-settings" type="button" role="tab" data-tab="settings" aria-controls="panel-settings" aria-selected="false">Settings</button>
           </div>
-          <section class="py-4" id="panel-overview" role="tabpanel" aria-labelledby="tab-overview" data-tab-panel="overview"><h4 class="t-strong">Project overview</h4><p class="t-soft mt-2">Summarize the goal, current status, and next milestone here.</p></section>
-          <section class="py-4" id="panel-members" role="tabpanel" aria-labelledby="tab-members" data-tab-panel="members" hidden><h4 class="t-strong">Project members</h4><p class="t-soft mt-2">List approved members and their effective access levels here.</p></section>
-          <section class="py-4" id="panel-settings" role="tabpanel" aria-labelledby="tab-settings" data-tab-panel="settings" hidden><h4 class="t-strong">Project settings</h4><p class="t-soft mt-2">Keep configuration actions behind server-side permission checks.</p></section>
+          <section class="demo-tab-panel" id="panel-overview" role="tabpanel" aria-labelledby="tab-overview" data-tab-panel="overview"><h4 class="t-strong">Project overview</h4><p class="t-soft mt-2">Summarize the goal, current status, and next milestone here.</p></section>
+          <section class="demo-tab-panel" id="panel-members" role="tabpanel" aria-labelledby="tab-members" data-tab-panel="members" hidden><h4 class="t-strong">Project members</h4><p class="t-soft mt-2">List approved members and their effective access levels here.</p></section>
+          <section class="demo-tab-panel" id="panel-settings" role="tabpanel" aria-labelledby="tab-settings" data-tab-panel="settings" hidden><h4 class="t-strong">Project settings</h4><p class="t-soft mt-2">Keep configuration actions behind server-side permission checks.</p></section>
         </div>
       </div>
     </section>
@@ -228,15 +230,5 @@
     </div>
   </footer>
 
-  <!-- Tiny demo-only handlers live here for the showcase; product behavior stays in ui.js. -->
-  <script>
-    document.getElementById("show-toast").addEventListener("click", function () {
-      window.TCHUI.notify("This is a sample notification from the design system.");
-    });
-    document.getElementById("empty-action").addEventListener("click", function () {
-      window.TCHUI.notify("The projects page will be connected when its UI is implemented.");
-    });
-    document.getElementById("year").textContent = String(new Date().getFullYear());
-  </script>
 </body>
 </html>
