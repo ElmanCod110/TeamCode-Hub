@@ -18,7 +18,7 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 - Seven-day team invitations with hashed tokens, acceptance, and revocation.
 - Project member assignment with pending-by-default status, manager approval, viewer/member access levels, and revocation.
 - Task listing for approved project users, member-only task creation/status changes, priorities, assignees, and UTC due dates.
-- Automated linting and smoke tests on PHP 8.2, 8.3, and 8.4.
+- Automated PHP linting, smoke tests, and MariaDB integration tests on PHP 8.2, 8.3, and 8.4.
 
 ## Setup
 
