@@ -245,6 +245,10 @@ return static function (): void {
         $modules->get('workspace.controller')->showProject($request, $params)
     );
 
+    $router->post('/api/projects/{projectId}/edit', static fn (Request $request, array $params): Response =>
+        $modules->get('workspace.controller')->updateProject($request, $params)
+    );
+
     $router->get('/api/projects/{projectId}/tasks', static fn (Request $request, array $params): Response =>
         $modules->get('task.controller')->listTasks($request, $params)
     );
