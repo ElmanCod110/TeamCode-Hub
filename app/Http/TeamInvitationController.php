@@ -33,7 +33,7 @@ final class TeamInvitationController
         if ($teamId === null || !$this->teamAccess->canManage($user['id'], $teamId)) {
             return Response::json(['error' => 'Team not found or management permission denied.'], 404);
         }
-        return Response::json(['invitations' => $this->invitations->listPendingForTeam($teamId)]);
+        return Response::json(['invitations' => $this->invitations->listPendingForManager($user['id'], $teamId)]);
     }
 
     public function create(Request $request, array $params): Response
@@ -61,7 +61,7 @@ final class TeamInvitationController
         } catch (QuotaExceededException) {
             return Response::json(['error' => 'The team has reached its member quota.'], 409);
         } catch (DomainException $error) {
-            if (str_contains($error->getMessage(), 'already exists') || str_contains($error->getMessage(), 'already a member')) {
+            if (str_contains($error->getMessage(), 'already exists') || str_contains($error->getMessage(), 'already a member') || str_contains($error->getMessage(), 'suspended')) {
                 return Response::json(['error' => 'An active member or pending invitation already exists for this email.'], 409);
             }
             return Response::json(['error' => 'Team not found or management permission denied.'], 404);
