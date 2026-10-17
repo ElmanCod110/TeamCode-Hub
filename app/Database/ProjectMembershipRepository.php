@@ -122,7 +122,8 @@ final class ProjectMembershipRepository
                 "SELECT p.team_id
                  FROM projects p
                  INNER JOIN project_memberships actor_pm
-                   ON actor_pm.project_id = p.id AND actor_pm.user_id = :actor_id AND actor_pm.status = 'approved'
+                   ON actor_pm.project_id = p.id AND actor_pm.user_id = :actor_id
+                      AND actor_pm.status = 'approved' AND actor_pm.access_level = 'member'
                  INNER JOIN team_memberships actor_tm
                    ON actor_tm.team_id = p.team_id AND actor_tm.user_id = actor_pm.user_id AND actor_tm.status = 'active'
                  WHERE p.id = :project_id AND p.status = 'active'
