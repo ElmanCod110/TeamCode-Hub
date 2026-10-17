@@ -10,11 +10,13 @@ use TeamCodeHub\Database\ConnectionFactory;
 use TeamCodeHub\Database\DatabaseConfig;
 use TeamCodeHub\Database\MembershipRepository;
 use TeamCodeHub\Database\ProjectRepository;
+use TeamCodeHub\Database\ProjectMembershipRepository;
 use TeamCodeHub\Database\TeamRepository;
 use TeamCodeHub\Database\TeamInvitationRepository;
 use TeamCodeHub\Database\UserRepository;
 use TeamCodeHub\Http\AuthController;
 use TeamCodeHub\Http\WorkspaceController;
+use TeamCodeHub\Http\ProjectMembershipController;
 use TeamCodeHub\Http\TeamInvitationController;
 use TeamCodeHub\Security\AuthenticationService;
 use TeamCodeHub\Security\CsrfToken;
@@ -56,6 +58,14 @@ return static function (): void {
             new AuthenticationService($users),
             new TeamAccessService($memberships),
             new TeamInvitationRepository($pdo),
+        );
+    });
+
+    $modules->register('project-membership.controller', static function (): object {
+        $pdo = ConnectionFactory::connect(DatabaseConfig::fromEnvironment());
+        return new ProjectMembershipController(
+            new AuthenticationService(new UserRepository($pdo)),
+            new ProjectMembershipRepository($pdo),
         );
     });
 
@@ -116,6 +126,19 @@ return static function (): void {
     );
     $router->get('/api/projects/{projectId}', static fn (Request $request, array $params): Response =>
         $modules->get('workspace.controller')->showProject($request, $params)
+    );
+
+    $router->get('/api/projects/{projectId}/members', static fn (Request $request, array $params): Response =>
+        $modules->get('project-membership.controller')->list($request, $params)
+    );
+    $router->post('/api/projects/{projectId}/members', static fn (Request $request, array $params): Response =>
+        $modules->get('project-membership.controller')->assign($request, $params)
+    );
+    $router->post('/api/projects/{projectId}/members/{userId}/approve', static fn (Request $request, array $params): Response =>
+        $modules->get('project-membership.controller')->approve($request, $params)
+    );
+    $router->post('/api/projects/{projectId}/members/{userId}/revoke', static fn (Request $request, array $params): Response =>
+        $modules->get('project-membership.controller')->revoke($request, $params)
     );
 
     $router->get('/api/teams/{teamId}/invitations', static fn (Request $request, array $params): Response =>

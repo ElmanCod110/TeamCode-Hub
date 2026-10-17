@@ -16,6 +16,7 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 - CLI-only one-time administrator bootstrap.
 - Team/project APIs with active/approved membership checks and transactional project quota enforcement.
 - Seven-day team invitations with hashed tokens, manual trusted-channel delivery, acceptance, and revocation.
+- Project member assignment with pending-by-default status, manager approval, viewer/member access levels, and revocation.
 - Automated linting and smoke tests on PHP 8.2, 8.3, and 8.4.
 
 ## Setup
@@ -29,15 +30,15 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 
 Authentication: `GET /api/auth/csrf`, `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`.
 
-Teams: `GET|POST /api/teams`, `GET /api/teams/{teamId}`, and `GET|POST /api/teams/{teamId}/invitations`, `DELETE /api/teams/{teamId}/invitations/{invitationId}`, `POST /api/team-invitations/accept`.
+Teams: `GET|POST /api/teams`, `GET /api/teams/{teamId}`, team invitations via `GET|POST /api/teams/{teamId}/invitations`, `DELETE /api/teams/{teamId}/invitations/{invitationId}`, and `POST /api/team-invitations/accept`.
 
-Projects: `GET|POST /api/teams/{teamId}/projects`, `GET /api/projects/{projectId}`.
+Projects: `GET|POST /api/teams/{teamId}/projects`, `GET /api/projects/{projectId}`, and project membership routes under `/api/projects/{projectId}/members` for listing, assigning, approving, and revoking members.
 
 State-changing routes require a valid CSRF token. Invitation tokens are returned once and are not emailed by the current baseline. See [docs/API.md](docs/API.md) for request bodies, status codes, and access rules.
 
 ## Not implemented yet
 
-Public registration, email verification, password recovery, automatic invitation email, project membership assignment/approval, team member management UI, project editing/deletion, tasks, chat, Git synchronization, and the admin dashboard remain future work. Every future protected route must explicitly enforce authorization; service classes do not secure routes automatically.
+Public registration, email verification, password recovery, automatic invitation email, team member management UI, team editing/deletion, project editing/deletion, tasks, chat, Git synchronization, and the admin dashboard remain future work. Every future protected route must explicitly enforce authorization; service classes do not secure routes automatically.
 
 ## Requirements and layout
 
@@ -51,8 +52,7 @@ public/          Web root and front controller
 app/Core/        Request, response, router, module registry
 app/Database/    PDO connection, repositories, migrations
 app/Security/    Session, CSRF, authentication, access, rate limiting
-app/Http/        HTTP controllers
-bin/             Trusted CLI commands
+app/Http/        HTTP controllersin/             Trusted CLI commands
 database/        Versioned migrations
 tests/           Lightweight smoke tests
 docs/            Architecture, security, API, database, operations
