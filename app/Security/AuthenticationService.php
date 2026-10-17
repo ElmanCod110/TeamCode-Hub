@@ -46,7 +46,7 @@ final class AuthenticationService
         return true;
     }
 
-    /** @return array{id:int,email:string,status:string,display_name:string}|null */
+    /** @return array{id:int,email:string,status:string,display_name:string,roles:list<string>}|null */
     public function currentUser(): ?array
     {
         if (session_status() !== PHP_SESSION_ACTIVE) {
@@ -64,6 +64,7 @@ final class AuthenticationService
             return null;
         }
 
+        $user['roles'] = $this->users->systemRoles($id);
         return $user;
     }
 
