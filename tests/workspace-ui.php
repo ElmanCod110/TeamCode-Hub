@@ -52,7 +52,7 @@ $assert(str_contains($css, '.chat-messages') && str_contains($css, '.metric-grid
 $assert(str_contains($js, 'credentials: "same-origin"') && str_contains($js, '"X-Csrf-Token"'), 'API client keeps same-origin credentials and CSRF protection');
 $assert(str_contains($js, 'textContent') && str_contains($js, 'after_id=') && str_contains($js, 'set-task-status'), 'controller renders text safely, polls chat incrementally, and updates task status');
 $assert(str_contains($js, '/api/dashboard') && str_contains($js, '/api/teams') && str_contains($js, '/api/projects/') && str_contains($js, '/api/notifications'), 'controller connects the existing dashboard, team, project, and notification APIs');
-$assert(str_contains($bootstrap, "'/public/app.html'") && str_contains($bootstrap, "$router->get('/login'"), 'front controller serves the workspace shell at root and login paths');
+$assert(str_contains($bootstrap, "'/public/app.html'") && str_contains($bootstrap, "get('/login'"), 'front controller serves the workspace shell at root and login paths');
 $assert(str_contains($response, 'public static function html') && str_contains($response, 'Content-Security-Policy'), 'HTML responses include a restrictive same-origin content security policy');
 $assert(str_contains($workflow, 'node --check public/assets/js/workspace.js') && str_contains($workflow, 'php tests/workspace-ui.php'), 'continuous integration validates workspace JavaScript and UI contracts');
 
