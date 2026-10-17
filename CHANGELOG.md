@@ -19,6 +19,13 @@ Notable changes to TeamCode Hub are recorded here.
 - Enforce the active project quota transactionally during restoration and return a conflict when capacity is full.
 - Add integration coverage for authorization, historical data preservation, archived-list visibility, and quota-blocked restoration.
 
+### Searchable task assignees
+
+- Add a project-scoped endpoint that returns only active, approved member-level users eligible for task assignment.
+- Replace numeric assignee IDs with a debounced searchable picker when creating or editing tasks.
+- Clear selected assignees when the query or selected project changes; cancel stale requests and preserve the option to leave tasks unassigned.
+- Add responsive picker styles and integration tests for viewer, pending-member, and unauthorized-user restrictions.
+
 ### Searchable project membership
 
 - Add a manager-authorized endpoint that searches only active members of the selected project’s team and excludes users with approved project access.
