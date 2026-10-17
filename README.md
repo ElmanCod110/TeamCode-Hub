@@ -37,7 +37,7 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 
 ## Run locally or deploy
 
-1. Configure database environment variables using the host's environment settings or a private configuration mechanism. There is no `.env` parser.
+1. Configure database environment variables using the host's environment settings or a private configuration mechanism. There is no `.env` parser. Set `GITHUB_USERNAME` to the public account whose events should appear in the workspace; it defaults to `ElmanCod110`.
 2. Run `php bin/migrate.php` from a trusted CLI shell.
 3. Create the first administrator using the CLI-only procedure in [docs/OPERATIONS.md](docs/OPERATIONS.md).
 4. Configure the web server document root to `public/` and enable HTTPS. Set `APP_HTTPS=true` only when browser-facing HTTPS is guaranteed by the deployment.

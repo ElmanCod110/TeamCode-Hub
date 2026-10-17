@@ -4,6 +4,14 @@ Notable changes to TeamCode Hub are recorded here.
 
 ## [0.2.0-dev] - Unreleased
 
+### GitHub integration
+
+- Add a public GitHub events reader with strict username validation and HTTPS-only transport.
+- Add a singleton MariaDB cache that atomically claims one refresh attempt per configured username per UTC day.
+- Preserve the last successful snapshot on network or API failure and avoid retry storms on repeated visits.
+- Add an authenticated GitHub activity endpoint, overview preview, profile/repository links, and a dedicated activity view.
+- Add deterministic integration tests for daily request limits, event normalization, and stale-cache fallback.
+
 ### Workspace interface
 
 - Add an English application shell with an accessible sign-in form and authenticated workspace navigation.

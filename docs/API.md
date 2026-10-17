@@ -11,6 +11,15 @@ All API responses are JSON. Responses are not a stable public contract yet; this
 
 After a successful login, fetch a new CSRF token because authentication rotates the token. Database-backed endpoints require the configured database and all migrations to have been applied.
 
+## GitHub public activity
+
+- `GET /api/github/activity` — authenticated read-only endpoint returning the configured public GitHub user's latest cached events, profile URL, cache timestamp, stale flag, and refresh status.
+- Set `GITHUB_USERNAME` in the hosting environment to change the account. The default is `ElmanCod110`.
+- The service requests only `/users/{username}/events/public?per_page=30`. It does not request private events, repository contents, or authenticated account data, and it stores no GitHub token.
+- The singleton MariaDB cache atomically claims one outbound refresh attempt per configured username per UTC day. Repeated dashboard visits read the cached snapshot and do not make another outbound request that day.
+- On network, HTTP, or payload failure, the service preserves the last successful snapshot and marks it stale. A failed attempt is not retried repeatedly on the same UTC day.
+- Apply the `github_activity_cache` migration using `php bin/migrate.php` before calling this endpoint. The frontend displays cached activity on the overview and a dedicated GitHub activity page.
+
 ## Dashboard and notifications
 
 - `GET /api/dashboard` — returns active teams, approved projects, tasks due today, overdue tasks, recent notifications, and summary counts for the current user.

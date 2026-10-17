@@ -19,6 +19,8 @@
     projects: [],
     tasks: [],
     notifications: [],
+    github: null,
+    githubError: null,
     page: "overview",
     selectedProject: null,
     projectTab: "overview",
@@ -337,8 +339,11 @@
       else if (state.page === "projects") renderProjects();
       else if (state.page === "tasks") renderTasks();
       else if (state.page === "notifications") renderNotifications();
+      else if (state.page === "github") renderGitHubActivity();
       else if (state.page === "chat" && state.selectedProject) renderProject(state.selectedProject.id, "chat");
       setConnection(true);
+      // Start the external integration only after core workspace data has rendered.
+      void loadGitHubActivity(false);
     } catch (error) {
       setConnection(false);
       if (error.status !== 401) {
@@ -348,6 +353,27 @@
     } finally {
       state.refreshing = false;
     }
+  }
+
+  async function loadGitHubActivity(notify = false) {
+    try {
+      const result = await request("/api/github/activity");
+      state.github = result.activity || null;
+      state.githubError = null;
+    } catch (error) {
+      if (error.status === 401) return;
+      state.github = null;
+      state.githubError = error.message || "GitHub activity is currently unavailable.";
+    }
+
+    // Refresh only the relevant integration surface; do not rebuild the whole dashboard.
+    if (state.page === "github") {
+      renderGitHubActivity();
+    } else if (state.page === "overview") {
+      const preview = $("#github-overview-panel");
+      if (preview) preview.replaceWith(renderGitHubPreview());
+    }
+    if (notify) toast(state.github?.stale ? "Showing the last successful GitHub snapshot." : "GitHub cache status checked.");
   }
 
   async function loadAllTasks() {
@@ -386,7 +412,7 @@
       else navigate("projects", false);
       return;
     }
-    const allowed = ["overview", "teams", "projects", "tasks", "notifications", "chat", "moderation", "settings"];
+    const allowed = ["overview", "teams", "projects", "tasks", "notifications", "chat", "github", "moderation", "settings"];
     navigate(allowed.includes(hash) ? hash : "overview", false);
   }
 
@@ -395,7 +421,7 @@
     state.search = "";
     stopChatPolling();
     if (updateHash) history.pushState({ page }, "", page === "overview" ? "#overview" : "#" + page);
-    const titles = { overview: "Overview", teams: "Teams", projects: "Projects", tasks: "My tasks", notifications: "Notifications", chat: "Project chat", moderation: "Moderation", settings: "Preferences" };
+    const titles = { overview: "Overview", teams: "Teams", projects: "Projects", tasks: "My tasks", notifications: "Notifications", chat: "Project chat", github: "GitHub activity", moderation: "Moderation", settings: "Preferences" };
     $("#current-page-label").textContent = titles[page] || "Workspace";
     $$("[data-page]").forEach(node => node.classList.toggle("is-active", node.dataset.page === page));
     closeSidebar();
@@ -405,6 +431,7 @@
     else if (page === "tasks") renderTasks();
     else if (page === "notifications") renderNotifications();
     else if (page === "chat") renderChatLanding();
+    else if (page === "github") renderGitHubActivity();
     else if (page === "moderation") renderModeration();
     else if (page === "settings") renderSettings();
     $("#workspace-main").focus({ preventScroll: true });
@@ -533,6 +560,7 @@
     const activityPanel = panel("Recent updates", "A quick pulse on your workspace", activityRows, actionButton("Notifications", "navigate-notifications", "btn btn-ghost btn-sm"));
     append(lower, teamPanel, activityPanel);
     root.appendChild(lower);
+    root.appendChild(renderGitHubPreview());
   }
 
   function taskRow(task, compact) {
@@ -1058,6 +1086,92 @@
       unread ? actionButton("Mark visible as read", "mark-all-visible-read", "btn btn-outline btn-sm") : null));
   }
 
+  function githubEventRow(event, compact = false) {
+    const row = el("article", "github-event-row");
+    const iconName = event.type === "PushEvent" ? "chart"
+      : event.type === "PullRequestEvent" ? "external"
+      : event.type === "IssuesEvent" || event.type === "IssueCommentEvent" ? "message"
+      : event.type === "ReleaseEvent" ? "spark" : "folder";
+    const mark = el("span", "github-event-icon");
+    mark.appendChild(icon(iconName));
+    const main = el("div", "row-main");
+    append(main, el("span", "row-title", event.summary || "Public repository activity"),
+      el("span", "row-subtitle", (event.actor ? event.actor + " · " : "") + (event.repo || "GitHub repository")));
+    const trailing = el("div", "row-trailing");
+    trailing.appendChild(el("small", "", formatRelative(event.created_at)));
+    const repoLink = el("a", "github-repo-link", event.repo || "Open repository");
+    repoLink.href = event.repo_url || "https://github.com/" + (event.repo || "");
+    repoLink.target = "_blank";
+    repoLink.rel = "noopener noreferrer";
+    repoLink.setAttribute("aria-label", "Open " + (event.repo || "repository") + " on GitHub in a new tab");
+    const content = el("div", "github-event-content");
+    append(content, main, repoLink);
+    append(row, mark, content, trailing);
+    if (compact) row.classList.add("is-compact");
+    return row;
+  }
+
+  function renderGitHubPreview() {
+    const content = el("div", "github-preview-list");
+    const activity = state.github;
+    if (activity?.available && activity.events?.length) {
+      activity.events.slice(0, 3).forEach(event => content.appendChild(githubEventRow(event, true)));
+    } else {
+      content.appendChild(el("p", "small github-preview-empty", activity?.message || state.githubError || "Public GitHub activity will appear here when the cache is available."));
+    }
+    const freshness = activity?.fetched_at ? "Updated " + formatRelative(activity.fetched_at) : "Daily public activity cache";
+    const preview = panel("GitHub activity", freshness, content, actionButton("View activity", "navigate-github", "btn btn-ghost btn-sm"));
+    preview.id = "github-overview-panel";
+    return preview;
+  }
+
+  function renderGitHubActivity() {
+    const root = pageRoot();
+    const activity = state.github;
+    const username = activity?.username || "ElmanCod110";
+    const profile = el("a", "btn btn-outline btn-sm", "Open GitHub profile ↗");
+    profile.href = activity?.profile_url || "https://github.com/" + encodeURIComponent(username);
+    profile.target = "_blank";
+    profile.rel = "noopener noreferrer";
+    profile.setAttribute("aria-label", "Open " + username + "'s GitHub profile in a new tab");
+    root.appendChild(pageHeading("INTEGRATIONS", "GitHub activity", "A daily cached view of public events for @" + username + ". Visiting this page does not trigger a new outbound request when today's refresh has already been attempted.",
+      actionGroup(actionButton("Check cache status", "refresh-github", "btn btn-outline"), profile)));
+
+    const summary = el("section", "github-summary surface-panel");
+    const profileMark = el("span", "github-profile-mark", initials(username).slice(0, 2));
+    const summaryCopy = el("div", "github-summary-copy");
+    append(summaryCopy, el("div", "eyebrow", "PUBLIC ACTIVITY"), el("h2", "", "@" + username),
+      el("p", "", activity?.fetched_at ? "Last successful update " + formatDate(activity.fetched_at, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }) + " UTC" : "No successful snapshot has been saved yet."));
+    const status = el("div", "github-summary-status");
+    status.appendChild(badge(activity?.stale ? "stale cache" : activity?.available ? "updated today" : "unavailable"));
+    const eventCount = el("div", "github-summary-count");
+    append(eventCount, el("strong", "", activity?.events?.length ?? 0), el("span", "", "cached events"));
+    append(summary, profileMark, summaryCopy, eventCount, status);
+    root.appendChild(summary);
+
+    if (activity?.message || state.githubError) {
+      const notice = el("div", "global-message");
+      notice.textContent = activity?.message || state.githubError || "";
+      root.appendChild(notice);
+    }
+    const body = el("div", "surface-panel github-feed");
+    const heading = el("div", "panel-heading");
+    append(heading, append(el("div"), el("h2", "", "Recent public events"), el("p", "", "Latest events returned by GitHub's public events API, normalized for this workspace.")),
+      el("span", "small", "Maximum 30 events"));
+    body.appendChild(heading);
+    if (!activity?.available) {
+      body.appendChild(emptyState("No GitHub snapshot available", state.githubError || activity?.message || "The cache will show the result of the daily refresh attempt. No automatic retry occurs today.", "Check cache status", "refresh-github"));
+    } else if (!activity.events.length) {
+      body.appendChild(emptyState("No recent public events", "GitHub returned a successful response, but there are no public events in the cached window."));
+    } else {
+      const list = el("div", "github-feed-list");
+      activity.events.forEach(event => list.appendChild(githubEventRow(event)));
+      body.appendChild(list);
+    }
+    root.appendChild(body);
+    root.appendChild(el("p", "small github-footnote", "Only public events are requested. No GitHub token is stored. The cache allows one outbound fetch attempt per configured username per UTC day and preserves the last successful snapshot if a refresh fails."));
+  }
+
   async function renderModeration() {
     const root = pageRoot();
     root.appendChild(pageHeading("TRUST & SAFETY", "Moderation queue", "Review reports with their preserved conversation context. A report is an allegation, not proof; review each case on its own merits.",
@@ -1410,10 +1524,12 @@
       else if (name === "create-task") createTaskModal(action.dataset.projectId);
       else if (name === "invite-member") inviteMember(action.dataset.teamId);
       else if (name === "navigate-projects") navigate("projects");
+      else if (name === "navigate-github") navigate("github");
       else if (name === "navigate-teams") navigate("teams");
       else if (name === "navigate-tasks") navigate("tasks");
       else if (name === "navigate-notifications") navigate("notifications");
       else if (name === "refresh") await refreshWorkspace(true);
+      else if (name === "refresh-github") await loadGitHubActivity(true);
       else if (name === "refresh-moderation") await renderModeration();
       else if (name === "review-report") {
         const reviewAction = action.dataset.reviewAction;
