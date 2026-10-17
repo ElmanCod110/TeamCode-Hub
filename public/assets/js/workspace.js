@@ -1931,6 +1931,7 @@
       selected = null;
       renderSelection();
       error.hidden = true;
+      showSearchState(search.value.trim() ? "Updating search…" : "Type a name, email, or user ID to search.", search.value.trim() ? "loading" : "");
       if (searchTimer) window.clearTimeout(searchTimer);
       searchTimer = window.setTimeout(() => searchCandidates(search.value), 250);
     });
