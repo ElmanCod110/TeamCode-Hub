@@ -196,7 +196,11 @@ final class ChatReportRepository
                 throw new DomainException('Report not found.');
             }
             $reportedUserId = (int) $report['reported_user_id'];
-            if ($reportedUserId === $actorId || (int) $report['reporter_user_id'] === $actorId) {
+            $involvement = $this->pdo->prepare(
+                'SELECT COUNT(*) FROM chat_reports WHERE reported_user_id = :reported_user_id AND reporter_user_id = :reviewer_id AND created_at >= CURRENT_TIMESTAMP - INTERVAL 1 DAY'
+            );
+            $involvement->execute(['reported_user_id' => $reportedUserId, 'reviewer_id' => $actorId]);
+            if ($reportedUserId === $actorId || (int) $involvement->fetchColumn() > 0) {
                 throw new DomainException('A person involved in a report cannot review that case.');
             }
 
