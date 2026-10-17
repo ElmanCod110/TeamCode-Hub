@@ -115,21 +115,40 @@ final class ProjectRepository
      */
     public function updateForTeamManager(int $userId, int $projectId, string $name, ?string $description): bool
     {
-        $statement = $this->pdo->prepare(
-            "UPDATE projects p
-             INNER JOIN team_memberships tm ON tm.team_id = p.team_id
-             SET p.name = :name, p.description = :description
-             WHERE p.id = :project_id AND p.status = 'active'
-               AND tm.user_id = :user_id AND tm.status = 'active'
-               AND tm.role IN ('owner', 'manager')"
-        );
-        $statement->execute([
-            'name' => $name,
-            'description' => $description,
-            'project_id' => $projectId,
-            'user_id' => $userId,
-        ]);
-        return $statement->rowCount() > 0;
+        $this->pdo->beginTransaction();
+        try {
+            $access = $this->pdo->prepare(
+                "SELECT p.id
+                 FROM projects p
+                 INNER JOIN teams t ON t.id = p.team_id AND t.status = 'active'
+                 INNER JOIN team_memberships tm ON tm.team_id = p.team_id
+                 WHERE p.id = :project_id AND p.status = 'active'
+                   AND tm.user_id = :user_id AND tm.status = 'active'
+                   AND tm.role IN ('owner', 'manager')
+                 LIMIT 1 FOR UPDATE"
+            );
+            $access->execute(['project_id' => $projectId, 'user_id' => $userId]);
+            if ($access->fetchColumn() === false) {
+                $this->pdo->rollBack();
+                return false;
+            }
+
+            $update = $this->pdo->prepare(
+                'UPDATE projects SET name = :name, description = :description WHERE id = :project_id'
+            );
+            $update->execute([
+                'name' => $name,
+                'description' => $description,
+                'project_id' => $projectId,
+            ]);
+            $this->pdo->commit();
+            return true;
+        } catch (Throwable $error) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $error;
+        }
     }
 
     /** @param array<string, mixed> $row
