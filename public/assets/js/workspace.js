@@ -372,6 +372,8 @@
     $("#nav-notification-count").textContent = String(unread);
     $("#nav-notification-count").hidden = unread === 0;
     $("#topbar-notification-dot").hidden = unread === 0;
+    const canReview = (state.user?.roles || []).includes("site_admin") || state.teams.some(team => canManageTeam(team.id));
+    $("#nav-moderation-item").hidden = !canReview;
   }
 
   function routeFromHash() {
@@ -383,7 +385,7 @@
       else navigate("projects", false);
       return;
     }
-    const allowed = ["overview", "teams", "projects", "tasks", "notifications", "chat", "settings"];
+    const allowed = ["overview", "teams", "projects", "tasks", "notifications", "chat", "moderation", "settings"];
     navigate(allowed.includes(hash) ? hash : "overview", false);
   }
 
@@ -392,7 +394,7 @@
     state.search = "";
     stopChatPolling();
     if (updateHash) history.pushState({ page }, "", page === "overview" ? "#overview" : "#" + page);
-    const titles = { overview: "Overview", teams: "Teams", projects: "Projects", tasks: "My tasks", notifications: "Notifications", chat: "Project chat", settings: "Preferences" };
+    const titles = { overview: "Overview", teams: "Teams", projects: "Projects", tasks: "My tasks", notifications: "Notifications", chat: "Project chat", moderation: "Moderation", settings: "Preferences" };
     $("#current-page-label").textContent = titles[page] || "Workspace";
     $$("[data-page]").forEach(node => node.classList.toggle("is-active", node.dataset.page === page));
     closeSidebar();
@@ -402,6 +404,7 @@
     else if (page === "tasks") renderTasks();
     else if (page === "notifications") renderNotifications();
     else if (page === "chat") renderChatLanding();
+    else if (page === "moderation") renderModeration();
     else if (page === "settings") renderSettings();
     $("#workspace-main").focus({ preventScroll: true });
   }
@@ -1005,6 +1008,94 @@
       unread ? actionButton("Mark visible as read", "mark-all-visible-read", "btn btn-outline btn-sm") : null));
   }
 
+  async function renderModeration() {
+    const root = pageRoot();
+    root.appendChild(pageHeading("TRUST & SAFETY", "Moderation queue", "Review reports with their preserved conversation context. A report is an allegation, not proof; review each case on its own merits.",
+      actionGroup(actionButton("Refresh queue", "refresh-moderation", "btn btn-outline"))));
+    const note = el("div", "alert moderation-guidance");
+    append(note, icon("shield"), append(el("div"), el("strong", "", "Review with care"), el("p", "", "Do not review a case if you are the reported person or the reporter. Actions are recorded by the server and may be restricted by the report's assigned review scope.")));
+    root.appendChild(note);
+    const container = el("div", "moderation-list surface-panel");
+    container.appendChild(el("div", "panel-body page-loading", "Loading moderation reports…"));
+    root.appendChild(container);
+    const requests = [];
+    if ((state.user?.roles || []).includes("site_admin")) {
+      requests.push(request("/api/admin/reports").then(data => data.reports || []).catch(error => {
+        if (error.status !== 403) throw error;
+        return [];
+      }));
+    }
+    state.teams.filter(team => canManageTeam(team.id)).forEach(team => {
+      requests.push(request("/api/teams/" + escapePath(team.id) + "/reports").then(data => data.reports || []).catch(error => {
+        if (error.status !== 404 && error.status !== 403) throw error;
+        return [];
+      }));
+    });
+    try {
+      const groups = await Promise.all(requests);
+      const reports = Array.from(new Map(groups.flat().map(report => [Number(report.id), report])).values())
+        .sort((a, b) => String(a.created_at || "").localeCompare(String(b.created_at || "")));
+      container.replaceChildren();
+      if (!reports.length) {
+        container.appendChild(emptyState("No reports need your review", "When a report is assigned to your moderation scope, it will appear here with its saved message context."));
+        return;
+      }
+      const header = el("div", "panel-heading");
+      append(header, append(el("div"), el("h2", "", "Open cases"), el("p", "", reports.length + " report" + (reports.length === 1 ? "" : "s") + " available in your review scope")), badge("pending"));
+      container.appendChild(header);
+      const list = el("div", "moderation-cases");
+      reports.forEach(report => list.appendChild(renderReportCard(report)));
+      container.appendChild(list);
+    } catch (error) {
+      container.replaceChildren(el("div", "panel-body inline-error", error.message || "The moderation queue could not be loaded."));
+    }
+  }
+
+  function renderReportCard(report) {
+    const card = el("article", "moderation-case");
+    const top = el("div", "moderation-case-top");
+    const caseLabel = el("div", "moderation-case-id");
+    append(caseLabel, el("span", "eyebrow", "REPORT #" + report.id), badge(report.status || "pending"));
+    const scope = el("span", "small", report.reviewer_scope === "site_admin" ? "Site administration" : "Team manager review");
+    append(top, caseLabel, scope);
+    const facts = el("div", "moderation-facts");
+    const fact1 = el("div", "moderation-fact");
+    append(fact1, el("span", "", "Reported user"), el("strong", "", report.reported_name || ("User #" + report.reported_user_id)));
+    const fact2 = el("div", "moderation-fact");
+    append(fact2, el("span", "", "Reported by"), el("strong", "", report.reporter_name || ("User #" + report.reporter_user_id)));
+    const fact3 = el("div", "moderation-fact");
+    append(fact3, el("span", "", "Submitted"), el("strong", "", formatDate(report.created_at, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })));
+    append(facts, fact1, fact2, fact3);
+    const reason = el("div", "moderation-reason");
+    append(reason, el("span", "label", "Report reason"), el("p", "", report.reason || "No reason was provided."));
+    const context = el("div", "moderation-context");
+    const contextHeading = el("div", "moderation-context-heading");
+    append(contextHeading, el("strong", "", "Saved conversation context"), el("span", "small", "Adjacent messages captured when the report was submitted"));
+    context.appendChild(contextHeading);
+    const entries = Array.isArray(report.context) ? report.context : [];
+    if (!entries.length) context.appendChild(el("p", "small", "No context snapshot is available."));
+    entries.forEach(message => {
+      const line = el("div", "moderation-context-message" + (Number(message.id) === Number(report.message_id) ? " is-reported" : ""));
+      const meta = el("div", "moderation-context-meta");
+      append(meta, el("strong", "", message.display_name || "Team member"), el("span", "", formatRelative(message.created_at)),
+        Number(message.id) === Number(report.message_id) ? badge("reported message") : null);
+      append(line, meta, el("p", "", message.deleted_at ? "This message was deleted after the report." : (message.body || "")));
+      context.appendChild(line);
+    });
+    const footer = el("div", "moderation-case-footer");
+    const actions = el("div", "moderation-actions");
+    if (report.status === "pending") {
+      actions.appendChild(actionButton("Mark valid", "review-report", "btn btn-outline btn-sm", { "data-report-id": report.id, "data-review-action": "valid" }));
+      actions.appendChild(actionButton("Reject report", "review-report", "btn btn-ghost btn-sm", { "data-report-id": report.id, "data-review-action": "rejected" }));
+    } else if (report.status === "valid") {
+      actions.appendChild(actionButton("Resolve case", "review-report", "btn btn-primary btn-sm", { "data-report-id": report.id, "data-review-action": "resolved" }));
+      actions.appendChild(actionButton("Reject report", "review-report", "btn btn-ghost btn-sm", { "data-report-id": report.id, "data-review-action": "rejected" }));
+    }
+    append(footer, el("span", "small", "Project #" + report.project_id + " · Message #" + report.message_id), actions);
+    append(card, top, facts, reason, context, footer);
+    return card;
+  }
+
   function renderSettings() {
     const root = pageRoot();
     root.appendChild(pageHeading("PERSONAL", "Preferences", "Adjust how the workspace looks and review your account session.",
@@ -1248,6 +1339,15 @@
       else if (name === "navigate-tasks") navigate("tasks");
       else if (name === "navigate-notifications") navigate("notifications");
       else if (name === "refresh") await refreshWorkspace(true);
+      else if (name === "refresh-moderation") await renderModeration();
+      else if (name === "review-report") {
+        const reviewAction = action.dataset.reviewAction;
+        const labels = { valid: "mark this report as valid", rejected: "reject this report", resolved: "resolve this case" };
+        if (!window.confirm("Are you sure you want to " + labels[reviewAction] + "?")) return;
+        await request("/api/reports/" + escapePath(action.dataset.reportId) + "/review", { method: "POST", body: { action: reviewAction } });
+        toast("Report review saved.");
+        await renderModeration();
+      }
       else if (name === "logout") await logout();
       else if (name === "close-modal") closeModal();
       else if (name === "copy-invitation-token") {
