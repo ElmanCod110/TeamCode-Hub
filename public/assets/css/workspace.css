@@ -360,3 +360,39 @@
 @media (prefers-reduced-motion:reduce) {
   .tch-workspace *, .tch-workspace *::before, .tch-workspace *::after { animation-duration:.01ms!important; animation-iteration-count:1!important; scroll-behavior:auto!important; transition-duration:.01ms!important; }
 }
+
+/* Additional states used by server-connected data views. */
+.connection-indicator.is-disconnected i { background:var(--danger); box-shadow:0 0 0 3px var(--danger-bg); }
+.team-card,.project-card { display:flex; flex-direction:column; min-height:230px; padding:19px; transition:border-color var(--t),box-shadow var(--t),transform var(--t); }
+.team-card:hover,.project-card:hover { border-color:var(--border-strong); box-shadow:var(--sh); transform:translateY(-2px); }
+.team-card-top,.project-card-top { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.team-card-mark { border-radius:12px; }
+.team-card-body,.project-card-body { flex:1; padding-block:21px 19px; }
+.team-card-body h2,.project-card-body h2 { overflow-wrap:anywhere; font-size:16px; font-weight:750; letter-spacing:-.035em; }
+.team-card-body p,.project-card-body p { margin-top:7px; color:var(--text-muted); font-size:11px; line-height:1.75; }
+.team-card-foot,.project-card-foot { display:flex; align-items:center; justify-content:space-between; gap:10px; padding-top:14px; border-top:1px solid var(--border); }
+.team-card-foot .small,.project-card-foot .small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.invite-inline-form { display:flex; flex-direction:column; gap:13px; width:100%; padding:4px 0; }
+.invite-inline-form .btn { align-self:flex-start; }
+.member-list { display:flex; flex-direction:column; }
+.member-row { display:flex; align-items:center; gap:11px; min-width:0; padding:13px 0; border-bottom:1px solid var(--border); }
+.member-row:last-child { border-bottom:0; }
+.member-row .avatar { width:34px; height:34px; flex-basis:34px; border-radius:10px; }
+.member-row > .badge-status { margin-inline-start:auto; }
+.member-row > .btn { flex:0 0 auto; }
+.task-table-row { display:flex; align-items:center; gap:15px; min-width:0; padding:15px 18px; border-bottom:1px solid var(--border); }
+.task-table-row:last-child { border-bottom:0; }
+.task-table-row > .row-main { flex:1; }
+.task-due { flex:0 0 85px; color:var(--text-muted); font-size:10px; }
+.task-controls { display:flex; align-items:center; justify-content:flex-end; gap:9px; flex:0 0 auto; }
+.task-controls .badge-status { min-width:78px; justify-content:center; }
+.settings-note { margin-top:17px; }
+.project-tab-panel > .grid { margin-bottom:20px; }
+@media (max-width:700px) {
+  .task-table-row { align-items:flex-start; flex-wrap:wrap; gap:10px; }
+  .task-table-row > .row-main { flex-basis:calc(100% - 4px); }
+  .task-due { flex-basis:auto; margin-inline-end:auto; }
+  .task-controls { flex-wrap:wrap; }
+  .member-row { flex-wrap:wrap; }
+  .member-row > .row-main { min-width:calc(100% - 60px); }
+}
