@@ -19,18 +19,19 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 
 ## Current foundation
 
-- Public front controller at `public/index.php`.
-- Minimal request and response value objects.
-- Explicit GET/POST route registration and named route parameters.
+- Public front controller, request/response objects, and pretty-route dispatcher.
 - Lazy module registry and module interface contract.
-- `GET /` and a lightweight `GET /health` endpoint.
-- Validated MySQL connection configuration and PDO connection factory.
+- Lightweight `GET /` and `GET /health` endpoints.
+- Validated MySQL/MariaDB configuration and PDO connection factory.
 - Explicit CLI migration runner with version registry and advisory lock.
 - Initial users, teams, team memberships, projects, and project memberships schema.
-- Session hardening, session-bound CSRF token helper, and exact scoped permission checks.
+- Hardened session defaults, session-bound CSRF token helper, and exact scoped permission checks.
+- Prepared user and membership repositories.
+- Authentication service that accepts only active accounts and rotates session IDs on successful login.
+- Team/project access services that require active/approved membership.
 - Smoke tests and GitHub Actions checks on PHP 8.2, 8.3, and 8.4.
 
-Authentication flows, application-level authorization integration, database-backed repositories, team/project workflows, chat, Git synchronization, and admin capabilities are not implemented yet.
+HTTP login/registration routes, account recovery, rate limiting, application-wide authorization wiring, repositories for all product features, chat, Git synchronization, and admin capabilities are not implemented yet.
 
 ## Requirements
 
@@ -43,8 +44,8 @@ Authentication flows, application-level authorization integration, database-back
 ```text
 public/          Web root and front controller
 app/Core/        Request, response, router, module contracts/registry
-app/Database/   PDO connection and migration primitives
-app/Security/   Session, CSRF, and permission primitives
+app/Database/   PDO connection, repositories, and migration primitives
+app/Security/   Session, authentication, CSRF, and access services
 app/bootstrap.php
 bin/             Trusted CLI commands
 database/        Versioned migrations
