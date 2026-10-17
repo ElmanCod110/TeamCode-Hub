@@ -138,6 +138,7 @@
   function escapePath(value) { return encodeURIComponent(String(value)); }
   function projectById(id) { return state.projects.find(project => Number(project.id) === Number(id)); }
   function teamById(id) { return state.teams.find(team => Number(team.id) === Number(id)); }
+  function canManageTeam(id) { return ["owner", "manager"].includes(String(teamById(id)?.role || "")); }
 
   /* Keep the CSRF token in memory and send it only with same-origin mutations. */
   async function loadCsrf() {
@@ -595,8 +596,9 @@
     $$("[data-page]").forEach(node => node.classList.toggle("is-active", node.dataset.page === "teams"));
     closeSidebar();
     const root = pageRoot();
-    root.appendChild(pageHeading("TEAM WORKSPACE", team.name, "Projects and invitations for this team.",
-      actionGroup(actionButton("Invite member", "invite-member", "btn btn-outline", { "data-team-id": team.id }), actionButton("New project", "create-project", "btn btn-primary", { "data-team-id": team.id }))));
+    const teamActions = actionGroup();
+    if (canManageTeam(team.id)) append(teamActions, actionButton("Invite member", "invite-member", "btn btn-outline", { "data-team-id": team.id }), actionButton("New project", "create-project", "btn btn-primary", { "data-team-id": team.id }));
+    root.appendChild(pageHeading("TEAM WORKSPACE", team.name, "Projects and invitations for this team.", teamActions));
     const layout = el("div", "overview-columns");
     const projectContent = el("div", "project-mini-list");
     const projectsPanel = panel("Team projects", "Accessible projects in this team", projectContent);
@@ -724,8 +726,9 @@
     append(heading, el("span", "project-mark", initials(project.name).slice(0, 2)),
       append(el("div"), el("div", "eyebrow", "PROJECT WORKSPACE"), el("h1", "", project.name),
         el("p", "", project.description || "Plan work, coordinate the team, and keep decisions in context.")));
-    const headActions = actionGroup(actionButton("New task", "create-task", "btn btn-primary", { "data-project-id": project.id }),
-      actionButton("Back to projects", "navigate-projects", "btn btn-outline"));
+    const headActions = actionGroup();
+    if (project.access_level !== "viewer") headActions.appendChild(actionButton("New task", "create-task", "btn btn-primary", { "data-project-id": project.id }));
+    headActions.appendChild(actionButton("Back to projects", "navigate-projects", "btn btn-outline"));
     append(root, heading, headActions);
     const tabs = el("div", "project-tabs");
     [["overview", "Overview", "grid"], ["tasks", "Tasks", "check-square"], ["members", "Members", "users"], ["chat", "Chat", "message"]].forEach(([key, label, iconName]) => {
@@ -755,7 +758,8 @@
       append(content, layout, el("div", "view-section"), panel("Project tasks", "A quick look at active work", panelContent, actionButton("All tasks", "project-tab", "btn btn-ghost btn-sm", { "data-project-tab": "tasks" })));
     } else if (tab === "tasks") {
       const toolbar = el("div", "view-toolbar");
-      append(toolbar, el("p", "small", "Change a task status with the action on its right."), actionButton("＋ Add task", "create-task", "btn btn-primary btn-sm", { "data-project-id": project.id }));
+      append(toolbar, el("p", "small", project.access_level === "viewer" ? "You have read-only access to this project." : "Change a task status with the action on its right."));
+      if (project.access_level !== "viewer") toolbar.appendChild(actionButton("＋ Add task", "create-task", "btn btn-primary btn-sm", { "data-project-id": project.id }));
       content.appendChild(toolbar);
       const tasks = state.tasks.filter(task => Number(task.project_id) === Number(project.id));
       const list = el("div", "surface-panel task-list");
@@ -776,6 +780,7 @@
     const due = el("span", "task-due", task.due_at ? formatDate(task.due_at, { month: "short", day: "numeric" }) : "No due date");
     const controls = el("div", "task-controls");
     append(controls, priorityLabel(task.priority), badge(task.status), actionButton(nextTaskStatus(task.status).label, "set-task-status", "btn btn-outline btn-sm", { "data-task-id": task.id, "data-project-id": task.project_id, "data-next-status": nextTaskStatus(task.status).value }));
+    if (projectById(task.project_id)?.access_level === "viewer") controls.replaceChildren(priorityLabel(task.priority), badge(task.status));
     append(row, main, due, controls);
     return row;
   }
@@ -790,8 +795,8 @@
   async function renderProjectMembers(content, project) {
     const panelBox = el("section", "surface-panel");
     const header = el("div", "panel-heading");
-    append(header, append(el("div"), el("h2", "", "Project members"), el("p", "", "Approved access and pending membership requests.")),
-      actionButton("＋ Add member", "add-project-member", "btn btn-primary btn-sm", { "data-project-id": project.id }));
+    append(header, append(el("div"), el("h2", "", "Project members"), el("p", "", "Approved access and pending membership requests.")));
+    if (canManageTeam(project.team_id)) header.appendChild(actionButton("＋ Add member", "add-project-member", "btn btn-primary btn-sm", { "data-project-id": project.id }));
     const body = el("div", "panel-body");
     append(panelBox, header, body); content.appendChild(panelBox);
     try {
@@ -803,8 +808,8 @@
         const row = el("div", "member-row");
         append(row, avatar(member.display_name || member.email), append(el("div", "row-main"), el("span", "row-title", member.display_name || member.email), el("span", "row-subtitle", member.email || ("User #" + member.user_id))),
           badge(member.status || member.access_level || "member"));
-        if (member.status === "pending") row.appendChild(actionButton("Approve", "approve-member", "btn btn-outline btn-sm", { "data-project-id": project.id, "data-user-id": member.user_id }));
-        if (member.status !== "revoked" && Number(member.user_id) !== Number(state.user.id)) row.appendChild(actionButton("Revoke", "revoke-member", "btn btn-ghost btn-sm", { "data-project-id": project.id, "data-user-id": member.user_id }));
+        if (canManageTeam(project.team_id) && member.status === "pending") row.appendChild(actionButton("Approve", "approve-member", "btn btn-outline btn-sm", { "data-project-id": project.id, "data-user-id": member.user_id }));
+        if (canManageTeam(project.team_id) && member.status !== "revoked" && Number(member.user_id) !== Number(state.user.id)) row.appendChild(actionButton("Revoke", "revoke-member", "btn btn-ghost btn-sm", { "data-project-id": project.id, "data-user-id": member.user_id }));
         list.appendChild(row);
       });
       body.appendChild(list);
@@ -829,7 +834,8 @@
     const textarea = el("textarea", "textarea"); textarea.name = "body"; textarea.rows = 1; textarea.maxLength = 2000; textarea.placeholder = "Write a message to your project…"; textarea.setAttribute("aria-label", "Message"); textarea.required = true;
     const send = el("button", "btn btn-primary", "Send"); send.type = "submit";
     append(form, textarea, send);
-    const note = el("div", "chat-compose-note", "Keep messages respectful. Report a message if it needs a moderator's attention.");
+    const note = el("div", "chat-compose-note", project.access_level === "viewer" ? "You have read-only access to this conversation." : "Keep messages respectful. Report a message if it needs a moderator's attention.");
+    if (project.access_level === "viewer") form.hidden = true;
     append(chatPanel, head, messages, form, note);
     const side = el("aside", "surface-panel chat-side-panel");
     append(side, el("h3", "", "Conversation details"), el("p", "", "This is a lightweight project room. The latest 50 messages load first, and new messages are checked in the background while this view is open."));
@@ -903,10 +909,10 @@
     append(body, meta, bubble);
     if (!deleted) {
       const actions = el("div", "chat-message-actions");
-      if (own) {
+      if (own && state.selectedProject?.access_level !== "viewer") {
         actions.appendChild(actionButton("Edit", "edit-message", "chat-action", { "data-message-id": message.id }));
         actions.appendChild(actionButton("Delete", "delete-message", "chat-action", { "data-message-id": message.id }));
-      } else {
+      } else if (!own) {
         actions.appendChild(actionButton("Report", "report-message", "chat-action", { "data-message-id": message.id }));
       }
       body.appendChild(actions);
@@ -1117,10 +1123,11 @@
   }
 
   function createProjectModal(preselectedTeamId) {
-    if (!state.teams.length) { toast("Create a team before creating a project.", "warning"); createTeamModal(); return; }
-    const options = state.teams.map(team => ({ value: String(team.id), label: team.name + " · " + (team.role || "member") }));
+    const manageableTeams = state.teams.filter(team => canManageTeam(team.id));
+    if (!manageableTeams.length) { toast("Project creation requires a team owner or manager. Create a new team or ask a manager for access.", "warning"); if (!state.teams.length) createTeamModal(); return; }
+    const options = manageableTeams.map(team => ({ value: String(team.id), label: team.name + " · " + (team.role || "member") }));
     openFormModal("Create a project", "Projects belong to a team and inherit its membership boundaries.", [
-      { name: "team_id", label: "Team", type: "select", options, required: true, value: preselectedTeamId ? String(preselectedTeamId) : String(state.teams[0].id), full: true },
+      { name: "team_id", label: "Team", type: "select", options, required: true, value: preselectedTeamId && manageableTeams.some(team => Number(team.id) === Number(preselectedTeamId)) ? String(preselectedTeamId) : String(manageableTeams[0].id), full: true },
       { name: "name", label: "Project name", type: "text", placeholder: "e.g. Website redesign", required: true, maxLength: 120, full: true },
       { name: "description", label: "Description", type: "textarea", placeholder: "What are you building together?", maxLength: 5000, full: true }
     ], "Create project", async values => {
@@ -1133,12 +1140,13 @@
   }
 
   function createTaskModal(preselectedProjectId) {
-    if (!state.projects.length) { toast("Create a project before adding tasks.", "warning"); createProjectModal(); return; }
-    const options = state.projects.map(project => ({ value: String(project.id), label: project.name }));
+    const writableProjects = state.projects.filter(project => project.access_level !== "viewer");
+    if (!writableProjects.length) { toast("Task creation requires member-level project access.", "warning"); return; }
+    const options = writableProjects.map(project => ({ value: String(project.id), label: project.name }));
     const defaultDue = new Date(Date.now() + 86400000);
     const localDue = new Date(defaultDue.getTime() - defaultDue.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
     openFormModal("Create a task", "Make the next action clear, assignable, and easy to track.", [
-      { name: "project_id", label: "Project", type: "select", options, required: true, value: preselectedProjectId ? String(preselectedProjectId) : String(state.projects[0].id), full: true },
+      { name: "project_id", label: "Project", type: "select", options, required: true, value: preselectedProjectId && writableProjects.some(project => Number(project.id) === Number(preselectedProjectId)) ? String(preselectedProjectId) : String(writableProjects[0].id), full: true },
       { name: "title", label: "Task title", type: "text", placeholder: "What needs to get done?", required: true, maxLength: 160, full: true },
       { name: "description", label: "Description", type: "textarea", placeholder: "Optional context or acceptance criteria", maxLength: 10000, full: true },
       { name: "priority", label: "Priority", type: "select", options: [{ value: "low", label: "Low" }, { value: "normal", label: "Normal" }, { value: "high", label: "High" }, { value: "urgent", label: "Urgent" }], value: "normal" },
