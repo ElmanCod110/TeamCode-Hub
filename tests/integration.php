@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-use DomainException;
-use PDO;
 use TeamCodeHub\Database\ConnectionFactory;
 use TeamCodeHub\Database\DatabaseConfig;
 use TeamCodeHub\Database\MembershipRepository;
