@@ -8,6 +8,7 @@ This document maps the English browser application to the existing server APIs. 
 - `/login` — the same progressive-enhancement shell, initially displaying sign-in when unauthenticated.
 - `/design-system.html` — component reference page.
 - `public/app.html` — semantic workspace shell.
+- `public/assets/css/app.css` and its token/base/layout/component/pattern/utility layers — shared design-system styles.
 - `public/assets/css/workspace.css` — product-only styles layered on the core design system.
 - `public/assets/js/workspace.js` — same-origin API client, navigation, rendering, forms, and chat polling.
 - `public/assets/js/ui.js` — shared design-system interactions.
@@ -58,7 +59,7 @@ The UI currently uses a bounded refresh for reconciliation; it is not a durable 
 - Invitation creation returns a one-time token but does not send an email. The token should be shared through a trusted channel.
 - Team invitation UI is available from a team detail view to users whose current team role is owner or manager. The server independently verifies the role.
 - Member assignment currently asks for an existing user ID; directory search and email-based user discovery are not yet implemented.
-- Task editing and reassignment after creation, comments, subtasks, project/team editing, Git provider integration, and the full site-administration interface remain planned.
+- Team/project editing and deletion, Git provider integration, richer site-administration pages, and browser-level visual/accessibility regression tests remain planned.
 - Theme preference is stored locally in the current browser; it does not change account-wide settings or access permissions.
 
 ## Verification
@@ -70,4 +71,4 @@ php tests/workspace-ui.php
 node --check public/assets/js/workspace.js
 ```
 
-These checks validate the static asset contract and JavaScript syntax. They do not replace manual browser testing across supported devices, keyboard-only interaction, screen-reader review, or visual regression tests.
+These checks validate the static asset contract and JavaScript syntax. They do not replace manual browser testing across supported devices, keyboard-only interaction, screen-reader review, or visual regression tests. The design-system showcase includes extended input, avatar, chip, accordion, workflow-step, pagination, and content patterns.
