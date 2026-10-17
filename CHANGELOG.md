@@ -19,6 +19,13 @@ Notable changes to TeamCode Hub are recorded here.
 - Enforce the active project quota transactionally during restoration and return a conflict when capacity is full.
 - Add integration coverage for authorization, historical data preservation, archived-list visibility, and quota-blocked restoration.
 
+### Searchable project membership
+
+- Add a manager-authorized endpoint that searches only active members of the selected project’s team and excludes users with approved project access.
+- Replace manual user-ID entry with an accessible, debounced member picker that searches by name, email, or exact ID and shows pending-request state.
+- Preserve server-side membership checks, use prepared queries, bound results to 12 candidates, and add MariaDB and UI contract tests.
+- Add responsive selection/results states and cache-bust the updated workspace assets.
+
 ### Project access management
 
 - Add a CSRF-protected access-level endpoint for approved project memberships.
