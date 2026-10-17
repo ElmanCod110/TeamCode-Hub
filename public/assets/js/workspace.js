@@ -1627,10 +1627,10 @@
       const copy = el("div", "assignee-picker-selected-copy");
       append(copy, el("strong", "", person.display_name || person.email),
         el("span", "", person.email || ("User #" + person.user_id)));
-      append(selection, avatar(person.display_name || person.email, "sm"), copy,
-        actionButton("Clear", "clear-task-assignee", "btn btn-ghost btn-xs"));
-      $("[data-action='clear-task-assignee']", selection).addEventListener("click", event => {
-        event.preventDefault();
+      const clear = el("button", "btn btn-ghost btn-xs", "Clear");
+      clear.type = "button";
+      append(selection, avatar(person.display_name || person.email, "sm"), copy, clear);
+      clear.addEventListener("click", () => {
         control.value = "";
         search.value = "";
         sequence++;
@@ -1718,6 +1718,7 @@
       search.value = initial.display_name || initial.email || ("User #" + initial.user_id);
       showSelection(initial);
     } else {
+      showSelection(null);
       showState("Search for an eligible project member, or leave this task unassigned.");
     }
   }
