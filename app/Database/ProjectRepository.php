@@ -120,12 +120,12 @@ final class ProjectRepository
                 "SELECT p.id, p.team_id, tm.role
                  FROM projects p
                  INNER JOIN teams t ON t.id = p.team_id AND t.status = 'active'
-                 INNER JOIN team_memberships tm ON tm.team_id = p.team_id AND tm.user_id = :user_id AND tm.status = 'active'
-                 INNER JOIN project_memberships pm ON pm.project_id = p.id AND pm.user_id = :user_id AND pm.status = 'approved'
+                 INNER JOIN team_memberships tm ON tm.team_id = p.team_id AND tm.user_id = :team_user_id AND tm.status = 'active'
+                 INNER JOIN project_memberships pm ON pm.project_id = p.id AND pm.user_id = :project_user_id AND pm.status = 'approved'
                  WHERE p.id = :project_id AND p.status = 'active'
                  LIMIT 1 FOR UPDATE"
             );
-            $access->execute(['user_id' => $userId, 'project_id' => $projectId]);
+            $access->execute(['team_user_id' => $userId, 'project_user_id' => $userId, 'project_id' => $projectId]);
             $row = $access->fetch(PDO::FETCH_ASSOC);
             if (!is_array($row) || !in_array($row['role'], ['owner', 'manager'], true)) {
                 throw new DomainException('Team manager role and approved project access required.');
