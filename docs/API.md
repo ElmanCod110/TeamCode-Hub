@@ -46,6 +46,7 @@ Invitation creation reserves a team member slot. Active memberships plus unexpir
 - `GET /api/teams/{teamId}/projects` — lists active projects with approved project membership and active team membership for the current user.
 - `POST /api/teams/{teamId}/projects` — creates a project for an active team owner/manager. Body: `{"name":"Project name","description":"Optional description"}`. Requires CSRF protection. The creator receives approved `member` access. Active project quota is enforced transactionally; quota exhaustion returns `409`.
 - `GET /api/projects/{projectId}` — returns project details only when the user's project membership is approved and team membership is active. Viewers have read-only access.
+- `POST /api/projects/{projectId}/edit` — body: `{"name":"Updated project name","description":"Updated project description"}`. Requires CSRF protection and an active owner/manager role in the project's parent team. The endpoint updates display metadata only and does not alter project membership, status, or permissions.
 - `GET /api/projects/{projectId}/members` — lists membership details for active team owners/managers only.
 - `POST /api/projects/{projectId}/members` — assigns an active team member with body `{"user_id":123,"access_level":"viewer"}` or `member`. Assignment is pending by default and requires CSRF protection.
 - `POST /api/projects/{projectId}/members/{userId}/approve` — approves a pending project membership. Requires CSRF protection and active team owner/manager permissions.
