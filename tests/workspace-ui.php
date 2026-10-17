@@ -71,6 +71,7 @@ $assert(str_contains($bootstrap, '/members/{userId}/access') && str_contains($js
 $assert(str_contains($js, '!member.is_project_creator') && str_contains($js, 'member.access_level === "member" ? "viewer" : "member"'), 'UI protects the project creator and offers explicit viewer/member transitions');
 $assert(str_contains($bootstrap, '/api/projects/{projectId}/members/candidates') && str_contains($js, '/members/candidates?q='), 'project member search route is connected to the frontend');
 $assert(str_contains($js, 'function addProjectMemberModal') && str_contains($js, 'Search active team members') && str_contains($js, 'Request access'), 'member assignment uses a searchable accessible picker instead of manual ID entry');
+$assert(str_contains($js, 'searchSequence++') && str_contains($js, 'searchController.abort()') && str_contains($js, 'Updating search…'), 'member picker discards stale asynchronous results when the query changes');
 $assert(str_contains($css, '.member-picker-modal') && str_contains($css, '.member-picker-option') && str_contains($css, '.member-picker-state'), 'searchable member picker has dedicated responsive styles');
 
 $assert(str_contains($js, 'chatPollCount: 0') && str_contains($js, 'chatMessageVersion'), 'chat polling tracks bounded reconciliation and message revisions');
