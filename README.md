@@ -74,7 +74,7 @@ node --check public/assets/js/workspace.js
 
 ## Remaining product work
 
-Public registration, email verification, password recovery, automatic invitation email delivery, team editing/deletion, project editing/deletion, Git synchronization, richer administrative pages, and automated browser-level visual/accessibility tests are not implemented yet. There is no automatic admin bypass of team/project access checks. Every protected route must continue to enforce authorization on the server.
+Public registration, email verification, password recovery, automatic invitation email delivery, team editing/deletion, project deletion, Git synchronization, broader administrative tools, and automated browser-level visual/accessibility tests are not implemented yet. Project metadata editing, task comments/checklists, and the scoped moderation queue are connected to their APIs. There is no automatic admin bypass of team/project access checks. Every protected route must continue to enforce authorization on the server.
 
 ## Repository layout
 
