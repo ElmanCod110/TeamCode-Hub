@@ -87,20 +87,37 @@ final class TeamRepository
 
     /**
      * Rename a team only while the caller's active owner/manager membership is locked.
-     * The authorization predicate lives in this query so a stale controller check is insufficient.
+     * Locking and rechecking access keeps the authorization decision close to the write.
      */
     public function renameForManager(int $userId, int $teamId, string $name): bool
     {
-        $statement = $this->pdo->prepare(
-            "UPDATE teams t
-             INNER JOIN team_memberships tm ON tm.team_id = t.id
-             SET t.name = :name
-             WHERE t.id = :team_id AND t.status = 'active'
-               AND tm.user_id = :user_id AND tm.status = 'active'
-               AND tm.role IN ('owner', 'manager')"
-        );
-        $statement->execute(['name' => $name, 'team_id' => $teamId, 'user_id' => $userId]);
-        return $statement->rowCount() > 0;
+        $this->pdo->beginTransaction();
+        try {
+            $access = $this->pdo->prepare(
+                "SELECT t.id
+                 FROM teams t
+                 INNER JOIN team_memberships tm ON tm.team_id = t.id
+                 WHERE t.id = :team_id AND t.status = 'active'
+                   AND tm.user_id = :user_id AND tm.status = 'active'
+                   AND tm.role IN ('owner', 'manager')
+                 LIMIT 1 FOR UPDATE"
+            );
+            $access->execute(['team_id' => $teamId, 'user_id' => $userId]);
+            if ($access->fetchColumn() === false) {
+                $this->pdo->rollBack();
+                return false;
+            }
+
+            $update = $this->pdo->prepare('UPDATE teams SET name = :name WHERE id = :team_id');
+            $update->execute(['name' => $name, 'team_id' => $teamId]);
+            $this->pdo->commit();
+            return true;
+        } catch (Throwable $error) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $error;
+        }
     }
 
     /** @param array<string, mixed> $row
