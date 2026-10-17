@@ -199,7 +199,7 @@ final class ChatReportRepository
             }
             $reportedUserId = (int) $report['reported_user_id'];
             $involvement = $this->pdo->prepare(
-                'SELECT COUNT(*) FROM chat_reports WHERE reported_user_id = :reported_user_id AND reporter_user_id = :reviewer_id AND status IN ('pending', 'valid')'
+                "SELECT COUNT(*) FROM chat_reports WHERE reported_user_id = :reported_user_id AND reporter_user_id = :reviewer_id AND status IN ('pending', 'valid')"
             );
             $involvement->execute(['reported_user_id' => $reportedUserId, 'reviewer_id' => $actorId]);
             if ($reportedUserId === $actorId || (int) $involvement->fetchColumn() > 0) {
