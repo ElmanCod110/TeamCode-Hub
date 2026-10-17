@@ -108,6 +108,30 @@ final class ProjectRepository
         }
     }
 
+
+    /**
+     * Update a project only for an active team owner/manager.
+     * A project membership alone never grants project-settings privileges.
+     */
+    public function updateForTeamManager(int $userId, int $projectId, string $name, ?string $description): bool
+    {
+        $statement = $this->pdo->prepare(
+            "UPDATE projects p
+             INNER JOIN team_memberships tm ON tm.team_id = p.team_id
+             SET p.name = :name, p.description = :description
+             WHERE p.id = :project_id AND p.status = 'active'
+               AND tm.user_id = :user_id AND tm.status = 'active'
+               AND tm.role IN ('owner', 'manager')"
+        );
+        $statement->execute([
+            'name' => $name,
+            'description' => $description,
+            'project_id' => $projectId,
+            'user_id' => $userId,
+        ]);
+        return $statement->rowCount() > 0;
+    }
+
     /** @param array<string, mixed> $row
      *  @return array<string, mixed>
      */
