@@ -11,6 +11,9 @@ use TeamCodeHub\Security\PermissionChecker;
 
 require dirname(__DIR__) . '/app/bootstrap.php';
 
+// Keep output buffered so session startup can be exercised in CLI tests.
+ob_start();
+
 $passed = 0;
 $assert = static function (bool $condition, string $message) use (&$passed): void {
     if (!$condition) {
@@ -88,4 +91,18 @@ $assert(PermissionChecker::allows($grants, 'team:42:members:invite'), 'exact sco
 $assert(!PermissionChecker::allows($grants, 'team:43:members:invite'), 'permission does not cross team scope');
 $assert(!PermissionChecker::allows($grants, 'team:*:members:invite'), 'wildcard permissions are rejected');
 
-echo "\n{$passed} assertions passed.\n";
+SecureSession::start();
+$csrf = CsrfToken::get();
+$assert(strlen($csrf) === 64, 'CSRF token uses a 256-bit hexadecimal token');
+$assert(CsrfToken::validate($csrf), 'valid CSRF token is accepted');
+$assert(!CsrfToken::validate('wrong-token'), 'invalid CSRF token is rejected');
+$rotated = CsrfToken::rotate();
+$assert($rotated !== $csrf && CsrfToken::validate($rotated), 'CSRF rotation invalidates the previous token');
+$assert(!CsrfToken::validate($csrf), 'previous CSRF token is rejected after rotation');
+$assert(session_status() === PHP_SESSION_ACTIVE, 'secure session starts successfully');
+SecureSession::destroy();
+$assert(session_status() !== PHP_SESSION_ACTIVE, 'logout destroys the active session');
+
+echo "\\n{$passed} assertions passed.\\n";
+$output = ob_get_clean();
+echo $output;
