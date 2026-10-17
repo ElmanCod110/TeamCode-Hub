@@ -28,9 +28,12 @@ final class GitHubActivityService
     }
 
     /** @return array<string,mixed> */
-    public function activity(): array
+    public function activity(?string $utcDate = null): array
     {
-        $today = gmdate('Y-m-d');
+        $today = $utcDate ?? gmdate('Y-m-d');
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $today) !== 1 || date('Y-m-d', strtotime($today . ' UTC')) !== $today) {
+            throw new RuntimeException('GitHub activity cache date must use UTC YYYY-MM-DD format.');
+        }
         $claim = $this->cache->claimDailyAttempt($this->username, $today);
         $snapshot = $claim['snapshot'];
 
