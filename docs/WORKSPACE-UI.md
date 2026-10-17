@@ -23,7 +23,7 @@ The HTML has no inline style or script blocks. The front controller returns HTML
 | Teams | `GET /api/teams`, `POST /api/teams`, team project/invitation endpoints | Create teams, rename a team as owner, view a team's projects, archive and restore projects as a team manager, create/revoke pending invitations, accept a token from a matching account |
 | Projects | Dashboard projection and `GET /api/projects/{projectId}` | Search projects, edit name/description as an authorized team manager, archive a project without deleting its history, and open a project workspace |
 | Project overview | Project detail and task endpoints | View task metrics and navigate to task/member/chat panels |
-| Tasks | Task list/create/edit/status endpoints and task detail/comment/checklist endpoints | Search/filter, edit/reassign, view task details, discuss work, and manage a bounded checklist; viewer access remains read-only |
+| Tasks | Task list/create/edit/status, assignee search, and task detail/comment/checklist endpoints | Search/filter, find approved member-level assignees by name/email/ID, edit/reassign, view task details, discuss work, and manage a bounded checklist; viewer access remains read-only |
 | Members | Project member listing/candidate search/assignment/approval/revocation endpoints | Search active team members by name, email, or exact user ID; request member/viewer access; approve pending access; change approved access; and revoke access when permitted |
 | Project chat | `GET|POST /api/projects/{projectId}/chat` and message edit/delete/report endpoints | Send text, edit/delete own messages, report another member's message |
 | Notifications | `GET /api/notifications`, `POST /api/notifications/{id}/read` | Mark individual or visible notifications as read |

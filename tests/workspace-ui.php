@@ -79,6 +79,9 @@ $assert(str_contains($js, 'incomingIds') && str_contains($js, 'existing.dataset.
 $assert(str_contains($js, 'if (messages.length > 0)') && str_contains($js, 'const placeholder = $(".empty-state", list)'), 'new incremental chat messages clear the empty-conversation placeholder');
 $assert(str_contains($js, '/comments') && str_contains($js, '/subtasks') && str_contains($js, 'openTaskDetails'), 'task details UI connects comment threads, checklists, and editing');
 $assert(str_contains($js, '/details') && str_contains($js, '/edit'), 'task details UI calls the read and edit endpoints');
+$assert(str_contains($bootstrap, '/api/projects/{projectId}/assignees') && str_contains($js, '/assignees?q='), 'task assignee search is connected to the project-scoped API');
+$assert(str_contains($js, 'type: "member-picker"') && str_contains($js, 'mountAssigneePicker') && str_contains($js, 'makeAssigneeField'), 'task create and edit forms use the searchable assignee picker');
+$assert(str_contains($css, '.assignee-picker-option') && str_contains($css, '.assignee-picker-selection'), 'task assignee search has dedicated responsive styles');
 $assert(str_contains($css, '.task-details-modal') && str_contains($css, '.task-checklist') && str_contains($css, '.task-comment-row'), 'task collaboration views have dedicated responsive styles');
 $assert(str_contains($bootstrap, "'/public/app.html'") && str_contains($bootstrap, "get('/login'"), 'front controller serves the workspace shell at root and login paths');
 $assert(str_contains($response, 'public static function html') && str_contains($response, 'Content-Security-Policy'), 'HTML responses include a restrictive same-origin content security policy');

@@ -104,6 +104,75 @@ final class ProjectMembershipRepository
         }
     }
 
+    /**
+     * Search approved member-level project users who are eligible for task assignment.
+     *
+     * @return list<array{user_id:int,display_name:string,email:string,access_level:string}>
+     */
+    public function searchTaskAssignees(int $actorId, int $projectId, string $query): array
+    {
+        $query = trim($query);
+        if ($query === '' || strlen($query) > 80 || preg_match('//u', $query) !== 1) {
+            throw new DomainException('Search query must contain 1 to 80 valid UTF-8 bytes.');
+        }
+
+        $this->pdo->beginTransaction();
+        try {
+            $access = $this->pdo->prepare(
+                "SELECT p.team_id
+                 FROM projects p
+                 INNER JOIN project_memberships actor_pm
+                   ON actor_pm.project_id = p.id AND actor_pm.user_id = :actor_id
+                      AND actor_pm.status = 'approved' AND actor_pm.access_level = 'member'
+                 INNER JOIN team_memberships actor_tm
+                   ON actor_tm.team_id = p.team_id AND actor_tm.user_id = actor_pm.user_id AND actor_tm.status = 'active'
+                 WHERE p.id = :project_id AND p.status = 'active'
+                 LIMIT 1"
+            );
+            $access->execute(['actor_id' => $actorId, 'project_id' => $projectId]);
+            $teamId = $access->fetchColumn();
+            if ($teamId === false) {
+                throw new DomainException('Approved project membership required.');
+            }
+
+            $statement = $this->pdo->prepare(
+                "SELECT u.id AS user_id, u.display_name, u.email, pm.access_level
+                 FROM project_memberships pm
+                 INNER JOIN team_memberships tm
+                   ON tm.team_id = :team_id AND tm.user_id = pm.user_id AND tm.status = 'active'
+                 INNER JOIN users u ON u.id = pm.user_id AND u.status = 'active'
+                 WHERE pm.project_id = :project_id AND pm.status = 'approved' AND pm.access_level = 'member'
+                   AND (u.display_name LIKE :name_query OR u.email LIKE :email_query
+                        OR CAST(u.id AS CHAR) = :exact_id)
+                 ORDER BY CASE WHEN CAST(u.id AS CHAR) = :sort_id THEN 0 ELSE 1 END,
+                          u.display_name ASC, u.id ASC
+                 LIMIT 12"
+            );
+            $term = '%' . $query . '%';
+            $statement->execute([
+                'team_id' => (int) $teamId,
+                'project_id' => $projectId,
+                'name_query' => $term,
+                'email_query' => $term,
+                'exact_id' => $query,
+                'sort_id' => $query,
+            ]);
+            $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+            $this->pdo->commit();
+            return array_map(static fn (array $row): array => [
+                'user_id' => (int) $row['user_id'],
+                'display_name' => (string) $row['display_name'],
+                'email' => (string) $row['email'],
+                'access_level' => (string) $row['access_level'],
+            ], $rows);
+        } catch (Throwable $error) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $error;
+        }
+    }
+
     public function assignPending(int $actorId, int $projectId, int $targetUserId, string $accessLevel): int
     {
         if (!in_array($accessLevel, ['viewer', 'member'], true)) {

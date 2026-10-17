@@ -1153,9 +1153,9 @@
       descriptionField.control.rows = 3;
       descriptionField.wrapper.classList.add("field-full");
       const dueField = makeTaskField("due_at", "Due date (local time)", "datetime-local", utcToLocalInput(task.due_at), false);
-      const assigneeField = makeTaskField("assigned_to", "Assignee user ID", "number", task.assigned_to || "", false);
-      assigneeField.control.min = "1";
-      assigneeField.control.placeholder = "Leave blank to unassign";
+      const assigneeField = makeAssigneeField("assigned_to", "Assignee (optional)", projectId,
+        task.assigned_to ? { user_id: task.assigned_to, display_name: task.assigned_to_name || "", email: "" } : null,
+        "Only approved member-level project users can be assigned. Leave empty to unassign this task.");
       append(grid, titleField.wrapper, priorityField.wrapper, descriptionField.wrapper, dueField.wrapper, assigneeField.wrapper);
       const saveRow = el("div", "task-detail-save-row");
       const save = el("button", "btn btn-primary btn-sm", "Save changes"); save.type = "submit";
@@ -1264,6 +1264,34 @@
     $("#modal-root").replaceChildren(overlay);
     const firstInput = $("input, textarea, select, button", modal);
     if (firstInput) firstInput.focus();
+  }
+
+  function makeAssigneeField(name, labelText, projectId, initialAssignee, helpText) {
+    const wrapper = el("div", "field field-full");
+    const label = el("label", "label", labelText);
+    const id = "assignee-field-" + Math.random().toString(36).slice(2, 8);
+    const control = el("input", "input");
+    control.type = "hidden";
+    control.name = name;
+    const search = el("input", "input assignee-picker-search");
+    search.type = "search";
+    search.id = id;
+    search.maxLength = 80;
+    search.autocomplete = "off";
+    search.placeholder = "Search by name, email, or user ID";
+    search.setAttribute("aria-label", labelText);
+    label.htmlFor = id;
+    const results = el("div", "assignee-picker-results");
+    results.setAttribute("role", "listbox");
+    results.setAttribute("aria-label", "Eligible task assignees");
+    results.setAttribute("aria-live", "polite");
+    const selection = el("div", "assignee-picker-selection");
+    append(wrapper, label, control, search, results, selection, el("span", "help", helpText));
+    mountAssigneePicker({
+      field: { name, projectField: "__project_id", initialAssignee },
+      control, search, results, selection
+    }, { __project_id: { value: projectId } });
+    return { wrapper, control };
   }
 
   function makeTaskField(name, labelText, type, value, required, maxLength) {
@@ -1581,6 +1609,121 @@
   /* All mutation forms share one accessible modal builder and the same CSRF path. */
   let modalReturnFocus = null;
 
+  function mountAssigneePicker(picker, controls) {
+    const { field, control, search, results, selection } = picker;
+    let timer = null;
+    let controller = null;
+    let sequence = 0;
+
+    const showState = (message, kind = "") => {
+      results.replaceChildren(el("p", "assignee-picker-state" + (kind ? " is-" + kind : ""), message));
+    };
+    const showSelection = person => {
+      selection.replaceChildren();
+      if (!person) {
+        selection.appendChild(el("p", "small", "No assignee selected. The task can remain unassigned."));
+        return;
+      }
+      const copy = el("div", "assignee-picker-selected-copy");
+      append(copy, el("strong", "", person.display_name || person.email),
+        el("span", "", person.email || ("User #" + person.user_id)));
+      const clear = el("button", "btn btn-ghost btn-xs", "Clear");
+      clear.type = "button";
+      append(selection, avatar(person.display_name || person.email, "sm"), copy, clear);
+      clear.addEventListener("click", () => {
+        control.value = "";
+        search.value = "";
+        sequence++;
+        if (controller) controller.abort();
+        showSelection(null);
+        showState("Search for an eligible project member, or leave this task unassigned.");
+        search.focus();
+      });
+    };
+
+    async function runSearch(query, expectedSequence) {
+      const projectId = controls[field.projectField]?.value;
+      if (!projectId) {
+        showState("Select a project before searching for an assignee.");
+        return;
+      }
+      controller = new AbortController();
+      showState("Searching approved project members…", "loading");
+      try {
+        const data = await request("/api/projects/" + escapePath(projectId) + "/assignees?q=" + encodeURIComponent(query), { signal: controller.signal });
+        if (expectedSequence !== sequence) return;
+        const assignees = Array.isArray(data.assignees) ? data.assignees : [];
+        results.replaceChildren();
+        if (!assignees.length) {
+          showState("No eligible member-level project users matched this search.");
+          return;
+        }
+        assignees.forEach(person => {
+          const button = el("button", "assignee-picker-option");
+          button.type = "button";
+          button.setAttribute("role", "option");
+          button.setAttribute("aria-selected", control.value && Number(control.value) === Number(person.user_id) ? "true" : "false");
+          append(button, avatar(person.display_name || person.email, "sm"),
+            append(el("div", "assignee-picker-option-copy"),
+              el("strong", "", person.display_name || person.email),
+              el("span", "", person.email),
+              el("small", "", "User #" + person.user_id)));
+          button.addEventListener("click", () => {
+            control.value = String(person.user_id);
+            search.value = person.display_name || person.email;
+            showSelection(person);
+            $(".assignee-picker-option", results).forEach(option => {
+              option.setAttribute("aria-selected", option === button ? "true" : "false");
+            });
+          });
+          results.appendChild(button);
+        });
+      } catch (error) {
+        if (controller?.signal.aborted || expectedSequence !== sequence) return;
+        showState(error.message || "Assignee search failed. Try again.", "error");
+      }
+    }
+
+    search.addEventListener("input", () => {
+      sequence++;
+      if (controller) controller.abort();
+      control.value = "";
+      showSelection(null);
+      const query = search.value.trim();
+      if (timer) window.clearTimeout(timer);
+      if (!query) {
+        showState("Search for an eligible project member, or leave this task unassigned.");
+        return;
+      }
+      showState("Updating search…", "loading");
+      const expectedSequence = sequence;
+      timer = window.setTimeout(() => runSearch(query, expectedSequence), 250);
+    });
+
+    const projectControl = controls[field.projectField];
+    if (projectControl && typeof projectControl.addEventListener === "function") {
+      projectControl.addEventListener("change", () => {
+        sequence++;
+        if (controller) controller.abort();
+        if (timer) window.clearTimeout(timer);
+        control.value = "";
+        search.value = "";
+        showSelection(null);
+        showState("Search for an eligible member of the selected project.");
+      });
+    }
+
+    if (field.initialAssignee) {
+      const initial = field.initialAssignee;
+      control.value = String(initial.user_id);
+      search.value = initial.display_name || initial.email || ("User #" + initial.user_id);
+      showSelection(initial);
+    } else {
+      showSelection(null);
+      showState("Search for an eligible project member, or leave this task unassigned.");
+    }
+  }
+
   function openFormModal(title, description, fields, submitLabel, onSubmit) {
     modalReturnFocus = document.activeElement;
     const overlay = el("div", "tch-modal-overlay");
@@ -1597,12 +1740,41 @@
     const form = el("form", "tch-modal-body");
     const error = el("div", "inline-error"); error.hidden = true; error.setAttribute("role", "alert");
     const controls = {};
+    const memberPickers = [];
     fields.forEach(field => {
       const wrap = el("div", "field" + (field.full ? " field-full" : ""));
       const label = el("label", "label", field.label);
       const id = "field-" + field.name + "-" + Math.random().toString(36).slice(2, 6);
-      label.htmlFor = id;
       let control;
+      if (field.type === "member-picker") {
+        control = el("input", "input");
+        control.type = "hidden";
+        control.id = id;
+        control.name = field.name;
+        control.value = field.value === undefined ? "" : String(field.value);
+        const search = el("input", "input assignee-picker-search");
+        search.type = "search";
+        search.id = id + "-search";
+        search.maxLength = 80;
+        search.autocomplete = "off";
+        search.placeholder = field.placeholder || "Search by name, email, or user ID";
+        search.setAttribute("aria-label", field.label);
+        const results = el("div", "assignee-picker-results");
+        results.setAttribute("role", "listbox");
+        results.setAttribute("aria-label", "Eligible task assignees");
+        results.setAttribute("aria-live", "polite");
+        const selection = el("div", "assignee-picker-selection");
+        selection.appendChild(el("p", "small", "No assignee selected. The task can remain unassigned."));
+        label.htmlFor = search.id;
+        append(wrap, label, control, search, results, selection);
+        memberPickers.push({ field, control, search, results, selection });
+        if (field.help) wrap.appendChild(el("span", "help", field.help)).id = id + "-help";
+        search.setAttribute("aria-describedby", id + "-help");
+        controls[field.name] = control;
+        form.appendChild(wrap);
+        return;
+      }
+      label.htmlFor = id;
       if (field.type === "select") {
         control = el("select", "select");
         (field.options || []).forEach(optionData => {
@@ -1627,6 +1799,7 @@
       if (field.help) wrap.appendChild(el("span", "help", field.help)).id = id + "-help";
       form.appendChild(wrap);
     });
+    memberPickers.forEach(picker => mountAssigneePicker(picker, controls));
     form.appendChild(error);
     const footer = el("div", "tch-modal-footer");
     append(footer, actionButton("Cancel", "close-modal", "btn btn-outline"));
@@ -1770,7 +1943,7 @@
       { name: "description", label: "Description", type: "textarea", placeholder: "Optional context or acceptance criteria", maxLength: 10000, full: true },
       { name: "priority", label: "Priority", type: "select", options: [{ value: "low", label: "Low" }, { value: "normal", label: "Normal" }, { value: "high", label: "High" }, { value: "urgent", label: "Urgent" }], value: "normal" },
       { name: "due_at", label: "Due date (your local time)", type: "datetime-local", value: localDue, help: "Converted to UTC before it is sent to the server." },
-      { name: "assigned_to", label: "Assignee user ID (optional)", type: "number", min: "1", placeholder: "Member user ID", help: "Assignee must already have approved member-level project access." }
+      { name: "assigned_to", label: "Assignee (optional)", type: "member-picker", projectField: "project_id", placeholder: "Search by name, email, or user ID", help: "Only approved member-level project users can be assigned. Leave empty to keep this task unassigned." }
     ], "Create task", async values => {
       await request("/api/projects/" + escapePath(values.project_id) + "/tasks", {
         method: "POST",

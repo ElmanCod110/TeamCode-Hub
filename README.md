@@ -29,7 +29,7 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 - Team/project APIs with active/approved membership checks and transactional quota enforcement.
 - Seven-day team invitations with hashed tokens, acceptance, and revocation.
 - Member/viewer access separation; pending or revoked project members cannot access protected project resources.
-- Task listing, member-only creation/edit/status changes, priorities, approved-member assignment, UTC due dates, comments, and checklists.
+- Task listing, member-only creation/edit/status changes, searchable approved-member assignment, priorities, UTC due dates, comments, and checklists.
 - Personalized dashboard API and user-scoped notifications.
 - Project chat with a 50-message response window, incremental ID cursor, edit/delete, 24-hour expiry, and report-context preservation.
 - Report review queues for team managers/site admins, duplicate-report controls, and escalation after two distinct valid reports within 24 hours.
@@ -51,7 +51,7 @@ Authentication: `GET /api/auth/csrf`, `POST /api/auth/login`, `GET /api/auth/me`
 
 Teams and invitations: `GET|POST /api/teams`, `GET /api/teams/{teamId}`, `GET /api/teams/{teamId}/projects`, invitation creation/listing/acceptance/revocation.
 
-Projects and members: project list/detail/create, member assignment/approval/revocation, task list/create/edit/status, task comments/checklists, and project chat/report workflows.
+Projects and members: project list/detail/create, member assignment/approval/revocation, task list/create/edit/status, searchable assignees, task comments/checklists, and project chat/report workflows.
 
 Dashboard: `GET /api/dashboard`, `GET /api/notifications`, and `POST /api/notifications/{notificationId}/read`.
 
