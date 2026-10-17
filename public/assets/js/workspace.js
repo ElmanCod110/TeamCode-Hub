@@ -2178,6 +2178,10 @@
     state.notificationBusy = false;
   }
 
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) void pollNotifications();
+  });
+
   async function pollNotifications() {
     if (!state.user || document.hidden || $("#application").hidden || state.notificationBusy) return;
     state.notificationBusy = true;
@@ -2204,10 +2208,19 @@
     const unread = state.notifications.filter(item => !item.is_read);
     for (const item of unread) {
       try {
-        await request("/api/notifications/" + escapePath(item.id) + "/read", { method: "POST", body: {} });
+        const result = await request("/api/notifications/" + escapePath(item.id) + "/read", { method: "POST", body: {} });
         item.is_read = true;
+        if (Number.isFinite(Number(result.unread_count))) state.unreadNotificationCount = Number(result.unread_count);
       } catch (_) { /* Continue marking other visible items even if one has expired. */ }
     }
+    // Refresh the authoritative unread count, including unread items outside this visible page.
+    try {
+      const refreshed = await request("/api/notifications?limit=20");
+      state.notifications = Array.isArray(refreshed.notifications) ? refreshed.notifications : [];
+      state.unreadNotificationCount = Number.isFinite(Number(refreshed.unread_count))
+        ? Number(refreshed.unread_count)
+        : state.notifications.filter(item => !item.is_read).length;
+    } catch (_) { /* Keep the latest locally confirmed state if refresh fails. */ }
     updateNavigationCounts();
     renderNotifications();
     toast("Visible notifications marked as read.");
