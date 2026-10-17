@@ -22,7 +22,7 @@ final class ProjectMembershipRepository
     {
         $this->pdo->beginTransaction();
         try {
-            $this->lockProjectForManager($actorId, $projectId);
+            $project = $this->lockProjectForManager($actorId, $projectId);
             $statement = $this->pdo->prepare(
                 'SELECT pm.user_id, u.email, u.display_name, pm.access_level, pm.status, pm.approved_by, pm.approved_at, pm.created_at
                  FROM project_memberships pm
@@ -33,9 +33,10 @@ final class ProjectMembershipRepository
             $statement->execute(['project_id' => $projectId]);
             $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
             $this->pdo->commit();
-            return array_map(static function (array $row): array {
+            return array_map(static function (array $row) use ($project): array {
                 $row['user_id'] = (int) $row['user_id'];
                 $row['approved_by'] = $row['approved_by'] === null ? null : (int) $row['approved_by'];
+                $row['is_project_creator'] = (int) $row['user_id'] === $project['created_by'];
                 return $row;
             }, $rows);
         } catch (Throwable $error) {
@@ -138,6 +139,83 @@ final class ProjectMembershipRepository
                 ['project_id' => $projectId, 'access_level' => (string) $level->fetchColumn()],
             );
             $this->pdo->commit();
+        } catch (Throwable $error) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $error;
+        }
+    }
+
+    /**
+     * Change an approved member's read/write access without changing membership status.
+     * The project creator must retain member-level access to avoid locking out the owner.
+     */
+    public function changeAccessLevel(int $actorId, int $projectId, int $targetUserId, string $accessLevel): bool
+    {
+        if (!in_array($accessLevel, ['viewer', 'member'], true)) {
+            throw new DomainException('Invalid project access level.');
+        }
+
+        $this->pdo->beginTransaction();
+        try {
+            $project = $this->lockProjectForManager($actorId, $projectId);
+            if ($targetUserId === $project['created_by'] && $accessLevel === 'viewer') {
+                throw new DomainException('Project creator must retain member-level access.');
+            }
+
+            $teamMember = $this->pdo->prepare(
+                "SELECT id FROM team_memberships
+                 WHERE team_id = :team_id AND user_id = :user_id AND status = 'active'
+                 LIMIT 1 FOR UPDATE"
+            );
+            $teamMember->execute(['team_id' => $project['team_id'], 'user_id' => $targetUserId]);
+            if ($teamMember->fetchColumn() === false) {
+                throw new DomainException('Target user is not an active team member.');
+            }
+
+            $membership = $this->pdo->prepare(
+                'SELECT access_level FROM project_memberships
+                 WHERE project_id = :project_id AND user_id = :user_id AND status = \'approved\'
+                 LIMIT 1 FOR UPDATE'
+            );
+            $membership->execute(['project_id' => $projectId, 'user_id' => $targetUserId]);
+            $currentLevel = $membership->fetchColumn();
+            if (!is_string($currentLevel)) {
+                throw new DomainException('Approved project membership not found.');
+            }
+            if ($currentLevel === $accessLevel) {
+                $this->pdo->commit();
+                return false;
+            }
+
+            $update = $this->pdo->prepare(
+                'UPDATE project_memberships SET access_level = :access_level
+                 WHERE project_id = :project_id AND user_id = :user_id AND status = \'approved\''
+            );
+            $update->execute([
+                'access_level' => $accessLevel,
+                'project_id' => $projectId,
+                'user_id' => $targetUserId,
+            ]);
+            if ($update->rowCount() !== 1) {
+                throw new DomainException('Approved project membership could not be updated.');
+            }
+
+            if ($targetUserId !== $actorId) {
+                $this->notifications->create(
+                    $targetUserId,
+                    'project_access_level_changed',
+                    'Project access updated',
+                    $accessLevel === 'viewer'
+                        ? 'Your project access is now read-only.'
+                        : 'You now have member-level edit access to the project.',
+                    ['project_id' => $projectId, 'access_level' => $accessLevel],
+                );
+            }
+
+            $this->pdo->commit();
+            return true;
         } catch (Throwable $error) {
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
