@@ -230,6 +230,20 @@ try {
     $assert(!$projectAccess->canEdit($memberId, $projectId), 'viewer access immediately removes task and chat write capability');
     $promotedToMember = $projectMemberships->changeAccessLevel($manager2Id, $projectId, $memberId, 'member');
     $assert($promotedToMember && $projectAccess->canEdit($memberId, $projectId), 'team manager can restore approved member-level edit access');
+
+    $memberAssigneeSearch = $projectMemberships->searchTaskAssignees($memberId, $projectId, 'member@example.test');
+    $assert(count($memberAssigneeSearch) === 1 && $memberAssigneeSearch[0]['user_id'] === $memberId, 'approved project members can search eligible task assignees');
+    $viewerAssigneeSearch = $projectMemberships->searchTaskAssignees($memberId, $projectId, 'viewer@example.test');
+    $assert($viewerAssigneeSearch === [], 'task assignee search excludes approved read-only viewers');
+    $pendingAssigneeSearch = $projectMemberships->searchTaskAssignees($memberId, $projectId, 'candidate@example.test');
+    $assert($pendingAssigneeSearch === [], 'task assignee search excludes pending project memberships');
+    $unauthorizedAssigneeSearchRejected = false;
+    try {
+        $projectMemberships->searchTaskAssignees($outsiderId, $projectId, 'member');
+    } catch (DomainException) {
+        $unauthorizedAssigneeSearchRejected = true;
+    }
+    $assert($unauthorizedAssigneeSearchRejected, 'unapproved users cannot enumerate task assignees');
     $creatorDowngradeRejected = false;
     try {
         $projectMemberships->changeAccessLevel($manager2Id, $projectId, $adminId, 'viewer');
