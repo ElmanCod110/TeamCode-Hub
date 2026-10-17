@@ -61,6 +61,7 @@ $assert(str_contains($js, '/api/dashboard') && str_contains($js, '/api/teams') &
 $assert(str_contains($bootstrap, "/api/teams/{teamId}/edit") && str_contains($bootstrap, "/api/projects/{projectId}/edit"), 'team and project metadata update routes are registered');
 $assert(str_contains($workspaceController, 'updateNameForOwner') && str_contains($workspaceController, 'updateMetadataForTeamManager'), 'metadata endpoints use repository-level authorization guards');
 $assert(str_contains($js, 'editTeamModal') && str_contains($js, 'editProjectModal'), 'workspace exposes connected team and project editing dialogs');
+$assert(str_contains($js, 'Dashboard summaries omit descriptions') && str_contains($js, 'Project details could not be loaded.'), 'project editing loads the full authorized record before saving metadata');
 $assert(str_contains($js, 'team.role === "owner"') && str_contains($js, 'canManageTeam(project.team_id)'), 'team rename is owner-only and project editing is manager-gated in the UI');
 $assert(str_contains($js, '/api/admin/reports') && str_contains($js, '/api/reports/') && str_contains($js, 'renderReportCard'), 'moderation UI connects scoped report queues and review actions');
 $assert(str_contains($js, '/api/team-invitations/accept') && str_contains($js, 'revoke-invitation') && str_contains($js, 'renderPendingInvitations'), 'team UI connects invitation acceptance, listing, and revocation');
