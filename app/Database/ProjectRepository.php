@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace TeamCodeHub\Database;
 
 use DomainException;
+use TeamCodeHub\\Core\\QuotaExceededException;
 use PDO;
 use Throwable;
 
@@ -50,7 +51,7 @@ final class ProjectRepository
     public function createForTeamManager(int $userId, int $teamId, string $name, ?string $description): int
     {
         $role = $this->pdo->prepare(
-            "SELECT tm.role
+            "SELECT tm.role, t.project_limit
              FROM team_memberships tm
              INNER JOIN teams t ON t.id = tm.team_id
              WHERE tm.team_id = :team_id AND tm.user_id = :user_id
@@ -69,8 +70,14 @@ final class ProjectRepository
         try {
             $role->execute(['team_id' => $teamId, 'user_id' => $userId]);
             $currentRole = $role->fetchColumn();
-            if (!in_array($currentRole, ['owner', 'manager'], true)) {
+            if (!is_array($roleRow = $role->fetch(PDO::FETCH_ASSOC)) || !in_array($roleRow['role'], ['owner', 'manager'], true)) {
                 throw new DomainException('Active team manager role required.');
+            }
+
+            $count = $this->pdo->prepare("SELECT COUNT(*) FROM projects WHERE team_id = :team_id AND status = 'active'");
+            $count->execute(['team_id' => $teamId]);
+            if ((int) $count->fetchColumn() >= (int) $roleRow['project_limit']) {
+                throw new QuotaExceededException('Team project quota reached.');
             }
 
             $insert = $this->pdo->prepare(
