@@ -1784,13 +1784,176 @@
   }
 
   function addProjectMemberModal(projectId) {
-    openFormModal("Add a project member", "Assign an existing team member. Their access remains pending until approved.", [
-      { name: "user_id", label: "User ID", type: "number", min: "1", required: true, placeholder: "Enter an existing user ID" },
-      { name: "access_level", label: "Access level", type: "select", options: [{ value: "member", label: "Member — can contribute" }, { value: "viewer", label: "Viewer — read only" }], value: "member" }
-    ], "Assign member", async values => {
-      await request("/api/projects/" + escapePath(projectId) + "/members", { method: "POST", body: { user_id: Number(values.user_id), access_level: values.access_level } });
-      toast("Membership request created.");
-      await renderProject(projectId, "members");
+    modalReturnFocus = document.activeElement;
+    let selected = null;
+    let searchTimer = null;
+    let searchController = null;
+    let searchSequence = 0;
+
+    const overlay = el("div", "tch-modal-overlay");
+    const modal = el("section", "tch-modal member-picker-modal");
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "member-picker-title");
+    const header = el("div", "tch-modal-header");
+    const headingBlock = el("div");
+    const heading = el("h2", "", "Add a project member");
+    heading.id = "member-picker-title";
+    append(headingBlock, heading, el("p", "", "Find an active team member by name, email, or exact user ID. Their access remains pending until approved."));
+    append(header, headingBlock, actionButton("×", "close-modal", "btn btn-ghost btn-icon", { "aria-label": "Close member search" }));
+
+    const form = el("form", "tch-modal-body member-picker-body");
+    const searchField = el("div", "field field-full");
+    const searchLabel = el("label", "label", "Search team members");
+    const search = el("input", "input");
+    search.type = "search";
+    search.name = "member_search";
+    search.maxLength = 80;
+    search.autocomplete = "off";
+    search.placeholder = "Name, email address, or user ID";
+    search.required = true;
+    search.setAttribute("aria-label", "Search active team members");
+    searchLabel.htmlFor = "member-search-input";
+    search.id = "member-search-input";
+    const searchHelp = el("span", "help", "Only active members of this project's team are shown. Approved project members are excluded.");
+    searchHelp.id = "member-search-help";
+    search.setAttribute("aria-describedby", "member-search-help");
+    append(searchField, searchLabel, search, searchHelp);
+
+    const resultHeading = el("div", "member-picker-results-heading");
+    append(resultHeading, el("strong", "", "Matching members"), el("span", "small", "Up to 12 results"));
+    const results = el("div", "member-picker-results");
+    results.setAttribute("role", "listbox");
+    results.setAttribute("aria-label", "Assignable team members");
+    results.setAttribute("aria-live", "polite");
+    const selection = el("div", "member-picker-selection");
+    selection.setAttribute("aria-live", "polite");
+    selection.appendChild(el("p", "small", "Choose a person from the search results."));
+    const accessField = el("div", "field field-full");
+    const accessLabel = el("label", "label", "Project access");
+    const access = el("select", "select");
+    accessLabel.htmlFor = "member-picker-access";
+    access.id = "member-picker-access";
+    [["member", "Member — can contribute"], ["viewer", "Viewer — read only"]].forEach(([value, label]) => {
+      const option = el("option", "", label);
+      option.value = value;
+      access.appendChild(option);
+    });
+    append(accessField, accessLabel, access);
+    const error = el("div", "inline-error");
+    error.hidden = true;
+    error.setAttribute("role", "alert");
+    const footer = el("div", "tch-modal-footer");
+    append(footer, actionButton("Cancel", "close-modal", "btn btn-outline"));
+    const submit = el("button", "btn btn-primary", "Request access");
+    submit.type = "submit";
+    submit.disabled = true;
+    footer.appendChild(submit);
+    append(form, searchField, resultHeading, results, selection, accessField, error, footer);
+    append(modal, header, form);
+    overlay.appendChild(modal);
+    $("#modal-root").replaceChildren(overlay);
+    overlay.addEventListener("click", event => { if (event.target === overlay) closeModal(); });
+    overlay.addEventListener("keydown", event => handleDialogKeydown(event, overlay));
+    search.focus();
+
+    function showSearchState(message, kind) {
+      results.replaceChildren(el("p", "member-picker-state" + (kind ? " is-" + kind : ""), message));
+    }
+
+    function renderSelection() {
+      selection.replaceChildren();
+      if (!selected) {
+        selection.appendChild(el("p", "small", "Choose a person from the search results."));
+        submit.disabled = true;
+        return;
+      }
+      const person = el("div", "member-picker-selected");
+      append(person, avatar(selected.display_name || selected.email, "md"),
+        append(el("div", "row-main"), el("strong", "", selected.display_name || selected.email),
+          el("span", "row-subtitle", selected.email + " · User #" + selected.user_id)));
+      const statusText = selected.existing_status === "pending"
+        ? "A pending request exists. Submitting will update its access level."
+        : "Ready to request project access.";
+      append(selection, person, el("p", "small", statusText));
+      submit.disabled = false;
+    }
+
+    async function searchCandidates(value) {
+      const query = value.trim();
+      const sequence = ++searchSequence;
+      if (searchController) searchController.abort();
+      if (query.length < 1) {
+        showSearchState("Type a name, email, or user ID to search.", "");
+        return;
+      }
+      searchController = new AbortController();
+      showSearchState("Searching active team members…", "loading");
+      try {
+        const data = await request("/api/projects/" + escapePath(projectId) + "/members/candidates?q=" + encodeURIComponent(query), { signal: searchController.signal });
+        if (sequence !== searchSequence) return;
+        const candidates = Array.isArray(data.candidates) ? data.candidates : [];
+        results.replaceChildren();
+        if (!candidates.length) {
+          showSearchState("No assignable team members matched this search.", "");
+          return;
+        }
+        candidates.forEach(person => {
+          const button = el("button", "member-picker-option");
+          button.type = "button";
+          button.setAttribute("role", "option");
+          button.setAttribute("aria-selected", selected && Number(selected.user_id) === Number(person.user_id) ? "true" : "false");
+          const copy = el("div", "member-picker-option-copy");
+          append(copy, el("strong", "", person.display_name || person.email),
+            el("span", "", person.email),
+            el("small", "", "Team " + person.team_role + " · User #" + person.user_id + (person.existing_status === "pending" ? " · Pending request" : "")));
+          append(button, avatar(person.display_name || person.email, "md"), copy, el("span", "member-picker-chevron", "＋"));
+          button.addEventListener("click", () => {
+            selected = person;
+            error.hidden = true;
+            renderSelection();
+            $(".member-picker-option", results).forEach(option => {
+              option.setAttribute("aria-selected", option === button ? "true" : "false");
+            });
+          });
+          results.appendChild(button);
+        });
+      } catch (errorValue) {
+        if (searchController?.signal.aborted || sequence !== searchSequence) return;
+        showSearchState(errorValue.message || "Team member search failed. Try again.", "error");
+      }
+    }
+
+    search.addEventListener("input", () => {
+      selected = null;
+      renderSelection();
+      error.hidden = true;
+      if (searchTimer) window.clearTimeout(searchTimer);
+      searchTimer = window.setTimeout(() => searchCandidates(search.value), 250);
+    });
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      if (!selected || submit.disabled) return;
+      submit.disabled = true;
+      submit.textContent = "Requesting…";
+      error.hidden = true;
+      try {
+        await request("/api/projects/" + escapePath(projectId) + "/members", {
+          method: "POST",
+          body: { user_id: Number(selected.user_id), access_level: access.value }
+        });
+        closeModal();
+        toast("Membership request created.");
+        await renderProject(projectId, "members");
+      } catch (errorValue) {
+        error.textContent = errorValue.message || "The membership request could not be created.";
+        error.hidden = false;
+      } finally {
+        if ($("#member-picker-title")) {
+          submit.disabled = !selected;
+          submit.textContent = "Request access";
+        }
+      }
     });
   }
 
