@@ -13,11 +13,11 @@ After a successful login, fetch a new CSRF token because authentication rotates 
 
 ## Dashboard and notifications
 
-- `GET /api/dashboard` — returns the authenticated user's active teams, approved projects, tasks due today, overdue tasks, recent notifications, and summary counts. Task queries include only projects where the user has approved membership and active team membership. Done tasks are excluded from due/overdue lists.
+- `GET /api/dashboard` — returns active teams, approved projects, tasks due today, overdue tasks, recent notifications, and summary counts for the current user.
 - `GET /api/notifications?limit=20` — returns recent notifications and unread count for the signed-in user. `limit` is clamped to 1–50.
-- `POST /api/notifications/{notificationId}/read` — marks a notification as read; requires CSRF protection. A user can only mark their own notification as read.
+- `POST /api/notifications/{notificationId}/read` — marks a notification as read; requires CSRF protection and only affects the signed-in user's notification.
 
-Notifications are currently generated for team invitation acceptance, project access pending/approval/revocation, task assignment, and task completion. Notification writes occur in the same database transaction as the corresponding workflow. The API does not currently push updates over WebSockets; clients can request a lightweight refresh when needed.
+Notifications are generated for team invitation acceptance, project access changes, task assignment/completion, and chat report receipt/escalation. Notification writes are transactional with the corresponding workflow. There is no WebSocket/push delivery in this baseline.
 
 ## Teams and invitations
 
@@ -41,23 +41,42 @@ Invitation creation reserves a team member slot. Active memberships plus unexpir
 - `POST /api/projects/{projectId}/members/{userId}/approve` — approves a pending project membership. Requires CSRF protection and active team owner/manager permissions.
 - `POST /api/projects/{projectId}/members/{userId}/revoke` — revokes pending or approved access. The project creator cannot be revoked through this endpoint. Requires CSRF protection.
 
-Pending and revoked project memberships cannot access project routes. Only approved `member` access can create or update tasks; a `viewer` is read-only.
+Pending and revoked project memberships cannot access project routes. Only approved `member` access can mutate tasks or send chat messages; a `viewer` is read-only.
 
 ## Tasks
 
 - `GET /api/projects/{projectId}/tasks` — lists tasks for any user with approved project access, including viewers.
-- `POST /api/projects/{projectId}/tasks` — creates a task; requires approved `member` access and CSRF protection. Body: `{"title":"Review pull request","description":"Optional","priority":"normal","assigned_to":123,"due_at":"2026-11-01 12:00:00"}`. `description`, `assigned_to`, and `due_at` may be null/omitted. Priorities: `low`, `normal`, `high`, `urgent`. Due dates use UTC `YYYY-MM-DD HH:MM:SS`. An assignee must have approved `member` access to the same project.
-- `POST /api/projects/{projectId}/tasks/{taskId}/status` — changes task status; requires approved `member` access and CSRF protection. Body: `{"status":"in_progress"}`. Statuses: `todo`, `in_progress`, `blocked`, `done`. The completion timestamp is set when status becomes `done` and cleared when it leaves `done`.
+- `POST /api/projects/{projectId}/tasks` — creates a task; requires approved `member` access and CSRF protection. Body: `{"title":"Review pull request","description":"Optional","priority":"normal","assigned_to":123,"due_at":"2026-11-01 12:00:00"}`. Priorities: `low`, `normal`, `high`, `urgent`. Due dates use UTC `YYYY-MM-DD HH:MM:SS`. An assignee must have approved `member` access to the same project.
+- `POST /api/projects/{projectId}/tasks/{taskId}/status` — changes task status; requires approved `member` access and CSRF protection. Body: `{"status":"in_progress"}`. Statuses: `todo`, `in_progress`, `blocked`, `done`.
+
+## Project chat
+
+- `GET /api/projects/{projectId}/chat` — returns at most 50 visible messages. The first request returns the latest 50 in chronological order. Pass `?after_id=<last_message_id>` to retrieve newer messages incrementally; there are no page-number controls.
+- `POST /api/projects/{projectId}/chat` — sends a text message with body `{"body":"Hello team"}`. Requires approved `member` access and CSRF protection; message body is limited to 2000 bytes.
+- `POST /api/projects/{projectId}/chat/{messageId}/edit` — edits your own recent message (15-minute edit window). Messages with unresolved reports cannot be edited.
+- `POST /api/projects/{projectId}/chat/{messageId}/delete` — soft-deletes your own message by replacing its visible body with a deletion marker. A report's saved context is retained.
+- `POST /api/projects/{projectId}/chat/{messageId}/report` — reports another user's message with body `{"reason":"Brief explanation"}`. Reason is limited to 500 bytes. The report captures the message plus adjacent context and holds the message from expiry until all related cases are resolved/rejected.
+
+Normal messages expire after 24 hours. Run `php bin/cleanup-chat.php` from a trusted CLI cron job at least daily to physically remove expired rows. Messages under unresolved reports have `expires_at = NULL` and are not removed by cleanup. After all related reports are resolved/rejected, the 24-hour retention countdown resumes.
+
+## Report review
+
+- `GET /api/teams/{teamId}/reports` — pending/valid reports routed to an active team owner/manager.
+- `GET /api/admin/reports` — reports routed to a site administrator.
+- `POST /api/reports/{reportId}/review` — body `{"action":"valid"}`, `{"action":"rejected"}`, or `{"action":"resolved"}`. Requires CSRF protection and the report's current review scope.
+
+Only one report per reporter per reported person per UTC day is accepted. A valid report initially stays with the team manager. When at least two distinct reporters have valid reports against the same person within 24 hours, pending/valid reports in that window escalate to site administrators. Reports about a team manager, or cases without an eligible manager, go directly to site administrators. A reporter or reported person cannot review that case. A report is an allegation, not proof of wrongdoing.
 
 ## Common errors
 
 - `401` — no active authenticated session.
+- `403` — site administrator permission required or a reviewer has a conflict of interest.
 - `404` — resource not found or membership/management access denied.
+- `409` — quota reached, duplicate report, or conflicting state.
 - `419` — missing, invalid, or expired CSRF token.
-- `422` — invalid request body or invitation token.
-- `409` — quota reached or a conflicting membership/invitation exists.
+- `422` — invalid request body or report token.
 - `429` — login attempt limit reached.
 
 ## Current limits
 
-Public registration, email verification, password recovery, invitation email delivery, team editing/deletion, project editing/deletion, task editing/assignment after creation, comments, subtasks, chat, Git integration, and admin UI are not implemented yet. Future routes must repeat authorization checks in their data-access path rather than trusting a prior UI check alone.
+Public registration, email verification, password recovery, invitation email delivery, team editing/deletion, project editing/deletion, task editing/assignment after creation, comments, subtasks, chat UI/polling client, Git integration, and admin UI are not implemented yet. Future routes must repeat authorization checks in their data-access path rather than trusting a prior UI check alone.

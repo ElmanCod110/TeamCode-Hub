@@ -7,7 +7,9 @@ use TeamCodeHub\Core\Request;
 use TeamCodeHub\Core\Response;
 use TeamCodeHub\Core\Router;
 use TeamCodeHub\Database\ConnectionFactory;
+use TeamCodeHub\Database\ChatRepository;
 use TeamCodeHub\Database\DashboardRepository;
+use TeamCodeHub\Database\ChatReportRepository;
 use TeamCodeHub\Database\DatabaseConfig;
 use TeamCodeHub\Database\MembershipRepository;
 use TeamCodeHub\Database\NotificationRepository;
@@ -18,6 +20,8 @@ use TeamCodeHub\Database\TaskRepository;
 use TeamCodeHub\Database\TeamInvitationRepository;
 use TeamCodeHub\Database\UserRepository;
 use TeamCodeHub\Http\AuthController;
+use TeamCodeHub\Http\ChatController;
+use TeamCodeHub\Http\ChatReportController;
 use TeamCodeHub\Http\DashboardController;
 use TeamCodeHub\Http\WorkspaceController;
 use TeamCodeHub\Http\TaskController;
@@ -74,6 +78,25 @@ return static function (): void {
         );
     });
 
+    $modules->register('chat.controller', static function (): object {
+        $pdo = ConnectionFactory::connect(DatabaseConfig::fromEnvironment());
+        $memberships = new MembershipRepository($pdo);
+        return new ChatController(
+            new AuthenticationService(new UserRepository($pdo)),
+            new ProjectAccessService($memberships),
+            new ChatRepository($pdo),
+            new ChatReportRepository($pdo),
+        );
+    });
+
+    $modules->register('chat-report.controller', static function (): object {
+        $pdo = ConnectionFactory::connect(DatabaseConfig::fromEnvironment());
+        return new ChatReportController(
+            new AuthenticationService(new UserRepository($pdo)),
+            new ChatReportRepository($pdo),
+        );
+    });
+
     $modules->register('dashboard.controller', static function (): object {
         $pdo = ConnectionFactory::connect(DatabaseConfig::fromEnvironment());
         return new DashboardController(
@@ -118,6 +141,31 @@ return static function (): void {
         'status' => 'ok',
         'checks' => ['router' => 'ok', 'module_registry' => 'ok'],
     ]));
+
+    $router->get('/api/projects/{projectId}/chat', static fn (Request $request, array $params): Response =>
+        $modules->get('chat.controller')->listMessages($request, $params)
+    );
+    $router->post('/api/projects/{projectId}/chat', static fn (Request $request, array $params): Response =>
+        $modules->get('chat.controller')->send($request, $params)
+    );
+    $router->post('/api/projects/{projectId}/chat/{messageId}/edit', static fn (Request $request, array $params): Response =>
+        $modules->get('chat.controller')->edit($request, $params)
+    );
+    $router->post('/api/projects/{projectId}/chat/{messageId}/delete', static fn (Request $request, array $params): Response =>
+        $modules->get('chat.controller')->delete($request, $params)
+    );
+    $router->post('/api/projects/{projectId}/chat/{messageId}/report', static fn (Request $request, array $params): Response =>
+        $modules->get('chat.controller')->report($request, $params)
+    );
+    $router->get('/api/teams/{teamId}/reports', static fn (Request $request, array $params): Response =>
+        $modules->get('chat-report.controller')->teamQueue($request, $params)
+    );
+    $router->get('/api/admin/reports', static fn (Request $request, array $params): Response =>
+        $modules->get('chat-report.controller')->adminQueue($request)
+    );
+    $router->post('/api/reports/{reportId}/review', static fn (Request $request, array $params): Response =>
+        $modules->get('chat-report.controller')->review($request, $params)
+    );
 
     $router->get('/api/dashboard', static fn (Request $request, array $params): Response =>
         $modules->get('dashboard.controller')->overview($request)
