@@ -19,6 +19,8 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 - Project member assignment with pending-by-default status, manager approval, viewer/member access levels, and revocation.
 - Task listing for approved project users, member-only task creation/status changes, priorities, assignees, and UTC due dates.
 - Personalized dashboard API with active teams, approved projects, due-today/overdue tasks, and unread notification counts.
+- Text-only project chat with a 50-message window, incremental cursor, message edit/delete, 24-hour expiry, and report-context preservation.
+- Report review queues for team managers/site admins, one-report-per-person-per-reporter-per-day enforcement, and escalation after two distinct valid reports within 24 hours.
 - User-scoped notification inbox and read-state endpoint; workflow events create notifications transactionally.
 - Automated PHP linting, smoke tests, and MariaDB integration tests on PHP 8.2, 8.3, and 8.4.
 
@@ -41,7 +43,7 @@ State-changing routes require a valid CSRF token. Invitation tokens are returned
 
 ## Not implemented yet
 
-Public registration, email verification, password recovery, automatic invitation email, team editing/deletion, project editing/deletion, task editing/assignment after creation, comments, subtasks, chat, Git synchronization, and the admin dashboard remain future work. Every future protected route must explicitly enforce authorization; service classes do not secure routes automatically.
+Public registration, email verification, password recovery, automatic invitation email, team editing/deletion, project editing/deletion, task editing/assignment after creation, comments, subtasks, chat UI/polling client, Git synchronization, and admin UI remain future work. Every future protected route must explicitly enforce authorization; service classes do not secure routes automatically.
 
 ## Requirements and layout
 
