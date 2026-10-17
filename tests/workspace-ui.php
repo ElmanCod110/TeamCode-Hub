@@ -55,6 +55,9 @@ $assert(str_contains($css, '@media (max-width:560px)') && str_contains($css, 'pr
 $assert(str_contains($css, '.chat-messages') && str_contains($css, '.metric-grid') && str_contains($css, '.tch-modal'), 'workspace styles include dashboard, chat, and modal surfaces');
 $assert(str_contains($js, 'credentials: "same-origin"') && str_contains($js, '"X-Csrf-Token"'), 'API client keeps same-origin credentials and CSRF protection');
 $assert(str_contains($js, 'textContent') && str_contains($js, 'after_id=') && str_contains($js, 'set-task-status'), 'controller renders text safely, polls chat incrementally, and updates task status');
+$assert(str_contains($js, 'editProjectModal') && str_contains($js, '"edit-project"'), 'project workspace exposes metadata editing to team managers');
+$assert(str_contains($bootstrap, "'/api/projects/{projectId}/edit'") && str_contains($bootstrap, 'updateProject($request, $params)'), 'project edit API route is connected to the workspace controller');
+$assert(str_contains($css, '.tch-modal') && str_contains($js, 'Project details updated.'), 'project editing reuses the shared modal system and reports save status');
 $assert(str_contains($js, 'canManageTeam') && str_contains($js, 'access_level !== "viewer"'), 'UI controls reflect manager and viewer capabilities without replacing server authorization');
 $assert(str_contains($js, '/api/dashboard') && str_contains($js, '/api/teams') && str_contains($js, '/api/projects/') && str_contains($js, '/api/notifications'), 'controller connects the existing dashboard, team, project, and notification APIs');
 $assert(str_contains($js, '/api/admin/reports') && str_contains($js, '/api/reports/') && str_contains($js, 'renderReportCard'), 'moderation UI connects scoped report queues and review actions');
