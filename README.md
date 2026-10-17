@@ -11,12 +11,13 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 
 - Public front controller, request/response objects, pretty-route dispatcher, and lazy module registry.
 - Validated MySQL/MariaDB configuration, PDO repositories, and explicit CLI migration runner.
-- Identity, team/project membership, login-rate-limit, system-role, and invitation schema.
+- Identity, team/project membership, login-rate-limit, system-role, invitation, and task schema.
 - Hardened sessions, CSRF-protected authentication API, login throttling, and trusted-proxy-aware IP resolution.
 - CLI-only one-time administrator bootstrap.
 - Team/project APIs with active/approved membership checks and transactional project quota enforcement.
-- Seven-day team invitations with hashed tokens, manual trusted-channel delivery, acceptance, and revocation.
+- Seven-day team invitations with hashed tokens, acceptance, and revocation.
 - Project member assignment with pending-by-default status, manager approval, viewer/member access levels, and revocation.
+- Task listing for approved project users, member-only task creation/status changes, priorities, assignees, and UTC due dates.
 - Automated linting and smoke tests on PHP 8.2, 8.3, and 8.4.
 
 ## Setup
@@ -30,15 +31,13 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 
 Authentication: `GET /api/auth/csrf`, `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`.
 
-Teams: `GET|POST /api/teams`, `GET /api/teams/{teamId}`, team invitations via `GET|POST /api/teams/{teamId}/invitations`, `DELETE /api/teams/{teamId}/invitations/{invitationId}`, and `POST /api/team-invitations/accept`.
-
-Projects: `GET|POST /api/teams/{teamId}/projects`, `GET /api/projects/{projectId}`, and project membership routes under `/api/projects/{projectId}/members` for listing, assigning, approving, and revoking members.
+Teams: team CRUD foundation and invitation lifecycle routes. Projects: project listing/creation, membership assignment/approval/revocation. Tasks: `GET|POST /api/projects/{projectId}/tasks` and `POST /api/projects/{projectId}/tasks/{taskId}/status`.
 
 State-changing routes require a valid CSRF token. Invitation tokens are returned once and are not emailed by the current baseline. See [docs/API.md](docs/API.md) for request bodies, status codes, and access rules.
 
 ## Not implemented yet
 
-Public registration, email verification, password recovery, automatic invitation email, team member management UI, team editing/deletion, project editing/deletion, tasks, chat, Git synchronization, and the admin dashboard remain future work. Every future protected route must explicitly enforce authorization; service classes do not secure routes automatically.
+Public registration, email verification, password recovery, automatic invitation email, team editing/deletion, project editing/deletion, task editing/assignment after creation, comments, subtasks, chat, Git synchronization, and the admin dashboard remain future work. Every future protected route must explicitly enforce authorization; service classes do not secure routes automatically.
 
 ## Requirements and layout
 
@@ -52,7 +51,8 @@ public/          Web root and front controller
 app/Core/        Request, response, router, module registry
 app/Database/    PDO connection, repositories, migrations
 app/Security/    Session, CSRF, authentication, access, rate limiting
-app/Http/        HTTP controllersin/             Trusted CLI commands
+app/Http/        HTTP controllers
+bin/             Trusted CLI commands
 database/        Versioned migrations
 tests/           Lightweight smoke tests
 docs/            Architecture, security, API, database, operations
