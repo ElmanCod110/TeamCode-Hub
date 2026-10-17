@@ -537,7 +537,10 @@
 
   function taskRow(task, compact) {
     const row = el("div", "task-row");
-    const check = actionButton("", "toggle-task", "task-check", { "aria-label": "Change task status", "data-task-id": task.id, "data-project-id": task.project_id });
+    const canEdit = projectById(task.project_id)?.access_level !== "viewer";
+    const check = canEdit
+      ? actionButton("", "toggle-task", "task-check", { "aria-label": "Change task status", "data-task-id": task.id, "data-project-id": task.project_id })
+      : el("span", "task-check");
     if (task.status === "done") check.appendChild(icon("check"));
     const main = el("div", "row-main");
     append(main, el("span", "row-title", task.title), el("span", "row-subtitle", task.project_name || projectById(task.project_id)?.name || "Project"));
