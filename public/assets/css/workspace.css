@@ -434,3 +434,13 @@
   .moderation-actions { width:100%; }
   .moderation-actions .btn { flex:1; }
 }
+
+/* Invitation management exposes metadata only; raw tokens are displayed once at creation. */
+.pending-invitations { margin-top:20px; padding-top:17px; border-top:1px solid var(--border); }
+.pending-invitations-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:7px; }
+.pending-invitations-heading strong { font-size:11px; font-weight:750; }
+.pending-invitations-heading .small { font-size:9px; }
+.invitation-row { display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--border); }
+.invitation-row:last-child { border-bottom:0; }
+.invitation-row .row-main { min-width:0; }
+.invitation-row .btn { flex:0 0 auto; }
