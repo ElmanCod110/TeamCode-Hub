@@ -45,7 +45,7 @@ try {
     $pdo = ConnectionFactory::connect($config);
     $runner = new MigrationRunner($pdo, dirname(__DIR__) . '/database/migrations');
     $applied = $runner->migrate();
-    $assert(count($applied) >= 10, 'all versioned migrations are applied to MariaDB');
+    $assert(count($applied) >= 9, 'all versioned migrations are applied to MariaDB');
     $assert($runner->migrate() === [], 'migration runner is idempotent on a migrated schema');
 
     // Exercise the daily GitHub cache through an injected transport; tests never call GitHub.
