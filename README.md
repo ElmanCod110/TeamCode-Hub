@@ -13,25 +13,32 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 - Lazy module registry and module interface contract.
 - Lightweight `GET /` and `GET /health` endpoints.
 - Validated MySQL/MariaDB configuration, PDO connection factory, and explicit CLI migration runner.
-- Initial users, teams, team memberships, projects, project memberships, and login-rate-limit schema.
-- Hardened sessions, session-bound CSRF tokens, prepared user/membership repositories, and authentication/access services.
+- Initial users, teams, team memberships, projects, project memberships, login-rate-limit, and system-role schema.
+- Hardened sessions, CSRF tokens, prepared repositories, and session-backed authentication.
 - JSON authentication endpoints: `GET /api/auth/csrf`, `POST /api/auth/login`, `GET /api/auth/me`, and `POST /api/auth/logout`.
 - Database-backed login throttling and trusted-proxy-aware client IP resolution.
+- CLI-only one-time administrator bootstrap.
+- Team/project access services that require active/approved membership.
 - Smoke tests and GitHub Actions checks on PHP 8.2, 8.3, and 8.4.
 
-## Authentication API notes
+## Setup
+
+1. Configure the database environment variables using the host's environment settings or a private configuration mechanism. There is no `.env` file parser.
+2. Run `php bin/migrate.php` from a trusted CLI shell.
+3. Create the first administrator using the CLI-only procedure in [docs/OPERATIONS.md](docs/OPERATIONS.md).
+4. Serve the project from `public/` and require HTTPS. Configure `APP_HTTPS=true` only when browser-facing HTTPS is guaranteed by the deployment.
+
+## Authentication API
 
 1. Call `GET /api/auth/csrf` and retain the session cookie and returned `csrf_token`.
 2. Send `POST /api/auth/login` with JSON `{ "email": "...", "password": "..." }` and the token in `X-Csrf-Token` or `csrf_token`.
-3. Only accounts with `status = active` can authenticate. This repository does not yet provide public registration or administrator bootstrap, so active users must be provisioned through a trusted process.
+3. Only accounts with `status = active` can authenticate.
 4. After login, fetch a fresh CSRF token before state-changing requests because the token is rotated on successful authentication.
 5. Call `GET /api/auth/me` to inspect the current session. Call `POST /api/auth/logout` with a valid CSRF token to log out.
 
-Configure the database and run `php bin/migrate.php` from a trusted CLI shell before using database-backed endpoints. The project does not include a `.env` parser; use host environment configuration or a private configuration mechanism.
-
 ## Not implemented yet
 
-Public registration, email verification, password recovery, admin bootstrap, UI login pages, global authorization middleware, team/project CRUD routes, tasks, chat, Git synchronization, and the admin dashboard remain future work. Access services must be called by every protected route; merely having the service classes does not secure a route automatically.
+Public registration, email verification, password recovery, admin web UI, global authorization middleware, team/project CRUD routes, tasks, chat, Git synchronization, and the admin dashboard remain future work. Access services must be called by every protected route; merely having service classes does not secure a route automatically.
 
 ## Requirements and layout
 
