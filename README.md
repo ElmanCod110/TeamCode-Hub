@@ -1,67 +1,93 @@
 # TeamCode Hub
 
 **Version:** 0.2.0-dev  
-**Status:** Foundation in progress
+**Status:** Active development
 
-TeamCode Hub is a modular, security-focused collaboration platform for software teams, targeting conventional PHP hosting with cPanel/DirectAdmin and MySQL/MariaDB.
+TeamCode Hub is a modular, security-focused collaboration platform for software teams, designed for conventional PHP hosting with cPanel/DirectAdmin and MySQL/MariaDB.
 
-> This is an early development foundation, not a production-ready application. Planned capabilities are not considered implemented until code and tests exist.
+> This is an active development baseline, not a production-ready release. The implemented UI is connected to the existing APIs, but several product areas remain planned.
 
-## Current foundation
+## Product interface
+
+- English workspace shell at `/` and `/login`, with an accessible sign-in form.
+- Responsive application navigation, mobile sidebar, light/dark/system theme preference, loading states, and safe toast notifications.
+- Overview dashboard connected to personalized teams, projects, due-today tasks, overdue tasks, and recent notifications.
+- Team list and detail views, project creation, and one-time team invitation creation for owners/managers.
+- Project directory and project detail views with overview, task, member-access, and chat tabs.
+- Task creation, status changes, priorities, UTC due-date conversion, and task filtering/search.
+- Project member assignment, pending membership approval, and access revocation where the signed-in user has management permission.
+- Text-only project chat with incremental polling, periodic bounded-window reconciliation for edits/deletions, own-message editing/deletion, and message reporting.
+- Notification inbox with user-scoped read-state changes.
+- Personal preferences for light/dark/system theme; no external fonts or UI framework are required.
+
+## Security and backend foundation
 
 - Public front controller, request/response objects, pretty-route dispatcher, and lazy module registry.
 - Validated MySQL/MariaDB configuration, PDO repositories, and explicit CLI migration runner.
-- Identity, team/project membership, login-rate-limit, system-role, invitation, and task schema.
-- Hardened sessions, CSRF-protected authentication API, login throttling, and trusted-proxy-aware IP resolution.
+- Hardened sessions, CSRF-protected authentication, login throttling, and trusted-proxy-aware IP resolution.
 - CLI-only one-time administrator bootstrap.
-- Team/project APIs with active/approved membership checks and transactional project quota enforcement.
+- Team/project APIs with active/approved membership checks and transactional quota enforcement.
 - Seven-day team invitations with hashed tokens, acceptance, and revocation.
-- Project member assignment with pending-by-default status, manager approval, viewer/member access levels, and revocation.
-- Task listing for approved project users, member-only task creation/status changes, priorities, assignees, and UTC due dates.
-- Personalized dashboard API with active teams, approved projects, due-today/overdue tasks, and unread notification counts.
-- Text-only project chat with a 50-message window, incremental cursor, message edit/delete, 24-hour expiry, and report-context preservation.
-- Report review queues for team managers/site admins, one-report-per-person-per-reporter-per-day enforcement, and escalation after two distinct valid reports within 24 hours.
-- User-scoped notification inbox and read-state endpoint; workflow events create notifications transactionally.
-- Modular design-system assets for tokens, base styles, layout, components, utilities, and accessible UI interactions.\n- English component showcase at `/design-system.html`, with no external font downloads or runtime UI dependencies.\n- Frontend asset smoke checks and JavaScript syntax checks in CI, alongside PHP 8.2–8.4 and MariaDB integration tests.
+- Member/viewer access separation; pending or revoked project members cannot access protected project resources.
+- Task listing, member-only creation/status changes, priorities, assignees, and UTC due dates.
+- Personalized dashboard API and user-scoped notifications.
+- Project chat with a 50-message response window, incremental ID cursor, edit/delete, 24-hour expiry, and report-context preservation.
+- Report review queues for team managers/site admins, duplicate-report controls, and escalation after two distinct valid reports within 24 hours.
+- Same-origin Content Security Policy for HTML application responses, external CSS/JS, and versioned frontend assets.
 
-## Setup
+## Run locally or deploy
 
 1. Configure database environment variables using the host's environment settings or a private configuration mechanism. There is no `.env` parser.
 2. Run `php bin/migrate.php` from a trusted CLI shell.
 3. Create the first administrator using the CLI-only procedure in [docs/OPERATIONS.md](docs/OPERATIONS.md).
-4. Serve the project from `public/` and require HTTPS. Configure `APP_HTTPS=true` only when browser-facing HTTPS is guaranteed by the deployment.
+4. Configure the web server document root to `public/` and enable HTTPS. Set `APP_HTTPS=true` only when browser-facing HTTPS is guaranteed by the deployment.
+5. Open `/`. The application shows the sign-in form when there is no authenticated session. Accounts must already exist and be active.
 
-## API
+The project uses plain PHP, browser-native JavaScript, CSS, and PDO. It does not require a Node build step or a remote font download for production.
+
+## API and frontend contracts
 
 Authentication: `GET /api/auth/csrf`, `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`.
 
-Teams: team CRUD foundation and invitation lifecycle routes. Projects: project listing/creation, membership assignment/approval/revocation. Dashboard: `GET /api/dashboard`, `GET /api/notifications`, `POST /api/notifications/{notificationId}/read`.
+Teams and invitations: `GET|POST /api/teams`, `GET /api/teams/{teamId}`, `GET /api/teams/{teamId}/projects`, invitation creation/listing/acceptance/revocation.
 
-Tasks: `GET|POST /api/projects/{projectId}/tasks` and `POST /api/projects/{projectId}/tasks/{taskId}/status`.
+Projects and members: project list/detail/create, member assignment/approval/revocation, task list/create/status changes, and project chat/report workflows.
 
-State-changing routes require a valid CSRF token. Invitation tokens are returned once and are not emailed by the current baseline. See [docs/API.md](docs/API.md) for request bodies, status codes, and access rules.
+Dashboard: `GET /api/dashboard`, `GET /api/notifications`, and `POST /api/notifications/{notificationId}/read`.
 
-## Not implemented yet
+See [docs/API.md](docs/API.md) for request bodies, status codes, retention, and authorization boundaries. See [docs/WORKSPACE-UI.md](docs/WORKSPACE-UI.md) for UI-to-API mappings and browser behavior.
 
-Public registration, email verification, password recovery, automatic invitation email, team editing/deletion, project editing/deletion, task editing/assignment after creation, comments, subtasks, chat UI/polling client, Git synchronization, and admin UI remain future work. Every future protected route must explicitly enforce authorization; service classes do not secure routes automatically.
+## Validation
 
-## Requirements and layout
+CI checks PHP syntax and smoke tests, design-system and workspace UI contracts, JavaScript syntax, and MariaDB integration tests on PHP 8.2, 8.3, and 8.4.
 
-- PHP 8.2+ is the initial CI target.
-- Apache rewrite support or equivalent web-server routing configuration.
-- PDO MySQL for database-backed features.
-- Configure the document root to `public/` where possible; keep secrets and private runtime data outside it.
+Run the lightweight local checks with:
+
+```sh
+php tests/run.php
+php tests/design-system.php
+php tests/workspace-ui.php
+node --check public/assets/js/ui.js
+node --check public/assets/js/design-system-demo.js
+node --check public/assets/js/workspace.js
+```
+
+## Remaining product work
+
+Public registration, email verification, password recovery, automatic invitation email delivery, team editing/deletion, project editing/deletion, editing/reassigning tasks after creation, comments, subtasks, Git synchronization, richer administrative pages, and automated browser-level visual/accessibility tests are not implemented yet. There is no automatic admin bypass of team/project access checks. Every protected route must continue to enforce authorization on the server.
+
+## Repository layout
 
 ```text
-public/          Web root, front controller, design-system preview, CSS and JS assets
+public/          Web root, front controller, English workspace shell, CSS and JS assets
 app/Core/        Request, response, router, module registry
 app/Database/    PDO connection, repositories, migrations
 app/Security/    Session, CSRF, authentication, access, rate limiting
 app/Http/        HTTP controllers
 bin/             Trusted CLI commands
 database/        Versioned migrations
-tests/           Lightweight smoke tests
-docs/            Architecture, security, API, database, operations
+tests/           Smoke, UI contract, and MariaDB integration tests
+docs/            Architecture, security, API, UI, database, and operations
 ```
 
 See [docs/DESIGN-SYSTEM.md](docs/DESIGN-SYSTEM.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/SECURITY.md](docs/SECURITY.md), [docs/DATABASE.md](docs/DATABASE.md), [docs/OPERATIONS.md](docs/OPERATIONS.md), [CONTRIBUTING.md](CONTRIBUTING.md), and [SECURITY.md](SECURITY.md).

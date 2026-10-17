@@ -12,7 +12,7 @@ This document describes the shared visual and interaction foundation used by Tea
 | `public/assets/css/layout.css` | Containers, responsive grids, page shell, sidebar, and header layouts |
 | `public/assets/css/components.css` | Buttons, forms, badges, cards, alerts, tables, tabs, overlays, and feedback |
 | `public/assets/css/utilities.css` | Small composable spacing, text, surface, and alignment helpers |
-| `public/assets/js/ui.js` | Accessible interactions shared by product pages |
+| `public/assets/js/ui.js` | Accessible interactions shared by product pages |\n| `public/assets/css/workspace.css` | Product-specific workspace, dashboard, project, task, and chat presentation |\n| `public/assets/js/workspace.js` | Authenticated API integration and workspace interactions |\n| `public/app.html` | English workspace shell and sign-in form |
 | `public/assets/css/design-system-demo.css` | Styles unique to the reference showcase |
 | `public/assets/js/design-system-demo.js` | Demo-only button handlers |
 | `public/design-system.html` | English component reference page |
@@ -64,7 +64,7 @@ Dropdown triggers use `data-dropdown-toggle` and `aria-controls` pointing to the
 
 Use `id="app-sidebar"` for the drawer, `data-sidebar-toggle` for openers, `data-sidebar-close` for close controls, and optionally `id="sidebar-backdrop"` with class `.sidebar-backdrop` for the backdrop. Keep the drawer's links usable by keyboard and avoid placing sensitive actions in hidden menus without server-side permission checks.
 
-## Accessibility checklist
+## Product workspace\n\nThe product interface is documented separately in [WORKSPACE-UI.md](WORKSPACE-UI.md). It uses the shared tokens and components while keeping product-specific styles in `workspace.css`. The workspace JavaScript uses same-origin credentials, CSRF tokens for mutations, and DOM text nodes for user-controlled values.\n\n## Accessibility checklist
 
 - Preserve a visible keyboard focus indicator.
 - Provide a skip link to the main content on application pages.

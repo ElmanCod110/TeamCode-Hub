@@ -130,12 +130,18 @@ return static function (): void {
         );
     });
 
-    $router->get('/', static fn (Request $request, array $params): Response => Response::json([
-        'name' => 'TeamCode Hub',
-        'version' => '0.2.0-dev',
-        'status' => 'foundation',
-        'message' => 'Core, authentication, team, and project APIs are available; additional product features remain in development.',
-    ]));
+    // Serve the product shell through the front controller so pretty URLs share one entry point.
+    $appPage = static function (): Response {
+        $path = dirname(__DIR__) . '/public/app.html';
+        $html = is_file($path) ? file_get_contents($path) : false;
+        if (!is_string($html)) {
+            return Response::text('Workspace application is unavailable.', 500);
+        }
+        return Response::html($html);
+    };
+
+    $router->get('/', static fn (Request $request, array $params): Response => $appPage());
+    $router->get('/login', static fn (Request $request, array $params): Response => $appPage());
 
     $router->get('/health', static fn (Request $request, array $params): Response => Response::json([
         'status' => 'ok',
