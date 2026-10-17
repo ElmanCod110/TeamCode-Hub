@@ -38,26 +38,35 @@ final class GitHubActivityCacheRepository
                 return ['claimed' => false, 'snapshot' => self::normalize($row)];
             }
 
-            // Clear a prior account's data if the configured public username changed.
-            $update = $this->pdo->prepare(
-                'UPDATE github_activity_cache
-                 SET username = :username, attempted_date = :attempted_date,
-                     fetched_at = NULL, payload_json = NULL, last_error = NULL
-                 WHERE id = 1'
-            );
-            $update->execute(['username' => $username, 'attempted_date' => $utcDate]);
-            $this->pdo->commit();
-
-            return [
-                'claimed' => true,
-                'snapshot' => [
+            // Preserve the last good snapshot when starting a new day; clear it only
+            // when the configured account changes so stale public data is never misattributed.
+            if ((string) $row['username'] === $username) {
+                $update = $this->pdo->prepare(
+                    'UPDATE github_activity_cache SET attempted_date = :attempted_date, last_error = NULL WHERE id = 1'
+                );
+                $update->execute(['attempted_date' => $utcDate]);
+                $snapshot = self::normalize($row);
+                $snapshot['attempted_date'] = $utcDate;
+                $snapshot['last_error'] = null;
+            } else {
+                $update = $this->pdo->prepare(
+                    'UPDATE github_activity_cache
+                     SET username = :username, attempted_date = :attempted_date,
+                         fetched_at = NULL, payload_json = NULL, last_error = NULL
+                     WHERE id = 1'
+                );
+                $update->execute(['username' => $username, 'attempted_date' => $utcDate]);
+                $snapshot = [
                     'username' => $username,
                     'attempted_date' => $utcDate,
                     'fetched_at' => null,
                     'events' => [],
                     'last_error' => null,
-                ],
-            ];
+                ];
+            }
+            $this->pdo->commit();
+
+            return ['claimed' => true, 'snapshot' => $snapshot];
         } catch (\Throwable $error) {
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
