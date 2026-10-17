@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace TeamCodeHub\Http;
 
 use DomainException;
+use TeamCodeHub\Core\QuotaExceededException;
 use TeamCodeHub\Core\Request;
 use TeamCodeHub\Core\Response;
 use TeamCodeHub\Database\ProjectRepository;
@@ -112,6 +113,8 @@ final class WorkspaceController
 
         try {
             $projectId = $this->projects->createForTeamManager($user['id'], $teamId, trim($name), $description);
+        } catch (QuotaExceededException) {
+            return Response::json(['error' => 'The team has reached its active project quota.'], 409);
         } catch (DomainException) {
             return Response::json(['error' => 'Team not found or management permission denied.'], 404);
         }
