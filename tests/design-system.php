@@ -79,5 +79,7 @@ $assert(!preg_match('/\sstyle\s*=/i', $demoPage), 'showcase HTML contains no inl
 $assert(!preg_match('/<script\s*>/i', $demoPage), 'showcase HTML contains no inline JavaScript blocks');
 $assert(str_contains($demoPage, '/assets/css/design-system-demo.css') && str_contains($demoPage, '/assets/js/design-system-demo.js'), 'showcase-specific behavior and styles are external assets');
 $assert(str_contains($demoScript, 'window.TCHUI.notify'), 'showcase buttons use the shared notification API');
+$assert(str_contains($demoScript, 'demo-upload') && str_contains($demoScript, 'selectPage'), 'showcase upload preview and pagination examples are interactive');
+$assert(str_contains($demoScript, 'chip was removed locally'), 'showcase removable chips operate locally without a server request');
 
 echo "\n{$assertions} design-system assertions passed.\n";
