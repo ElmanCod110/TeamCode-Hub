@@ -1161,11 +1161,12 @@
       const commentForm = el("form", "task-comment-form");
       const textarea = el("textarea", "textarea"); textarea.rows = 3; textarea.maxLength = 4000; textarea.required = true; textarea.placeholder = "Write a comment…"; textarea.setAttribute("aria-label", "Task comment");
       const actions = el("div", "task-comment-form-actions");
-      append(actions, el("span", "small", "Up to 4,000 bytes"), actionButton("Post comment", "submit-task-comment", "btn btn-primary btn-sm"));
+      const submitComment = el("button", "btn btn-primary btn-sm", "Post comment"); submitComment.type = "submit";
+      append(actions, el("span", "small", "Up to 4,000 bytes"), submitComment);
       append(commentForm, textarea, actions);
       commentForm.addEventListener("submit", async event => {
         event.preventDefault();
-        const submit = $("[data-action='submit-task-comment']", commentForm);
+        const submit = $("button[type='submit']", commentForm);
         const value = textarea.value.trim();
         if (!value) return;
         submit.disabled = true;
@@ -1774,6 +1775,34 @@
       else if (name === "open-project-chat") {
         const project = projectById(action.dataset.projectId);
         if (project) await openProject(project, true, "chat");
+      }
+      else if (name === "task-details") {
+        await openTaskDetails(action.dataset.projectId, action.dataset.taskId);
+      }
+      else if (name === "toggle-subtask") {
+        await request("/api/projects/" + escapePath(action.dataset.projectId) + "/tasks/" + escapePath(action.dataset.taskId) + "/subtasks/" + escapePath(action.dataset.subtaskId) + "/toggle", { method: "POST", body: {} });
+        await openTaskDetails(action.dataset.projectId, action.dataset.taskId);
+      }
+      else if (name === "delete-subtask") {
+        if (!window.confirm("Remove this checklist item?")) return;
+        await request("/api/projects/" + escapePath(action.dataset.projectId) + "/tasks/" + escapePath(action.dataset.taskId) + "/subtasks/" + escapePath(action.dataset.subtaskId) + "/delete", { method: "POST", body: {} });
+        await openTaskDetails(action.dataset.projectId, action.dataset.taskId);
+        toast("Checklist item removed.");
+      }
+      else if (name === "edit-task-comment") {
+        const row = action.closest(".task-comment-row");
+        const current = $(".task-comment-body", row)?.textContent || "";
+        const body = window.prompt("Edit your comment (within the 15-minute edit window):", current);
+        if (body === null || !body.trim()) return;
+        await request("/api/projects/" + escapePath(action.dataset.projectId) + "/tasks/" + escapePath(action.dataset.taskId) + "/comments/" + escapePath(action.dataset.commentId) + "/edit", { method: "POST", body: { body: body.trim() } });
+        await openTaskDetails(action.dataset.projectId, action.dataset.taskId);
+        toast("Comment updated.");
+      }
+      else if (name === "delete-task-comment") {
+        if (!window.confirm("Delete your comment? The thread will retain a deletion marker.")) return;
+        await request("/api/projects/" + escapePath(action.dataset.projectId) + "/tasks/" + escapePath(action.dataset.taskId) + "/comments/" + escapePath(action.dataset.commentId) + "/delete", { method: "POST", body: {} });
+        await openTaskDetails(action.dataset.projectId, action.dataset.taskId);
+        toast("Comment deleted.");
       }
       else if (name === "project-tab") {
         if (state.selectedProject) await openProject(state.selectedProject, true, action.dataset.projectTab);
