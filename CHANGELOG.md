@@ -33,6 +33,13 @@ Notable changes to TeamCode Hub are recorded here.
 - Add connected edit dialogs in the English workspace, refresh the relevant records after save, and retain task, membership, and chat history.
 - Add MariaDB integration coverage for authorized edits and rejected owner/manager/member permission boundaries.
 
+### Project chat synchronization
+
+- Fix the background reconciliation counter so the bounded full sync actually runs every fourth poll.
+- Reconcile message revisions and soft deletions, and remove expired messages that leave the latest 50-message window.
+- Avoid rebuilding unchanged message rows during reconciliation, preserving screen-reader stability and the reader's approximate scroll position.
+- Add UI contract coverage for revision reconciliation and scroll anchoring; bump the workspace JavaScript cache version.
+
 ### Workspace interface
 
 - Add an English application shell with an accessible sign-in form and authenticated workspace navigation.
