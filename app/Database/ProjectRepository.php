@@ -108,6 +108,91 @@ final class ProjectRepository
         }
     }
 
+    /**
+     * Update project metadata for an active team owner or manager.
+     * The authorization predicate is checked again inside the transaction.
+     */
+    public function updateForTeamManager(int $actorId, int $projectId, string $name, ?string $description): array
+    {
+        $this->pdo->beginTransaction();
+        try {
+            $access = $this->pdo->prepare(
+                "SELECT p.team_id, tm.role
+                 FROM projects p
+                 INNER JOIN teams t ON t.id = p.team_id
+                 INNER JOIN team_memberships tm ON tm.team_id = t.id
+                 WHERE p.id = :project_id AND p.status = 'active' AND t.status = 'active'
+                   AND tm.user_id = :actor_id AND tm.status = 'active'
+                 LIMIT 1 FOR UPDATE"
+            );
+            $access->execute(['project_id' => $projectId, 'actor_id' => $actorId]);
+            $row = $access->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($row) || !in_array($row['role'], ['owner', 'manager'], true)) {
+                throw new DomainException('Active team manager access required.');
+            }
+
+            $update = $this->pdo->prepare(
+                'UPDATE projects SET name = :name, description = :description
+                 WHERE id = :project_id AND status = \'active\''
+            );
+            $update->execute([
+                'name' => $name,
+                'description' => $description,
+                'project_id' => $projectId,
+            ]);
+            $this->pdo->commit();
+
+            return [
+                'id' => $projectId,
+                'team_id' => (int) $row['team_id'],
+                'name' => $name,
+                'description' => $description,
+                'status' => 'active',
+            ];
+        } catch (Throwable $error) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $error;
+        }
+    }
+
+    /**
+     * Archive a project without deleting its tasks, messages, reports, or memberships.
+     */
+    public function archiveForTeamManager(int $actorId, int $projectId): bool
+    {
+        $this->pdo->beginTransaction();
+        try {
+            $access = $this->pdo->prepare(
+                "SELECT p.id
+                 FROM projects p
+                 INNER JOIN teams t ON t.id = p.team_id
+                 INNER JOIN team_memberships tm ON tm.team_id = t.id
+                 WHERE p.id = :project_id AND p.status = 'active' AND t.status = 'active'
+                   AND tm.user_id = :actor_id AND tm.status = 'active'
+                   AND tm.role IN ('owner', 'manager')
+                 LIMIT 1 FOR UPDATE"
+            );
+            $access->execute(['project_id' => $projectId, 'actor_id' => $actorId]);
+            if ($access->fetchColumn() === false) {
+                throw new DomainException('Active team manager access required.');
+            }
+
+            $archive = $this->pdo->prepare(
+                "UPDATE projects SET status = 'archived' WHERE id = :project_id AND status = 'active'"
+            );
+            $archive->execute(['project_id' => $projectId]);
+            $this->pdo->commit();
+            return $archive->rowCount() === 1;
+        } catch (Throwable $error) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $error;
+        }
+    }
+
     /** @param array<string, mixed> $row
      *  @return array<string, mixed>
      */
