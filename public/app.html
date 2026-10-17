@@ -12,8 +12,10 @@
   <script src="/assets/js/workspace.js?v=0.2.0-dev" defer></script>
 </head>
 <body class="tch-workspace">
+  <!-- Keyboard users can bypass navigation and jump directly to the current page content. -->
   <a class="skip-link" href="#workspace-main">Skip to main content</a>
 
+  <!-- Authentication view is shown when the session API reports no active account. -->
   <section id="auth-screen" class="auth-screen" hidden aria-labelledby="auth-title">
     <div class="auth-aside">
       <a class="brand brand-light" href="/" aria-label="TeamCode Hub home">
@@ -57,7 +59,9 @@
     </div>
   </section>
 
+  <!-- The authenticated workspace is populated by the external workspace controller. -->
   <div id="application" class="app-shell" hidden>
+    <!-- Navigation remains separate from the page content and collapses into a mobile drawer. -->
     <aside id="app-sidebar" class="app-sidebar" aria-label="Main navigation">
       <div class="sidebar-brand-row">
         <a class="brand" href="/" aria-label="TeamCode Hub overview">
@@ -102,6 +106,7 @@
     <div id="sidebar-backdrop" class="sidebar-backdrop" data-sidebar-close hidden></div>
 
     <div class="app-main">
+      <!-- Global actions are intentionally small so the main workspace stays content-first. -->
       <header class="app-topbar">
         <button class="btn btn-ghost btn-icon mobile-menu-button" type="button" data-sidebar-toggle aria-controls="app-sidebar" aria-expanded="false" aria-label="Open navigation"><span data-icon="menu" aria-hidden="true"></span></button>
         <div class="topbar-breadcrumb"><span>Workspace</span><span class="breadcrumb-slash">/</span><strong id="current-page-label">Overview</strong></div>
@@ -113,6 +118,7 @@
         </div>
       </header>
 
+      <!-- Page content is replaced using DOM APIs; API values are inserted as text, never HTML. -->
       <main id="workspace-main" class="app-content" tabindex="-1">
         <div id="global-message" class="global-message" role="status" hidden></div>
         <div id="page-content" aria-live="polite" aria-busy="true">
@@ -123,6 +129,7 @@
     </div>
   </div>
 
+  <!-- Dialogs and toast messages are mounted here by the external controller. -->
   <div id="modal-root"></div>
   <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="false"></div>
   <noscript><div class="noscript-notice">TeamCode Hub requires JavaScript to power its interactive workspace. Please enable JavaScript and reload this page.</div></noscript>
