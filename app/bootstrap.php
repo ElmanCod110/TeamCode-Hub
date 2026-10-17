@@ -297,6 +297,9 @@ return static function (): void {
     $router->post('/api/projects/{projectId}/members/{userId}/revoke', static fn (Request $request, array $params): Response =>
         $modules->get('project-membership.controller')->revoke($request, $params)
     );
+    $router->post('/api/projects/{projectId}/members/{userId}/access', static fn (Request $request, array $params): Response =>
+        $modules->get('project-membership.controller')->changeAccessLevel($request, $params)
+    );
 
     $router->get('/api/teams/{teamId}/invitations', static fn (Request $request, array $params): Response =>
         $modules->get('team-invitation.controller')->listPending($request, $params)
