@@ -23,7 +23,7 @@ jobs:
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: \${{ matrix.php }}
+          php-version: "${{ matrix.php }}"
           coverage: none
 
       - name: Lint PHP files
