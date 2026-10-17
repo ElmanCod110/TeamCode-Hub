@@ -51,7 +51,7 @@ Authentication: `GET /api/auth/csrf`, `POST /api/auth/login`, `GET /api/auth/me`
 
 Teams and invitations: `GET|POST /api/teams`, `GET /api/teams/{teamId}`, `GET /api/teams/{teamId}/projects`, invitation creation/listing/acceptance/revocation.
 
-Projects and members: project list/detail/create, member assignment/approval/revocation, task list/create/status changes, and project chat/report workflows.
+Projects and members: project list/detail/create, member assignment/approval/revocation, task list/create/edit/status, task comments/checklists, and project chat/report workflows.
 
 Dashboard: `GET /api/dashboard`, `GET /api/notifications`, and `POST /api/notifications/{notificationId}/read`.
 
