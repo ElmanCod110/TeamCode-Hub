@@ -572,3 +572,23 @@
   .member-picker-results { max-height:34vh; }
   .member-picker-option { padding:10px; }
 }
+
+/* Reusable, project-scoped task assignee search. */
+.assignee-picker-search { margin-top:2px; }
+.assignee-picker-results { display:flex; flex-direction:column; gap:6px; max-height:190px; overflow-y:auto; overscroll-behavior:contain; }
+.assignee-picker-option { display:flex; align-items:center; gap:9px; width:100%; min-width:0; padding:9px 10px; border:1px solid var(--border); border-radius:var(--r-md); background:var(--surface); color:var(--text); text-align:start; cursor:pointer; }
+.assignee-picker-option:hover,.assignee-picker-option:focus-visible { border-color:var(--border-strong); background:var(--surface-muted); }
+.assignee-picker-option[aria-selected="true"] { border-color:var(--g500); background:var(--surface-muted); }
+.assignee-picker-option .avatar { flex:0 0 auto; }
+.assignee-picker-option-copy { display:flex; flex:1; min-width:0; flex-direction:column; gap:2px; }
+.assignee-picker-option-copy strong { font-size:10px; font-weight:750; overflow-wrap:anywhere; }
+.assignee-picker-option-copy span { color:var(--text-secondary); font-size:9px; overflow-wrap:anywhere; }
+.assignee-picker-option-copy small { color:var(--text-muted); font-size:9px; }
+.assignee-picker-state { margin:0; padding:10px; border:1px dashed var(--border); border-radius:var(--r-md); color:var(--text-muted); font-size:10px; line-height:1.7; text-align:center; }
+.assignee-picker-state.is-loading { color:var(--text-secondary); }
+.assignee-picker-state.is-error { color:var(--danger); }
+.assignee-picker-selection { display:flex; align-items:center; gap:9px; margin-top:7px; padding:9px 10px; border:1px solid var(--border); border-radius:var(--r-md); background:var(--surface-muted); }
+.assignee-picker-selection > .small { color:var(--text-muted); font-size:10px; line-height:1.7; }
+.assignee-picker-selected-copy { display:flex; flex:1; min-width:0; flex-direction:column; gap:2px; }
+.assignee-picker-selected-copy strong { font-size:10px; overflow-wrap:anywhere; }
+.assignee-picker-selected-copy span { color:var(--text-secondary); font-size:9px; overflow-wrap:anywhere; }
