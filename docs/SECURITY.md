@@ -6,22 +6,25 @@ This document distinguishes implemented primitives from controls still required 
 
 - Session startup enables strict mode, cookie-only session IDs, HttpOnly cookies, SameSite=Lax, and Secure cookies when direct HTTPS is detected or `APP_HTTPS=true` is configured.
 - Session IDs are rotated after successful authentication; logout clears session data and expires the session cookie.
-- `GET /api/auth/csrf` creates or returns a cryptographically random session-bound token. Login and logout require the token via `X-Csrf-Token` or the request body's `csrf_token` field.
+- `GET /api/auth/csrf` creates or returns a cryptographically random session-bound token. Login, logout, and state-changing team/project routes require the token via `X-Csrf-Token` or the request body's `csrf_token` field.
 - `AuthenticationService` checks password hashes, only accepts accounts whose status is `active`, rotates the session ID after successful authentication, and uses a generic failure response.
-- Login attempts are throttled using database-backed per-IP and per-email-hash buckets. The default limits are 20 attempts per IP and 8 per email hash per 15 minutes. These are initial defaults and should be monitored/tuned for deployment.
-- Forwarded client IP data is ignored unless `REMOTE_ADDR` matches an exact IP in `TRUSTED_PROXIES`. Do not configure untrusted networks as proxies.
-- `ProjectAccessService` allows access only when a project membership is approved, the user's team membership is active, and the project is active. Viewers can view but cannot edit.
-- `TeamAccessService` requires active membership; only active `owner` and `manager` roles can manage a team.
+- Login attempts are throttled using database-backed per-IP and per-email-hash buckets. Defaults: 20 attempts per IP and 8 per email hash per 15 minutes.
+- Forwarded client IP data is ignored unless `REMOTE_ADDR` matches an exact IP in `TRUSTED_PROXIES`.
+- Team API routes require active team membership. Only active `owner` and `manager` roles can create projects.
+- Project API routes require an approved project membership, an active team membership, and an active project. Viewer access is read-only.
+- Project quota checks run inside the project-creation transaction while locking the team membership row.
 - Permission checks are exact-match only; wildcard permissions are not supported.
+- Initial site administrator creation is a CLI-only operation and refuses to create a second `site_admin` role.
 
-## Required controls before exposing more endpoints
+## Required controls before production
 
 - Add rate limiting and monitoring for invitations, account recovery, and other sensitive actions.
-- Implement account creation, email verification, password reset, and a trusted one-time administrator bootstrap.
-- Add authorization checks to every protected route, API, file download, chat history, and mutation. A service existing in the codebase does not mean every route already uses it.
+- Implement public registration, email verification, password reset, and account recovery.
+- Enforce team-member quotas when invitation and membership workflows are introduced.
+- Add authorization checks to every protected route, file download, chat history, and mutation. Future routes must not assume that membership in one project grants access to another.
 - Keep real secrets outside the web root and never log passwords, session tokens, secret keys, or sensitive request bodies.
 - Define retention and access restrictions for security logs and any personal data.
-- Test login/session behavior on the actual HTTPS/shared-hosting topology before production.
+- Test the migration and query behavior against the actual supported MySQL/MariaDB versions and HTTPS/shared-hosting topology.
 
 ## Data and migrations
 

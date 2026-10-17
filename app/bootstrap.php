@@ -8,12 +8,18 @@ use TeamCodeHub\Core\Response;
 use TeamCodeHub\Core\Router;
 use TeamCodeHub\Database\ConnectionFactory;
 use TeamCodeHub\Database\DatabaseConfig;
+use TeamCodeHub\Database\MembershipRepository;
+use TeamCodeHub\Database\ProjectRepository;
+use TeamCodeHub\Database\TeamRepository;
 use TeamCodeHub\Database\UserRepository;
 use TeamCodeHub\Http\AuthController;
+use TeamCodeHub\Http\WorkspaceController;
 use TeamCodeHub\Security\AuthenticationService;
 use TeamCodeHub\Security\CsrfToken;
 use TeamCodeHub\Security\LoginRateLimiter;
+use TeamCodeHub\Security\ProjectAccessService;
 use TeamCodeHub\Security\SecureSession;
+use TeamCodeHub\Security\TeamAccessService;
 
 spl_autoload_register(static function (string $class): void {
     $prefix = 'TeamCodeHub\\';
@@ -31,7 +37,7 @@ return static function (): void {
     $router = new Router();
     $modules = new ModuleRegistry();
 
-    // Database-backed components are constructed only when an auth endpoint needs them.
+    // Database-backed components are constructed only when their routes need them.
     $modules->register('auth.controller', static function (): object {
         $pdo = ConnectionFactory::connect(DatabaseConfig::fromEnvironment());
         return new AuthController(
@@ -40,11 +46,25 @@ return static function (): void {
         );
     });
 
+    $modules->register('workspace.controller', static function (): object {
+        $pdo = ConnectionFactory::connect(DatabaseConfig::fromEnvironment());
+        $users = new UserRepository($pdo);
+        $memberships = new MembershipRepository($pdo);
+
+        return new WorkspaceController(
+            new AuthenticationService($users),
+            new TeamAccessService($memberships),
+            new ProjectAccessService($memberships),
+            new TeamRepository($pdo),
+            new ProjectRepository($pdo),
+        );
+    });
+
     $router->get('/', static fn (Request $request, array $params): Response => Response::json([
         'name' => 'TeamCode Hub',
         'version' => '0.1.0-dev',
         'status' => 'foundation',
-        'message' => 'Core and authentication endpoints are available; product features remain in development.',
+        'message' => 'Core, authentication, team, and project APIs are available; additional product features remain in development.',
     ]));
 
     $router->get('/health', static fn (Request $request, array $params): Response => Response::json([
@@ -56,17 +76,33 @@ return static function (): void {
         SecureSession::start();
         return Response::json(['csrf_token' => CsrfToken::get()]);
     });
-
     $router->post('/api/auth/login', static fn (Request $request, array $params): Response =>
         $modules->get('auth.controller')->login($request)
     );
-
     $router->get('/api/auth/me', static fn (Request $request, array $params): Response =>
         $modules->get('auth.controller')->me()
     );
-
     $router->post('/api/auth/logout', static fn (Request $request, array $params): Response =>
         $modules->get('auth.controller')->logout($request)
+    );
+
+    $router->get('/api/teams', static fn (Request $request, array $params): Response =>
+        $modules->get('workspace.controller')->listTeams()
+    );
+    $router->post('/api/teams', static fn (Request $request, array $params): Response =>
+        $modules->get('workspace.controller')->createTeam($request)
+    );
+    $router->get('/api/teams/{teamId}', static fn (Request $request, array $params): Response =>
+        $modules->get('workspace.controller')->showTeam($request, $params)
+    );
+    $router->get('/api/teams/{teamId}/projects', static fn (Request $request, array $params): Response =>
+        $modules->get('workspace.controller')->listProjects($request, $params)
+    );
+    $router->post('/api/teams/{teamId}/projects', static fn (Request $request, array $params): Response =>
+        $modules->get('workspace.controller')->createProject($request, $params)
+    );
+    $router->get('/api/projects/{projectId}', static fn (Request $request, array $params): Response =>
+        $modules->get('workspace.controller')->showProject($request, $params)
     );
 
     $response = $router->dispatch(Request::fromGlobals());
