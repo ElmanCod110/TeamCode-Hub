@@ -94,6 +94,45 @@ final class ProjectMembershipController
         return Response::json(['approved' => true, 'project_id' => $projectId, 'user_id' => $targetUserId]);
     }
 
+    public function changeAccessLevel(Request $request, array $params): Response
+    {
+        SecureSession::start();
+        if (!$this->validCsrf($request)) {
+            return Response::json(['error' => 'Invalid or expired request token.'], 419);
+        }
+
+        $user = $this->authentication->currentUser();
+        $projectId = $this->positiveId($params['projectId'] ?? null);
+        $targetUserId = $this->positiveId($params['userId'] ?? null);
+        if ($user === null) {
+            return Response::json(['error' => 'Authentication required.'], 401);
+        }
+        if ($projectId === null || $targetUserId === null) {
+            return Response::json(['error' => 'Project membership not found.'], 404);
+        }
+
+        $accessLevel = $request->body()['access_level'] ?? null;
+        if (!is_string($accessLevel) || !in_array($accessLevel, ['viewer', 'member'], true)) {
+            return Response::json(['error' => 'access_level must be viewer or member.'], 422);
+        }
+
+        try {
+            $changed = $this->memberships->changeAccessLevel($user['id'], $projectId, $targetUserId, $accessLevel);
+        } catch (DomainException $error) {
+            if (str_contains($error->getMessage(), 'creator must retain')) {
+                return Response::json(['error' => 'The project creator must retain member-level access.'], 409);
+            }
+            return Response::json(['error' => 'Project membership not found or management permission denied.'], 404);
+        }
+
+        return Response::json([
+            'changed' => $changed,
+            'project_id' => $projectId,
+            'user_id' => $targetUserId,
+            'access_level' => $accessLevel,
+        ]);
+    }
+
     public function revoke(Request $request, array $params): Response
     {
         SecureSession::start();
