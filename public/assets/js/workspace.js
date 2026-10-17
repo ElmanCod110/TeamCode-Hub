@@ -25,6 +25,7 @@
     selectedProject: null,
     projectTab: "overview",
     chatCursor: 0,
+    chatPollCount: 0,
     chatTimer: null,
     chatBusy: false,
     refreshing: false,
@@ -999,14 +1000,40 @@
       const query = fullSync ? "" : "?after_id=" + encodeURIComponent(state.chatCursor);
       const data = await request("/api/projects/" + escapePath(project.id) + "/chat" + query);
       const messages = Array.isArray(data.messages) ? data.messages : [];
-      if (fullSync) list.replaceChildren();
+      if (fullSync) {
+        // Reconcile the bounded window instead of rebuilding every message. This
+        // makes edits and deletions visible without re-announcing unchanged chat.
+        const incomingIds = new Set(messages.map(message => String(message.id)));
+        $(".chat-message", list).forEach(row => {
+          if (!incomingIds.has(row.id.replace("chat-message-", ""))) row.remove();
+        });
+        if (messages.length === 0) {
+          $(".chat-message", list).forEach(row => row.remove());
+          if (!$(".empty-state", list)) list.appendChild(emptyState("Start the conversation", "Share a short update, ask a question, or unblock a teammate."));
+        } else {
+          const placeholder = $(".empty-state", list);
+          if (placeholder) placeholder.remove();
+        }
+      }
+
       messages.forEach(message => {
-        if ($("#chat-message-" + message.id, list)) return;
-        list.appendChild(renderChatMessage(message));
+        const existing = $("#chat-message-" + message.id, list);
+        if (existing) {
+          if (fullSync && existing.dataset.messageVersion !== chatMessageVersion(message)) {
+            existing.replaceWith(renderChatMessage(message));
+          }
+        } else {
+          list.appendChild(renderChatMessage(message));
+        }
         state.chatCursor = Math.max(state.chatCursor, Number(message.id) || 0);
       });
-      if (initial && !messages.length) list.appendChild(emptyState("Start the conversation", "Share a short update, ask a question, or unblock a teammate."));
-      if (initial || forceScroll) list.scrollTop = list.scrollHeight;
+
+      if (initial || forceScroll || wasNearBottom) {
+        list.scrollTop = list.scrollHeight;
+      } else if (fullSync) {
+        // Keep the visible part of the conversation stable if a message changed height.
+        list.scrollTop = Math.max(0, previousScrollTop + list.scrollHeight - previousScrollHeight);
+      }
       setConnection(true);
     } catch (error) {
       if (error.status !== 401) setConnection(false);
@@ -1015,11 +1042,16 @@
     }
   }
 
+  function chatMessageVersion(message) {
+    return JSON.stringify([message.body, message.edited_at, message.deleted_at, message.display_name, message.created_at]);
+  }
+
   function renderChatMessage(message) {
     const own = Number(message.user_id) === Number(state.user.id);
     const deleted = Boolean(message.deleted_at);
     const row = el("article", "chat-message" + (own ? " own" : "") + (deleted ? " deleted" : ""));
     row.id = "chat-message-" + message.id;
+    row.dataset.messageVersion = chatMessageVersion(message);
     const displayName = message.display_name || "Team member";
     const meta = el("div", "chat-message-meta");
     append(meta, el("strong", "", own ? "You" : displayName), el("span", "", formatRelative(message.created_at)));
@@ -1045,6 +1077,7 @@
     if (state.chatTimer) window.clearInterval(state.chatTimer);
     state.chatTimer = null;
     state.chatCursor = 0;
+    state.chatPollCount = 0;
     state.chatBusy = false;
   }
 
