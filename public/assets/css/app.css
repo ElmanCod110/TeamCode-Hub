@@ -5,11 +5,11 @@
    Production pages should load this single stylesheet with a versioned URL.
    ========================================================================== */
 
-@import url("./tokens.css");
-@import url("./base.css");
-@import url("./layout.css");
-@import url("./components.css");
-@import url("./utilities.css");
+@import url("./tokens.css?v=0.2.0-dev");
+@import url("./base.css?v=0.2.0-dev");
+@import url("./layout.css?v=0.2.0-dev");
+@import url("./components.css?v=0.2.0-dev");
+@import url("./utilities.css?v=0.2.0-dev");
 
 /* Keep the document canvas consistent when pages use a full-height shell. */
 body { background: var(--surface); color: var(--text); }
