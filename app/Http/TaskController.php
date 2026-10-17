@@ -81,7 +81,7 @@ final class TaskController
             }
             $parsed = DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', $dueRaw, new DateTimeZone('UTC'));
             $dateErrors = DateTimeImmutable::getLastErrors();
-            if (!$parsed instanceof DateTimeImmutable || ($dateErrors !== false && ($dateErrors['warning_count'] > 0 || $dateErrors['error_count'] > 0)) || $parsed->format('Y-m-d H:i:s') !== $dueRaw) {
+            if ($parsed === false || ($dateErrors !== false && ($dateErrors['warning_count'] > 0 || $dateErrors['error_count'] > 0)) || $parsed->format('Y-m-d H:i:s') !== $dueRaw) {
                 return Response::json(['error' => 'due_at must use UTC YYYY-MM-DD HH:MM:SS format.'], 422);
             }
             $dueAt = $parsed->format('Y-m-d H:i:s');
