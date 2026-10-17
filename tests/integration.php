@@ -446,6 +446,35 @@ try {
     $auth->logout();
     $assert(session_status() !== PHP_SESSION_ACTIVE, 'authentication logout destroys the session');
 
+    $unauthorizedArchiveRejected = false;
+    try {
+        $projects->archiveForTeamManager($outsiderId, $projectId);
+    } catch (DomainException) {
+        $unauthorizedArchiveRejected = true;
+    }
+    $assert($unauthorizedArchiveRejected, 'unrelated user cannot archive a project');
+
+    $projects->archiveForTeamManager($adminId, $projectId);
+    $assert($projects->findAccessibleByUser($adminId, $projectId) === null, 'archived projects leave active project access queries');
+    $archivedProjects = $projects->listArchivedForManager($adminId, $teamId);
+    $assert(count(array_filter($archivedProjects, static fn (array $project): bool => $project['id'] === $projectId)) === 1, 'team manager can find archived projects for restoration');
+    $preservedTaskCount = $pdo->prepare('SELECT COUNT(*) FROM tasks WHERE project_id = :project_id');
+    $preservedTaskCount->execute(['project_id' => $projectId]);
+    $assert((int) $preservedTaskCount->fetchColumn() > 0, 'archiving preserves project task records');
+
+    $replacementProjectId = $projects->createForTeamManager($adminId, $teamId, 'Quota Replacement Project', null);
+    $restoreQuotaBlocked = false;
+    try {
+        $projects->restoreForTeamManager($adminId, $projectId);
+    } catch (QuotaExceededException) {
+        $restoreQuotaBlocked = true;
+    }
+    $assert($restoreQuotaBlocked, 'restoring an archived project respects the active project quota');
+    $projects->archiveForTeamManager($adminId, $replacementProjectId);
+    $projects->restoreForTeamManager($adminId, $projectId);
+    $restoredProject = $projects->findAccessibleByUser($adminId, $projectId);
+    $assert(is_array($restoredProject) && $restoredProject['status'] === 'active', 'team owner can restore an archived project after quota capacity is available');
+
     echo "\n{$passed} integration assertions passed.\n";
     $output = ob_get_clean();
     echo $output;

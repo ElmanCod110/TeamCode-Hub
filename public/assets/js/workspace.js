@@ -642,6 +642,10 @@
     const invitePanel = panel("Team invitations", "Create a secure one-time invitation token", memberContent);
     append(layout, projectsPanel, invitePanel);
     root.appendChild(layout);
+    const archivedContent = canManageTeam(team.id) ? el("div", "project-mini-list") : null;
+    if (archivedContent) {
+      root.appendChild(panel("Archived projects", "Restore archived work without losing its tasks or conversation history", archivedContent));
+    }
     try {
       const data = await request("/api/teams/" + escapePath(team.id) + "/projects");
       const projects = data.projects || [];
@@ -677,6 +681,21 @@
         await renderPendingInvitations(team, memberContent);
       } else {
         memberContent.appendChild(el("p", "small", "Only team owners and managers can create or revoke invitations."));
+      }
+
+      if (archivedContent) {
+        const archivedData = await request("/api/teams/" + escapePath(team.id) + "/archived-projects");
+        const archivedProjects = archivedData.projects || [];
+        if (!archivedProjects.length) {
+          archivedContent.appendChild(emptyState("No archived projects", "Projects archived by your team will appear here and can be restored."));
+        }
+        archivedProjects.forEach(project => {
+          const row = el("div", "project-mini-row archived-project-row");
+          append(row, el("span", "project-mark", initials(project.name).slice(0, 2)),
+            append(el("span", "row-main"), el("span", "row-title", project.name), el("span", "row-subtitle", project.description || "Archived project")),
+            actionButton("Restore", "restore-project", "btn btn-outline btn-sm", { "data-project-id": project.id, "data-team-id": team.id }));
+          archivedContent.appendChild(row);
+        });
       }
     } catch (error) {
       projectContent.appendChild(el("div", "inline-error", error.message));
@@ -819,6 +838,7 @@
     const headActions = actionGroup();
     if (project.access_level !== "viewer") headActions.appendChild(actionButton("New task", "create-task", "btn btn-primary", { "data-project-id": project.id }));
     if (canManageTeam(project.team_id)) headActions.appendChild(actionButton("Edit project", "edit-project", "btn btn-outline", { "data-project-id": project.id }));
+    if (canManageTeam(project.team_id)) headActions.appendChild(actionButton("Archive project", "archive-project", "btn btn-danger-outline", { "data-project-id": project.id }));
     headActions.appendChild(actionButton("Back to projects", "navigate-projects", "btn btn-outline"));
     append(root, heading, headActions);
     const tabs = el("div", "project-tabs");
@@ -1802,6 +1822,25 @@
       if (name === "create-team") createTeamModal();
       else if (name === "edit-team") editTeamModal(action.dataset.teamId);
       else if (name === "edit-project") await editProjectModal(action.dataset.projectId);
+      else if (name === "archive-project") {
+        const project = state.selectedProject;
+        if (!project || !window.confirm("Archive this project? It will leave active lists, but its tasks, memberships, and chat history will be preserved. A team owner or manager can restore it later.")) return;
+        await request("/api/projects/" + escapePath(action.dataset.projectId) + "/archive", { method: "POST", body: {} });
+        const team = teamById(project.team_id);
+        await refreshWorkspace(false);
+        toast("Project archived. Its history is preserved.");
+        if (team) await openTeam(team.id);
+        else navigate("projects");
+      }
+      else if (name === "restore-project") {
+        const teamId = action.dataset.teamId;
+        if (!window.confirm("Restore this project to the active project list? The team's active project quota will be checked.")) return;
+        await request("/api/projects/" + escapePath(action.dataset.projectId) + "/restore", { method: "POST", body: {} });
+        await refreshWorkspace(false);
+        toast("Project restored successfully.");
+        if (teamId) await openTeam(teamId);
+        else navigate("projects");
+      }
       else if (name === "accept-invitation") acceptInvitationModal();
       else if (name === "create-project") createProjectModal(action.dataset.teamId);
       else if (name === "create-task") createTaskModal(action.dataset.projectId);

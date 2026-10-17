@@ -241,11 +241,20 @@ return static function (): void {
     $router->get('/api/teams/{teamId}/projects', static fn (Request $request, array $params): Response =>
         $modules->get('workspace.controller')->listProjects($request, $params)
     );
+    $router->get('/api/teams/{teamId}/archived-projects', static fn (Request $request, array $params): Response =>
+        $modules->get('workspace.controller')->listArchivedProjects($request, $params)
+    );
     $router->post('/api/teams/{teamId}/projects', static fn (Request $request, array $params): Response =>
         $modules->get('workspace.controller')->createProject($request, $params)
     );
     $router->get('/api/projects/{projectId}', static fn (Request $request, array $params): Response =>
         $modules->get('workspace.controller')->showProject($request, $params)
+    );
+    $router->post('/api/projects/{projectId}/archive', static fn (Request $request, array $params): Response =>
+        $modules->get('workspace.controller')->archiveProject($request, $params)
+    );
+    $router->post('/api/projects/{projectId}/restore', static fn (Request $request, array $params): Response =>
+        $modules->get('workspace.controller')->restoreProject($request, $params)
     );
     $router->post('/api/projects/{projectId}/edit', static fn (Request $request, array $params): Response =>
         $modules->get('workspace.controller')->updateProject($request, $params)
