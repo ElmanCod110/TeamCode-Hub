@@ -695,6 +695,7 @@
   }
 
   function showInvitationToken(token, email) {
+    modalReturnFocus = document.activeElement;
     const overlay = el("div", "tch-modal-overlay");
     overlay.dataset.dismissible = "false";
     const modal = el("section", "tch-modal");
@@ -709,6 +710,7 @@
     append(footer, actionButton("Close", "close-modal", "btn btn-outline"), actionButton("Copy token", "copy-invitation-token", "btn btn-primary", { "data-token": token }));
     append(modal, header, body, footer); overlay.appendChild(modal);
     $("#modal-root").replaceChildren(overlay);
+    overlay.addEventListener("keydown", event => handleDialogKeydown(event, overlay));
     tokenBox.focus(); tokenBox.select();
   }
 
@@ -1173,7 +1175,10 @@
   }
 
   /* All mutation forms share one accessible modal builder and the same CSRF path. */
+  let modalReturnFocus = null;
+
   function openFormModal(title, description, fields, submitLabel, onSubmit) {
+    modalReturnFocus = document.activeElement;
     const overlay = el("div", "tch-modal-overlay");
     const modal = el("section", "tch-modal");
     modal.setAttribute("role", "dialog"); modal.setAttribute("aria-modal", "true");
@@ -1226,6 +1231,7 @@
     append(modal, header, form, footer); overlay.appendChild(modal);
     $("#modal-root").replaceChildren(overlay);
     overlay.addEventListener("click", event => { if (event.target === overlay) closeModal(); });
+    overlay.addEventListener("keydown", event => handleDialogKeydown(event, overlay));
     form.addEventListener("submit", async event => {
       event.preventDefault();
       if (!form.reportValidity()) return;
@@ -1247,7 +1253,27 @@
     return { overlay, modal, form, controls };
   }
 
-  function closeModal() { $("#modal-root").replaceChildren(); }
+  function handleDialogKeydown(event, overlay) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeModal();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const focusable = Array.from(overlay.querySelectorAll("a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex='-1'])"))
+      .filter(node => !node.hidden && node.getAttribute("aria-hidden") !== "true");
+    if (!focusable.length) { event.preventDefault(); return; }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  }
+
+  function closeModal() {
+    $("#modal-root").replaceChildren();
+    if (modalReturnFocus && modalReturnFocus.isConnected && typeof modalReturnFocus.focus === "function") modalReturnFocus.focus();
+    modalReturnFocus = null;
+  }
 
   function createTeamModal() {
     openFormModal("Create a team", "Give your collaborators a shared space. You will become its owner.", [
