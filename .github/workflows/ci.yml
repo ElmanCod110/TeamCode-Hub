@@ -49,6 +49,14 @@ jobs:
       - name: Run smoke tests
         run: php tests/run.php
 
+      - name: Check design-system assets
+        run: php tests/design-system.php
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check public/assets/js/ui.js
+          node --check public/assets/js/design-system-demo.js
+
       - name: Run MariaDB integration tests
         env:
           DB_HOST: 127.0.0.1
