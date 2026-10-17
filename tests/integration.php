@@ -150,6 +150,22 @@ try {
 
     $projects = new ProjectRepository($pdo);
     $projectId = $projects->createForTeamManager($adminId, $teamId, 'Integration Project', 'Testing project access');
+
+    // Team and project settings must be writable by managers but not ordinary project members.
+    $assert($teams->renameForManager($adminId, $teamId, 'Integration Team Renamed'), 'team owner can rename a team');
+    $renamedTeam = $teams->findAccessibleByUser($teamId, $adminId);
+    $assert(is_array($renamedTeam) && $renamedTeam['name'] === 'Integration Team Renamed', 'team rename persists the new display name');
+    $assert($teams->renameForManager($adminId, $teamId, 'Integration Team Renamed'), 'saving an unchanged team name remains a successful update');
+    $assert(!$teams->renameForManager($memberId, $teamId, 'Unauthorized Team Name'), 'ordinary team member cannot rename a team');
+
+    $assert($projects->updateForTeamManager($adminId, $projectId, 'Integration Project Updated', 'Updated project description'), 'team owner can edit project settings');
+    $updatedProject = $projects->findAccessibleByUser($adminId, $projectId);
+    $assert(is_array($updatedProject) && $updatedProject['name'] === 'Integration Project Updated'
+        && $updatedProject['description'] === 'Updated project description', 'project name and description persist together');
+    $assert($projects->updateForTeamManager($adminId, $projectId, 'Integration Project Updated', 'Updated project description'), 'saving unchanged project settings remains successful');
+    $assert(!$projects->updateForTeamManager($memberId, $projectId, 'Unauthorized Project Name', null), 'ordinary project member cannot edit project settings');
+    $assert(!$projects->updateForTeamManager($outsiderId, $projectId, 'Outsider Project Name', null), 'unrelated user cannot edit project settings');
+
     $projectMemberships = new ProjectMembershipRepository($pdo);
 
     $projectMemberships->assignPending($adminId, $projectId, $memberId, 'member');
