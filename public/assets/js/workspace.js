@@ -1213,6 +1213,7 @@
     const toggle = el("button", "task-subtask-toggle" + (item.is_done ? " is-checked" : ""), item.is_done ? "✓" : "");
     toggle.type = "button"; toggle.dataset.action = "toggle-subtask"; toggle.dataset.projectId = projectId; toggle.dataset.taskId = task.id; toggle.dataset.subtaskId = item.id;
     toggle.setAttribute("aria-label", (item.is_done ? "Mark incomplete: " : "Mark complete: ") + item.title);
+    toggle.setAttribute("aria-pressed", item.is_done ? "true" : "false");
     const title = el("span", "task-subtask-title", item.title);
     const actions = el("div", "task-subtask-actions");
     if (Number(item.created_by) === Number(state.user.id) || Number(task.created_by) === Number(state.user.id)) {
