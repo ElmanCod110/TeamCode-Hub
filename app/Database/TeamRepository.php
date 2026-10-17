@@ -103,7 +103,7 @@ final class TeamRepository
             $permission->execute(['team_id' => $teamId, 'user_id' => $userId]);
             $role = $permission->fetchColumn();
             if (!in_array($role, ['owner', 'manager'], true)) {
-                throw new \\DomainException('Active team management permission required.');
+                throw new \DomainException('Active team management permission required.');
             }
 
             $update = $this->pdo->prepare(
@@ -112,10 +112,10 @@ final class TeamRepository
             );
             $update->execute(['name' => $name, 'team_id' => $teamId]);
             if ($update->rowCount() < 0) {
-                throw new \\RuntimeException('Team settings could not be saved.');
+                throw new \RuntimeException('Team settings could not be saved.');
             }
             $this->pdo->commit();
-        } catch (\\Throwable $error) {
+        } catch (\Throwable $error) {
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
