@@ -9,6 +9,7 @@ use TeamCodeHub\Core\Router;
 use TeamCodeHub\Database\ConnectionFactory;
 use TeamCodeHub\Database\ChatRepository;
 use TeamCodeHub\Database\DashboardRepository;
+use TeamCodeHub\Database\GitHubActivityCacheRepository;
 use TeamCodeHub\Database\ChatReportRepository;
 use TeamCodeHub\Database\DatabaseConfig;
 use TeamCodeHub\Database\MembershipRepository;
@@ -23,6 +24,7 @@ use TeamCodeHub\Http\AuthController;
 use TeamCodeHub\Http\ChatController;
 use TeamCodeHub\Http\ChatReportController;
 use TeamCodeHub\Http\DashboardController;
+use TeamCodeHub\Http\GitHubActivityController;
 use TeamCodeHub\Http\WorkspaceController;
 use TeamCodeHub\Http\TaskController;
 use TeamCodeHub\Http\ProjectMembershipController;
@@ -33,6 +35,7 @@ use TeamCodeHub\Security\LoginRateLimiter;
 use TeamCodeHub\Security\ProjectAccessService;
 use TeamCodeHub\Security\SecureSession;
 use TeamCodeHub\Security\TeamAccessService;
+use TeamCodeHub\Services\GitHubActivityService;
 
 spl_autoload_register(static function (string $class): void {
     $prefix = 'TeamCodeHub\\';
@@ -94,6 +97,18 @@ return static function (): void {
         return new ChatReportController(
             new AuthenticationService(new UserRepository($pdo)),
             new ChatReportRepository($pdo),
+        );
+    });
+
+    $modules->register('github-activity.controller', static function (): object {
+        $pdo = ConnectionFactory::connect(DatabaseConfig::fromEnvironment());
+        $configuredUsername = getenv('GITHUB_USERNAME');
+        $username = is_string($configuredUsername) && trim($configuredUsername) !== ''
+            ? trim($configuredUsername)
+            : 'ElmanCod110';
+        return new GitHubActivityController(
+            new AuthenticationService(new UserRepository($pdo)),
+            new GitHubActivityService($username, new GitHubActivityCacheRepository($pdo)),
         );
     });
 
@@ -171,6 +186,10 @@ return static function (): void {
     );
     $router->post('/api/reports/{reportId}/review', static fn (Request $request, array $params): Response =>
         $modules->get('chat-report.controller')->review($request, $params)
+    );
+
+    $router->get('/api/github/activity', static fn (Request $request, array $params): Response =>
+        $modules->get('github-activity.controller')->index()
     );
 
     $router->get('/api/dashboard', static fn (Request $request, array $params): Response =>
