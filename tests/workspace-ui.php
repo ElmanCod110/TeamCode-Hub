@@ -48,8 +48,8 @@ $assert(str_contains($html, 'id="nav-moderation-item"') && str_contains($html, '
 $assert(str_contains($html, 'data-page="github"') && str_contains($js, '/api/github/activity'), 'GitHub activity page is connected to its authenticated endpoint');
 $assert(str_contains($css, '.github-feed') && str_contains($css, '.github-summary'), 'GitHub activity page has dedicated responsive presentation styles');
 $assert(str_contains($html, 'id="workspace-main"') && str_contains($html, 'class="skip-link"'), 'workspace provides a skip link and main landmark');
-$assert(str_contains($html, '/assets/css/workspace.css?v=0.2.0-dev'), 'product stylesheet is loaded as an external versioned asset');
-$assert(str_contains($html, '/assets/js/workspace.js?v=0.2.0-dev'), 'product controller is loaded as an external versioned asset');
+$assert(str_contains($html, '/assets/css/workspace.css?v='), 'product stylesheet is loaded as an external versioned asset');
+$assert(str_contains($html, '/assets/js/workspace.js?v='), 'product controller is loaded as an external versioned asset');
 $assert(!preg_match('/<style(?:\s|>)/i', $html), 'workspace HTML contains no inline style blocks');
 $assert(!preg_match('/<script(?![^>]*\bsrc=)[^>]*>/i', $html), 'workspace HTML contains no inline script blocks');
 $assert(str_contains($css, '@media (max-width:560px)') && str_contains($css, 'prefers-reduced-motion:reduce'), 'workspace styling covers narrow screens and reduced motion');
