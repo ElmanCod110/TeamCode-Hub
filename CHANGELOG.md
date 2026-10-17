@@ -33,6 +33,12 @@ Notable changes to TeamCode Hub are recorded here.
 
 ### Design system
 
+- Add an extended pattern layer for the supplied base-style vocabulary without replacing the token/base/layout/component/utility architecture.
+- Complete reusable upload zones, range controls, switch states, avatar presence markers, removable chips, pagination, breadcrumbs, accordions, tooltips, keyboard hints, workflow steps, quote/code blocks, and footer layouts.
+- Add responsive breakpoints plus reduced-motion and forced-colors fallbacks for the extended patterns.
+- Expand the English showcase with practical, keyboard-operable examples and no inline styles.
+- Refresh shared stylesheet cache keys and add automated assertions for extended component coverage.
+
 - Add centralized neutral and semantic design tokens, optional explicit dark-theme tokens, and an installed-system-font stack.
 - Add separate base, responsive layout, component, utility, and design-system entry stylesheets.
 - Add reusable accessible controls, forms, badges, cards, alerts, dashboard metrics, tables, tabs, dropdowns, dialogs, toasts, progress indicators, and empty states.

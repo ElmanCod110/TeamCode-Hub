@@ -11,6 +11,7 @@ This document describes the shared visual and interaction foundation used by Tea
 | `public/assets/css/base.css` | Browser defaults, semantic element defaults, focus visibility, and reduced motion |
 | `public/assets/css/layout.css` | Containers, responsive grids, page shell, sidebar, and header layouts |
 | `public/assets/css/components.css` | Buttons, forms, badges, cards, alerts, tables, tabs, overlays, and feedback |
+| `public/assets/css/patterns.css` | Upload/range controls, avatar states, pagination, accordions, tooltips, workflow steps, quote/code, and footer patterns |
 | `public/assets/css/utilities.css` | Small composable spacing, text, surface, and alignment helpers |
 | `public/assets/js/ui.js` | Accessible interactions shared by product pages |\n| `public/assets/css/workspace.css` | Product-specific workspace, dashboard, project, task, and chat presentation |\n| `public/assets/js/workspace.js` | Authenticated API integration and workspace interactions |\n| `public/app.html` | English workspace shell and sign-in form |
 | `public/assets/css/design-system-demo.css` | Styles unique to the reference showcase |
@@ -22,11 +23,11 @@ This document describes the shared visual and interaction foundation used by Tea
 Load the entry stylesheet and the shared UI controller from a page template. Keep product-specific styles and behavior in separate files and avoid inline style or script blocks.
 
 ```html
-<link rel="stylesheet" href="/assets/css/app.css?v=0.2.0-dev">
+<link rel="stylesheet" href="/assets/css/app.css?v=0.2.1-dev">
 <script src="/assets/js/ui.js?v=0.2.0-dev" defer></script>
 ```
 
-The entry stylesheet imports its layers in dependency order and versions each imported URL. When the design system changes, update the version in the README/changelog and the asset URLs together. A production release should use its actual SemVer version.
+The entry stylesheet imports tokens, base rules, layout, core components, extended patterns, and utilities in dependency order. Every imported stylesheet URL carries a cache key. When CSS changes, bump the CSS asset query keys in the entry imports and HTML entry points together. A production release should use its actual SemVer version.
 
 ## Design principles
 
@@ -92,3 +93,16 @@ CI runs these checks in addition to PHP lint, smoke tests, and MariaDB integrati
 ## Current scope
 
 The showcase is a reference implementation of the style system, not a claim that the product dashboard, team/project screens, or chat interface are complete. Product screens must be built on the existing APIs and retain server-side authentication and authorization checks.
+
+
+## Extended component coverage
+
+The extended pattern layer preserves the supplied base-style vocabulary while mapping it onto the shared tokens. It includes layout aliases, type-scale helpers, spacing/radius demos, upload and range controls, switch states, avatar presence markers, removable chips, progress/skeleton variants, pagination, breadcrumbs, accordions, tooltips, keyboard hints, workflow steps, quote/code blocks, and responsive footer layouts.
+
+## Accessibility and loading constraints
+
+- No external stylesheet, font CDN, JavaScript framework, or runtime font download is required.
+- Keep interactive controls native where possible; provide visible labels and accessible names for icon-only controls.
+- Preserve visible keyboard focus, honor reduced-motion preferences, and provide forced-colors fallbacks.
+- Do not use CSS to represent authorization. Every workspace mutation remains subject to server-side access checks.
+- Keep styles modular: use tokens for shared design decisions, base styles for element defaults, layout styles for structural composition, components for common controls, patterns for higher-level reusable patterns, and workspace styles for product-only details.

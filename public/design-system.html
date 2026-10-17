@@ -9,11 +9,11 @@
   <meta name="theme-color" content="#ffffff">
   <title>Design System — TeamCode Hub</title>
   <!-- The design system uses the device's installed system font stack; no font download is required. -->
-  <link rel="stylesheet" href="/assets/css/app.css?v=0.2.0-dev">
+  <link rel="stylesheet" href="/assets/css/app.css?v=0.2.1-dev">
   <link rel="stylesheet" href="/assets/css/design-system-demo.css?v=0.2.0-dev">
   <!-- Load interactions separately so styles remain usable without JavaScript. -->
   <script src="/assets/js/ui.js?v=0.2.0-dev" defer></script>
-  <script src="/assets/js/design-system-demo.js?v=0.2.0-dev" defer></script>
+  <script src="/assets/js/design-system-demo.js?v=0.2.1-dev" defer></script>
 </head>
 <body>
   <!-- Keyboard users can bypass repeated navigation and jump directly to the page content. -->
@@ -206,6 +206,96 @@
           <section class="demo-tab-panel" id="panel-members" role="tabpanel" aria-labelledby="tab-members" data-tab-panel="members" hidden><h4 class="t-strong">Project members</h4><p class="t-soft mt-2">List approved members and their effective access levels here.</p></section>
           <section class="demo-tab-panel" id="panel-settings" role="tabpanel" aria-labelledby="tab-settings" data-tab-panel="settings" hidden><h4 class="t-strong">Project settings</h4><p class="t-soft mt-2">Keep configuration actions behind server-side permission checks.</p></section>
         </div>
+      </div>
+      <!-- Extended component patterns make the design tokens useful beyond the initial dashboard cards. -->
+      <div class="grid grid-2 mt-6">
+        <article class="card card-pad">
+          <p class="eyebrow">Input patterns</p>
+          <h3 class="h4 mt-2">Upload and range</h3>
+          <label class="dropzone mt-4" for="demo-upload">
+            <span class="ic" aria-hidden="true">↑</span>
+            <b>Choose a file to preview the upload area</b>
+            <span>Demo only · No file is uploaded or transmitted</span>
+            <input class="sr-only" id="demo-upload" type="file" aria-describedby="demo-upload-help">
+          </label>
+          <p class="help mt-2" id="demo-upload-help">The file input is local to this showcase and has no upload handler.</p>
+          <div class="field mt-4">
+            <label class="label" for="demo-range">Preview density</label>
+            <input id="demo-range" type="range" min="1" max="5" value="3">
+            <p class="help">Native keyboard-operable range control with shared styling.</p>
+          </div>
+        </article>
+        <article class="card card-pad">
+          <p class="eyebrow">People and status</p>
+          <h3 class="h4 mt-2">Avatars and chips</h3>
+          <div class="row mt-4">
+            <span class="avatar-wrap"><span class="avatar">AL</span><span class="status" role="img" aria-label="Online"></span></span>
+            <span class="avatar-wrap"><span class="avatar dark">MK</span><span class="status off" role="img" aria-label="Offline"></span></span>
+            <span class="avatar lg">JR</span>
+          </div>
+          <div class="row mt-4">
+            <span class="chip">API team <button class="x" type="button" aria-label="Remove API team chip">×</button></span>
+            <span class="chip active">Design review <button class="x" type="button" aria-label="Remove Design review chip">×</button></span>
+          </div>
+          <label class="switch mt-4"><input type="checkbox" checked><span class="track" aria-hidden="true"></span><span>Enable project updates</span></label>
+        </article>
+      </div>
+
+      <div class="grid grid-2 mt-6">
+        <article class="card card-pad">
+          <p class="eyebrow">Disclosure</p>
+          <h3 class="h4 mt-2">Accessible accordion</h3>
+          <div class="acc mt-4">
+            <details open>
+              <summary>What belongs in a design token?</summary>
+              <div class="acc-body">A reusable decision such as color, spacing, type scale, radius, elevation, or motion belongs in a central token set.</div>
+            </details>
+            <details>
+              <summary>Do these styles download fonts?</summary>
+              <div class="acc-body">No. The font stack uses system fonts already available on the visitor's device.</div>
+            </details>
+          </div>
+        </article>
+        <article class="card card-pad">
+          <p class="eyebrow">Progress and workflow</p>
+          <h3 class="h4 mt-2">Status steps</h3>
+          <div class="steps mt-4" aria-label="Release workflow">
+            <div class="step done"><span class="dot" aria-hidden="true">✓</span><span class="txt">Plan</span></div>
+            <span class="step-line done" aria-hidden="true"></span>
+            <div class="step current" aria-current="step"><span class="dot">2</span><span class="txt">Build</span></div>
+            <span class="step-line" aria-hidden="true"></span>
+            <div class="step"><span class="dot">3</span><span class="txt">Ship</span></div>
+          </div>
+          <div class="progress-label mt-6"><span>Release readiness</span><strong>72%</strong></div>
+          <div class="progress thick" data-progress="72" role="progressbar" aria-label="Release readiness" aria-valuemin="0" aria-valuemax="100" aria-valuenow="72"><span></span></div>
+          <div class="row mt-4"><span class="badge badge-success">Healthy</span><span class="badge badge-warning">Review</span><span class="badge badge-danger">Blocked</span></div>
+        </article>
+      </div>
+
+      <div class="grid grid-2 mt-6">
+        <article class="card card-pad">
+          <p class="eyebrow">Pagination</p>
+          <h3 class="h4 mt-2">Bounded list navigation</h3>
+          <p class="small mt-2">Use pagination for large tables; prefer incremental cursors for live chat.</p>
+          <nav class="pager mt-4" aria-label="Example pagination">
+            <button type="button" disabled aria-label="Previous page">‹</button>
+            <button type="button" class="active" aria-current="page">1</button>
+            <button type="button">2</button>
+            <button type="button">3</button>
+            <span class="dots" aria-hidden="true">…</span>
+            <button type="button">8</button>
+            <button type="button" aria-label="Next page">›</button>
+          </nav>
+        </article>
+        <article class="card card-pad">
+          <p class="eyebrow">Content pattern</p>
+          <h3 class="h4 mt-2">Quote and code</h3>
+          <blockquote class="quote mt-4">
+            <p>Good interfaces make the next safe action obvious without hiding useful detail.</p>
+            <footer><b>Product principle</b> · Clarity before decoration</footer>
+          </blockquote>
+          <p class="small mt-4">Use <code class="code-inline">aria-live</code> for dynamic status messages that need to be announced.</p>
+        </article>
       </div>
     </section>
   </main>
