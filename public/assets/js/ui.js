@@ -12,7 +12,6 @@
   if (window.TCHUI) return;
 
   const root = document.documentElement;
-  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
   /* Return an element only when the supplied ID is a safe, non-empty string. */
   function byId(id) {
@@ -298,7 +297,6 @@
     notify: notify,
     openModal: function (id) { openModal(byId(id)); },
     closeModal: function (id) { closeModal(byId(id)); },
-    refresh: initialize
   });
 
   if (document.readyState === "loading") {
