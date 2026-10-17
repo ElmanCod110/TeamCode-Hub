@@ -203,6 +203,23 @@ try {
     $deletedMessage->execute(['id' => $reportedMessageId]);
     $resolvedMessage = $deletedMessage->fetch(PDO::FETCH_ASSOC);
     $assert(is_array($resolvedMessage) && $resolvedMessage['expires_at'] !== null, 'reported message retention resumes only after all related cases are resolved');
+
+    $expiryCheck = $pdo->prepare('SELECT TIMESTAMPDIFF(SECOND, CURRENT_TIMESTAMP, expires_at) FROM project_messages WHERE id = :id');
+    $expiryCheck->execute(['id' => $contextBeforeId]);
+    $normalMessageTtl = (int) $expiryCheck->fetchColumn();
+    $assert($normalMessageTtl > 86000 && $normalMessageTtl <= 86400, 'normal chat messages receive a 24-hour expiry');
+
+    for ($i = 0; $i < 55; $i++) {
+        $chat->createMessage($memberId, $projectId, 'Window message ' . $i);
+    }
+    $window = $chat->listMessages($viewerId, $projectId);
+    $windowIds = array_column($window, 'id');
+    $assert(count($window) === 50 && $windowIds === array_values($windowIds) && $windowIds[0] < $windowIds[49], 'chat initial load is capped at 50 messages in chronological order');
+    $cursor = (int) $window[count($window) - 1]['id'];
+    $chat->createMessage($memberId, $projectId, 'Incremental cursor message');
+    $incremental = $chat->listMessages($viewerId, $projectId, $cursor);
+    $assert(count($incremental) === 1 && $incremental[0]['body'] === 'Incremental cursor message', 'chat cursor fetch returns only newer messages');
+
     $adminNotices = $notifications->listRecentForUser($adminId);
     $assert(count(array_filter($adminNotices, static fn (array $item): bool => $item['type'] === 'chat_report_escalated')) === 1, 'valid report escalation notifies site admin');
 
