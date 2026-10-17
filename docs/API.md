@@ -33,6 +33,7 @@ Notifications are generated for team invitation acceptance, project access chang
 - `GET /api/teams` — lists teams where the current user has an active membership.
 - `POST /api/teams` — creates a team and makes the authenticated user its active owner. Body: `{"name":"Team name"}`. Requires CSRF protection.
 - `GET /api/teams/{teamId}` — returns a team only to an active team member.
+- `POST /api/teams/{teamId}/edit` — body: `{"name":"Updated team name"}`. Requires CSRF protection and an active team owner/manager role. The endpoint changes the display name only; it does not change membership, quotas, or permissions.
 - `GET /api/teams/{teamId}/invitations` — lists pending invitation metadata for an active team owner/manager. Tokens are not returned by this listing.
 - `POST /api/teams/{teamId}/invitations` — creates a seven-day invitation for an email. Body: `{"email":"person@example.com"}`. Requires CSRF protection and owner/manager access. The raw random token is returned once; only its SHA-256 hash is stored. The baseline does not send email, so the inviter must deliver the token through a trusted channel.
 - `DELETE /api/teams/{teamId}/invitations/{invitationId}` — revokes a pending invitation; requires CSRF protection and owner/manager access.
