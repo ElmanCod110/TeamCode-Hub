@@ -47,7 +47,7 @@ The client is not an authorization boundary. Hiding a button does not replace se
 - The first request returns the latest bounded window of at most 50 visible messages.
 - The controller fetches messages newer than the last message ID every eight seconds while the chat tab is visible.
 - Every fourth background poll refreshes the bounded latest window. This reconciles edits and deletions to existing messages, which are not represented by the ID-only incremental cursor.
-- Reconciliation updates only changed message rows, removes expired/out-of-window rows, and preserves the reader\’s approximate scroll position when they are reading older messages.
+- Reconciliation updates only changed message rows, removes expired/out-of-window rows, and preserves the reader’s approximate scroll position when they are reading older messages.
 - Polling pauses while the browser tab is hidden and stops when leaving the chat view.
 - Sending, editing, deleting, and reporting use the existing CSRF-protected endpoints. The browser does not use WebSockets or download the entire message history.
 - Normal messages expire after 24 hours. Reported messages can be retained while their moderation cases remain unresolved.
