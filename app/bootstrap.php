@@ -11,7 +11,6 @@ use TeamCodeHub\Database\DatabaseConfig;
 use TeamCodeHub\Database\UserRepository;
 use TeamCodeHub\Http\AuthController;
 use TeamCodeHub\Security\AuthenticationService;
-use TeamCodeHub\Security\ClientIpResolver;
 use TeamCodeHub\Security\CsrfToken;
 use TeamCodeHub\Security\LoginRateLimiter;
 use TeamCodeHub\Security\SecureSession;
