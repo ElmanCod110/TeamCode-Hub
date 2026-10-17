@@ -1,6 +1,6 @@
 # TeamCode Hub
 
-**Version:** 0.1.0-dev  
+**Version:** 0.2.0-dev  
 **Status:** Foundation in progress
 
 TeamCode Hub is a modular, security-focused collaboration platform for software teams, targeting conventional PHP hosting with cPanel/DirectAdmin and MySQL/MariaDB.
@@ -22,7 +22,7 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 - Text-only project chat with a 50-message window, incremental cursor, message edit/delete, 24-hour expiry, and report-context preservation.
 - Report review queues for team managers/site admins, one-report-per-person-per-reporter-per-day enforcement, and escalation after two distinct valid reports within 24 hours.
 - User-scoped notification inbox and read-state endpoint; workflow events create notifications transactionally.
-- Automated PHP linting, smoke tests, and MariaDB integration tests on PHP 8.2, 8.3, and 8.4.
+- Modular design-system assets for tokens, base styles, layout, components, utilities, and accessible UI interactions.\n- English component showcase at `/design-system.html`, with no external font downloads or runtime UI dependencies.\n- Frontend asset smoke checks and JavaScript syntax checks in CI, alongside PHP 8.2–8.4 and MariaDB integration tests.
 
 ## Setup
 
@@ -53,7 +53,7 @@ Public registration, email verification, password recovery, automatic invitation
 - Configure the document root to `public/` where possible; keep secrets and private runtime data outside it.
 
 ```text
-public/          Web root and front controller
+public/          Web root, front controller, design-system preview, CSS and JS assets
 app/Core/        Request, response, router, module registry
 app/Database/    PDO connection, repositories, migrations
 app/Security/    Session, CSRF, authentication, access, rate limiting
