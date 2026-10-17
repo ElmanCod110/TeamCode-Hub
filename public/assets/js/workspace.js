@@ -1925,6 +1925,9 @@
     }
 
     search.addEventListener("input", () => {
+      // Invalidate an in-flight response immediately, before the debounce timer runs.
+      searchSequence++;
+      if (searchController) searchController.abort();
       selected = null;
       renderSelection();
       error.hidden = true;
