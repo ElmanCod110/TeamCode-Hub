@@ -14,6 +14,7 @@ use TeamCodeHub\Database\MigrationRunner;
 use TeamCodeHub\Database\ProjectMembershipRepository;
 use TeamCodeHub\Database\ProjectRepository;
 use TeamCodeHub\Database\TaskRepository;
+use TeamCodeHub\Database\TaskCollaborationRepository;
 use TeamCodeHub\Database\TeamInvitationRepository;
 use TeamCodeHub\Database\TeamRepository;
 use TeamCodeHub\Database\UserRepository;
@@ -44,7 +45,7 @@ try {
     $pdo = ConnectionFactory::connect($config);
     $runner = new MigrationRunner($pdo, dirname(__DIR__) . '/database/migrations');
     $applied = $runner->migrate();
-    $assert(count($applied) >= 8, 'all versioned migrations are applied to MariaDB');
+    $assert(count($applied) >= 9, 'all versioned migrations are applied to MariaDB');
     $assert($runner->migrate() === [], 'migration runner is idempotent on a migrated schema');
 
     // Exercise the daily GitHub cache through an injected transport; tests never call GitHub.
@@ -288,6 +289,50 @@ try {
     $taskRow->execute(['id' => $taskId]);
     $taskState = $taskRow->fetch(PDO::FETCH_ASSOC);
     $assert(is_array($taskState) && $taskState['status'] === 'done' && $taskState['completed_at'] !== null, 'marking a task done sets completion timestamp');
+
+    $tasks->updateDetails($adminId, $projectId, $taskId, 'Validate task collaboration', 'Updated task description', 'urgent', $memberId, '2026-10-21 12:00:00');
+    $updatedTask = $pdo->prepare('SELECT title, description, priority, assigned_to, due_at FROM tasks WHERE id = :id');
+    $updatedTask->execute(['id' => $taskId]);
+    $updatedTaskRow = $updatedTask->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($updatedTaskRow) && $updatedTaskRow['title'] === 'Validate task collaboration' && $updatedTaskRow['priority'] === 'urgent', 'task details can be updated transactionally');
+    $assert(is_array($updatedTaskRow) && (int) $updatedTaskRow['assigned_to'] === $memberId && $updatedTaskRow['due_at'] === '2026-10-21 12:00:00', 'task edits can update assignee and UTC due date');
+
+    $taskCollaboration = new TaskCollaborationRepository($pdo);
+    $commentId = $taskCollaboration->createComment($memberId, $projectId, $taskId, 'Initial task discussion note');
+    $taskCollaboration->editComment($memberId, $projectId, $taskId, $commentId, 'Edited task discussion note');
+    $viewerTaskDetails = $taskCollaboration->details($viewerId, $projectId, $taskId);
+    $assert(count($viewerTaskDetails['comments']) === 1 && $viewerTaskDetails['comments'][0]['body'] === 'Edited task discussion note', 'approved viewers can read task comments while member edits remain visible');
+    $assert($viewerTaskDetails['task']['access_level'] === 'viewer', 'task detail response includes the viewer access boundary');
+
+    $viewerCannotComment = false;
+    try {
+        $taskCollaboration->createComment($viewerId, $projectId, $taskId, 'Viewer mutation should be rejected');
+    } catch (DomainException) {
+        $viewerCannotComment = true;
+    }
+    $assert($viewerCannotComment, 'viewer cannot create task comments');
+
+    $commentNotifications = $notifications->listRecentForUser($adminId);
+    $assert(count(array_filter($commentNotifications, static fn (array $item): bool => $item['type'] === 'task_comment')) === 1, 'task comment notifies the task creator');
+
+    $subtaskId = $taskCollaboration->createSubtask($memberId, $projectId, $taskId, 'Add checklist coverage');
+    $subtaskDone = $taskCollaboration->toggleSubtask($adminId, $projectId, $taskId, $subtaskId);
+    $taskDetails = $taskCollaboration->details($memberId, $projectId, $taskId);
+    $assert($subtaskDone && count($taskDetails['subtasks']) === 1 && $taskDetails['subtasks'][0]['is_done'], 'task checklist items can be created and toggled by approved members');
+
+    $viewerCannotToggle = false;
+    try {
+        $taskCollaboration->toggleSubtask($viewerId, $projectId, $taskId, $subtaskId);
+    } catch (DomainException) {
+        $viewerCannotToggle = true;
+    }
+    $assert($viewerCannotToggle, 'viewer cannot mutate task checklist items');
+
+    $taskCollaboration->deleteComment($memberId, $projectId, $taskId, $commentId);
+    $deletedCommentDetails = $taskCollaboration->details($memberId, $projectId, $taskId);
+    $assert($deletedCommentDetails['comments'][0]['deleted_at'] !== null && $deletedCommentDetails['comments'][0]['body'] === '', 'task comment deletion preserves a visible thread marker without exposing the old body');
+    $taskCollaboration->deleteSubtask($adminId, $projectId, $taskId, $subtaskId);
+    $assert($taskCollaboration->details($adminId, $projectId, $taskId)['subtasks'] === [], 'task creator can remove a checklist item created by another member');
     $adminNotices = $notifications->listRecentForUser($adminId);
     $assert(count(array_filter($adminNotices, static fn (array $item): bool => $item['type'] === 'task_completed')) === 1, 'task completion notifies its creator');
 

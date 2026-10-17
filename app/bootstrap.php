@@ -18,6 +18,7 @@ use TeamCodeHub\Database\ProjectRepository;
 use TeamCodeHub\Database\ProjectMembershipRepository;
 use TeamCodeHub\Database\TeamRepository;
 use TeamCodeHub\Database\TaskRepository;
+use TeamCodeHub\Database\TaskCollaborationRepository;
 use TeamCodeHub\Database\TeamInvitationRepository;
 use TeamCodeHub\Database\UserRepository;
 use TeamCodeHub\Http\AuthController;
@@ -27,6 +28,7 @@ use TeamCodeHub\Http\DashboardController;
 use TeamCodeHub\Http\GitHubActivityController;
 use TeamCodeHub\Http\WorkspaceController;
 use TeamCodeHub\Http\TaskController;
+use TeamCodeHub\Http\TaskCollaborationController;
 use TeamCodeHub\Http\ProjectMembershipController;
 use TeamCodeHub\Http\TeamInvitationController;
 use TeamCodeHub\Security\AuthenticationService;
@@ -128,6 +130,14 @@ return static function (): void {
             new AuthenticationService(new UserRepository($pdo)),
             new ProjectAccessService($memberships),
             new TaskRepository($pdo),
+        );
+    });
+
+    $modules->register('task-collaboration.controller', static function (): object {
+        $pdo = ConnectionFactory::connect(DatabaseConfig::fromEnvironment());
+        return new TaskCollaborationController(
+            new AuthenticationService(new UserRepository($pdo)),
+            new TaskCollaborationRepository($pdo),
         );
     });
 
@@ -243,6 +253,30 @@ return static function (): void {
     );
     $router->post('/api/projects/{projectId}/tasks/{taskId}/status', static fn (Request $request, array $params): Response =>
         $modules->get('task.controller')->updateStatus($request, $params)
+    );
+    $router->post('/api/projects/{projectId}/tasks/{taskId}/edit', static fn (Request $request, array $params): Response =>
+        $modules->get('task.controller')->edit($request, $params)
+    );
+    $router->get('/api/projects/{projectId}/tasks/{taskId}/details', static fn (Request $request, array $params): Response =>
+        $modules->get('task-collaboration.controller')->details($request, $params)
+    );
+    $router->post('/api/projects/{projectId}/tasks/{taskId}/comments', static fn (Request $request, array $params): Response =>
+        $modules->get('task-collaboration.controller')->createComment($request, $params)
+    );
+    $router->post('/api/projects/{projectId}/tasks/{taskId}/comments/{commentId}/edit', static fn (Request $request, array $params): Response =>
+        $modules->get('task-collaboration.controller')->editComment($request, $params)
+    );
+    $router->post('/api/projects/{projectId}/tasks/{taskId}/comments/{commentId}/delete', static fn (Request $request, array $params): Response =>
+        $modules->get('task-collaboration.controller')->deleteComment($request, $params)
+    );
+    $router->post('/api/projects/{projectId}/tasks/{taskId}/subtasks', static fn (Request $request, array $params): Response =>
+        $modules->get('task-collaboration.controller')->createSubtask($request, $params)
+    );
+    $router->post('/api/projects/{projectId}/tasks/{taskId}/subtasks/{subtaskId}/toggle', static fn (Request $request, array $params): Response =>
+        $modules->get('task-collaboration.controller')->toggleSubtask($request, $params)
+    );
+    $router->post('/api/projects/{projectId}/tasks/{taskId}/subtasks/{subtaskId}/delete', static fn (Request $request, array $params): Response =>
+        $modules->get('task-collaboration.controller')->deleteSubtask($request, $params)
     );
 
     $router->get('/api/projects/{projectId}/members', static fn (Request $request, array $params): Response =>

@@ -99,6 +99,69 @@ final class TaskController
         return Response::json(['task_id' => $taskId, 'project_id' => $projectId, 'status' => 'todo'], 201);
     }
 
+    public function edit(Request $request, array $params): Response
+    {
+        SecureSession::start();
+        if (!$this->validCsrf($request)) {
+            return Response::json(['error' => 'Invalid or expired request token.'], 419);
+        }
+        $user = $this->authentication->currentUser();
+        $projectId = $this->positiveId($params['projectId'] ?? null);
+        $taskId = $this->positiveId($params['taskId'] ?? null);
+        if ($user === null) {
+            return Response::json(['error' => 'Authentication required.'], 401);
+        }
+        if ($projectId === null || $taskId === null) {
+            return Response::json(['error' => 'Task not found.'], 404);
+        }
+
+        $body = $request->body();
+        $title = $body['title'] ?? null;
+        $description = $body['description'] ?? null;
+        $priority = $body['priority'] ?? 'normal';
+        $assignedToRaw = $body['assigned_to'] ?? null;
+        $dueRaw = $body['due_at'] ?? null;
+
+        if (!is_string($title) || trim($title) === '' || strlen(trim($title)) > 160) {
+            return Response::json(['error' => 'Task title must contain 1 to 160 bytes.'], 422);
+        }
+        if ($description !== null && (!is_string($description) || strlen($description) > 10000)) {
+            return Response::json(['error' => 'Task description must be at most 10000 bytes.'], 422);
+        }
+        if (!is_string($priority) || !in_array($priority, ['low', 'normal', 'high', 'urgent'], true)) {
+            return Response::json(['error' => 'Invalid task priority.'], 422);
+        }
+
+        $assignedTo = $assignedToRaw === null || $assignedToRaw === '' ? null : $this->positiveId($assignedToRaw);
+        if ($assignedToRaw !== null && $assignedToRaw !== '' && $assignedTo === null) {
+            return Response::json(['error' => 'assigned_to must be a positive user ID or null.'], 422);
+        }
+
+        $dueAt = null;
+        if ($dueRaw !== null && $dueRaw !== '') {
+            if (!is_string($dueRaw)) {
+                return Response::json(['error' => 'due_at must use UTC YYYY-MM-DD HH:MM:SS format.'], 422);
+            }
+            $parsed = DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', $dueRaw, new DateTimeZone('UTC'));
+            $dateErrors = DateTimeImmutable::getLastErrors();
+            if ($parsed === false || ($dateErrors !== false && ($dateErrors['warning_count'] > 0 || $dateErrors['error_count'] > 0)) || $parsed->format('Y-m-d H:i:s') !== $dueRaw) {
+                return Response::json(['error' => 'due_at must use UTC YYYY-MM-DD HH:MM:SS format.'], 422);
+            }
+            $dueAt = $parsed->format('Y-m-d H:i:s');
+        }
+
+        try {
+            $this->tasks->updateDetails($user['id'], $projectId, $taskId, trim($title), $description, $priority, $assignedTo, $dueAt);
+        } catch (DomainException $error) {
+            if (str_contains($error->getMessage(), 'Assignee')) {
+                return Response::json(['error' => 'Assignee must have approved member-level project access.'], 422);
+            }
+            return Response::json(['error' => 'Task not found or editable membership required.'], 404);
+        }
+
+        return Response::json(['updated' => true, 'task_id' => $taskId, 'project_id' => $projectId]);
+    }
+
     public function updateStatus(Request $request, array $params): Response
     {
         SecureSession::start();
