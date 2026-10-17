@@ -554,7 +554,7 @@
   function renderTeams() {
     const root = pageRoot();
     root.appendChild(pageHeading("COLLABORATE", "Your teams", "Organize people around shared goals, manage invitations, and keep each project connected.",
-      actionGroup(actionButton("＋ Create team", "create-team", "btn btn-primary"))));
+      actionGroup(actionButton("Accept invitation", "accept-invitation", "btn btn-outline"), actionButton("＋ Create team", "create-team", "btn btn-primary"))));
     const toolbar = el("div", "view-toolbar");
     const search = el("div", "search-control");
     search.append(icon("search"));
@@ -637,16 +637,58 @@
             showInvitationToken(invitation.token || "", email.value.trim());
             inviteForm.reset();
             toast("Invitation created. Copy the token now; it is shown only once.");
+            await renderPendingInvitations(team, memberContent);
           } catch (error) { toast(error.message, "error"); }
           finally { submit.disabled = false; }
         });
         memberContent.appendChild(inviteForm);
+        await renderPendingInvitations(team, memberContent);
       } else {
-        memberContent.appendChild(el("p", "small", "Only team owners and managers can create invitations."));
+        memberContent.appendChild(el("p", "small", "Only team owners and managers can create or revoke invitations."));
       }
     } catch (error) {
       projectContent.appendChild(el("div", "inline-error", error.message));
     }
+  }
+
+  async function renderPendingInvitations(team, container) {
+    const previous = $("#pending-invitations-list", container);
+    if (previous) previous.remove();
+    const section = el("div", "pending-invitations");
+    section.id = "pending-invitations-list";
+    const heading = el("div", "pending-invitations-heading");
+    append(heading, el("strong", "", "Pending invitations"), el("span", "small", "Tokens are never shown again"));
+    section.appendChild(heading);
+    try {
+      const data = await request("/api/teams/" + escapePath(team.id) + "/invitations");
+      const invitations = data.invitations || [];
+      if (!invitations.length) section.appendChild(el("p", "small", "No pending invitations."));
+      invitations.forEach(invitation => {
+        const row = el("div", "invitation-row");
+        const main = el("div", "row-main");
+        append(main, el("span", "row-title", invitation.email), el("span", "row-subtitle", "Expires " + formatDate(invitation.expires_at)));
+        append(row, main, actionButton("Revoke", "revoke-invitation", "btn btn-ghost btn-sm", { "data-team-id": team.id, "data-invitation-id": invitation.id }));
+        section.appendChild(row);
+      });
+    } catch (error) {
+      section.appendChild(el("p", "small", error.status === 404 ? "Invitation management is restricted to team owners and managers." : error.message));
+    }
+    container.appendChild(section);
+  }
+
+  function acceptInvitationModal() {
+    openFormModal("Accept a team invitation", "Paste the one-time token you received. Sign in using the email address the invitation was issued to.", [
+      { name: "token", label: "Invitation token", type: "text", placeholder: "Paste the 64-character token", required: true, maxLength: 64, full: true }
+    ], "Accept invitation", async values => {
+      const token = values.token.trim();
+      if (!/^[a-f0-9]{64}$/.test(token)) throw new Error("Invitation tokens must contain exactly 64 lowercase hexadecimal characters.");
+      const result = await request("/api/team-invitations/accept", { method: "POST", body: { token } });
+      await refreshWorkspace(false);
+      toast("You have joined the team.");
+      const team = teamById(result.team_id);
+      if (team) await openTeam(team.id);
+      else navigate("teams", false);
+    });
   }
 
   function showInvitationToken(token, email) {
@@ -1332,6 +1374,7 @@
     const name = action.dataset.action;
     try {
       if (name === "create-team") createTeamModal();
+      else if (name === "accept-invitation") acceptInvitationModal();
       else if (name === "create-project") createProjectModal(action.dataset.teamId);
       else if (name === "create-task") createTaskModal(action.dataset.projectId);
       else if (name === "invite-member") inviteMember(action.dataset.teamId);
@@ -1357,6 +1400,13 @@
         catch (_) { const box = $("textarea", $("#modal-root")); if (box) { box.focus(); box.select(); document.execCommand("copy"); toast("Select and copy the invitation token if clipboard access is blocked.", "warning"); } }
       }
       else if (name === "open-team") await openTeam(action.dataset.teamId);
+      else if (name === "revoke-invitation") {
+        if (!window.confirm("Revoke this pending invitation? The token will no longer work.")) return;
+        await request("/api/teams/" + escapePath(action.dataset.teamId) + "/invitations/" + escapePath(action.dataset.invitationId), { method: "DELETE" });
+        const team = teamById(action.dataset.teamId);
+        if (team) await renderPendingInvitations(team, $("#pending-invitations-list")?.parentElement || $("#page-content"));
+        toast("Invitation revoked.");
+      }
       else if (name === "open-project") {
         const project = projectById(action.dataset.projectId);
         if (project) await openProject(project);
