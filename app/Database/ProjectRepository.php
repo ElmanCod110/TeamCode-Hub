@@ -108,6 +108,50 @@ final class ProjectRepository
         }
     }
 
+    /**
+     * Update project metadata after re-checking the caller's current team role.
+     * The stable project slug is intentionally unchanged by a display-name edit.
+     */
+    public function updateForTeamManager(int $userId, int $projectId, string $name, ?string $description): void
+    {
+        $this->pdo->beginTransaction();
+        try {
+            $permission = $this->pdo->prepare(
+                "SELECT tm.role
+                 FROM projects p
+                 INNER JOIN teams t ON t.id = p.team_id
+                 INNER JOIN team_memberships tm ON tm.team_id = t.id AND tm.user_id = :user_id
+                 WHERE p.id = :project_id AND p.status = 'active' AND t.status = 'active'
+                   AND tm.status = 'active'
+                 LIMIT 1 FOR UPDATE"
+            );
+            $permission->execute(['user_id' => $userId, 'project_id' => $projectId]);
+            $role = $permission->fetchColumn();
+            if (!in_array($role, ['owner', 'manager'], true)) {
+                throw new DomainException('Active team management permission required.');
+            }
+
+            $update = $this->pdo->prepare(
+                "UPDATE projects SET name = :name, description = :description, updated_at = CURRENT_TIMESTAMP
+                 WHERE id = :project_id AND status = 'active'"
+            );
+            $update->execute([
+                'name' => $name,
+                'description' => $description,
+                'project_id' => $projectId,
+            ]);
+            if ($update->rowCount() < 0) {
+                throw new \\RuntimeException('Project settings could not be saved.');
+            }
+            $this->pdo->commit();
+        } catch (\\Throwable $error) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $error;
+        }
+    }
+
     /** @param array<string, mixed> $row
      *  @return array<string, mixed>
      */
