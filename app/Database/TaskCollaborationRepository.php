@@ -26,11 +26,15 @@ final class TaskCollaborationRepository
                     CASE WHEN c.deleted_at IS NULL THEN c.body ELSE '' END AS body,
                     c.edited_at, c.deleted_at, c.created_at, c.updated_at,
                     u.display_name AS author_name, u.email AS author_email
-             FROM task_comments c
+             FROM (
+                 SELECT id, task_id, user_id, body, edited_at, deleted_at, created_at, updated_at
+                 FROM task_comments
+                 WHERE task_id = :task_id
+                 ORDER BY created_at DESC, id DESC
+                 LIMIT 100
+             ) c
              INNER JOIN users u ON u.id = c.user_id
-             WHERE c.task_id = :task_id
-             ORDER BY c.created_at ASC, c.id ASC
-             LIMIT 100"
+             ORDER BY c.created_at ASC, c.id ASC"
         );
         $comments->execute(['task_id' => $taskId]);
 
