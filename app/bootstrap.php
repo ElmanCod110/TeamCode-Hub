@@ -2,19 +2,18 @@
 
 declare(strict_types=1);
 
-use TeamCodeHub\\Core\\ModuleRegistry;
-use TeamCodeHub\\Core\\Request;
-use TeamCodeHub\\Core\\Response;
-use TeamCodeHub\\Core\\Router;
+use TeamCodeHub\Core\ModuleRegistry;
+use TeamCodeHub\Core\Request;
+use TeamCodeHub\Core\Response;
+use TeamCodeHub\Core\Router;
 
 spl_autoload_register(static function (string $class): void {
-    $prefix = 'TeamCodeHub\\\\';
+    $prefix = 'TeamCodeHub\\';
     if (!str_starts_with($class, $prefix)) {
         return;
     }
-
     $relative = substr($class, strlen($prefix));
-    $path = __DIR__ . '/' . str_replace('\\\\', '/', $relative) . '.php';
+    $path = __DIR__ . '/' . str_replace('\\', '/', $relative) . '.php';
     if (is_file($path)) {
         require $path;
     }
@@ -33,13 +32,9 @@ return static function (): void {
 
     $router->get('/health', static fn (Request $request, array $params): Response => Response::json([
         'status' => 'ok',
-        'checks' => [
-            'router' => 'ok',
-            'module_registry' => 'ok',
-        ],
+        'checks' => ['router' => 'ok', 'module_registry' => 'ok'],
     ]));
 
-    $request = Request::fromGlobals();
-    $response = $router->dispatch($request);
+    $response = $router->dispatch(Request::fromGlobals());
     $response->send();
 };
