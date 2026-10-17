@@ -59,6 +59,8 @@ $assert(str_contains($js, 'textContent') && str_contains($js, 'after_id=') && st
 $assert(str_contains($js, 'canManageTeam') && str_contains($js, 'access_level !== "viewer"'), 'UI controls reflect manager and viewer capabilities without replacing server authorization');
 $assert(str_contains($js, '/api/dashboard') && str_contains($js, '/api/teams') && str_contains($js, '/api/projects/') && str_contains($js, '/api/notifications'), 'controller connects the existing dashboard, team, project, and notification APIs');
 $assert(str_contains($bootstrap, "/api/teams/{teamId}/edit") && str_contains($bootstrap, "/api/projects/{projectId}/edit"), 'team and project metadata update routes are registered');
+$assert(str_contains($bootstrap, '/api/teams/{teamId}/archived-projects') && str_contains($bootstrap, '/api/projects/{projectId}/archive') && str_contains($bootstrap, '/api/projects/{projectId}/restore'), 'project lifecycle endpoints are registered');
+$assert(str_contains($js, 'archive-project') && str_contains($js, 'restore-project') && str_contains($js, 'Archived projects'), 'workspace connects archive actions to a restorable archived-project list');
 $assert(str_contains($workspaceController, 'updateNameForOwner') && str_contains($workspaceController, 'updateMetadataForTeamManager'), 'metadata endpoints use repository-level authorization guards');
 $assert(str_contains($js, 'editTeamModal') && str_contains($js, 'editProjectModal'), 'workspace exposes connected team and project editing dialogs');
 $assert(str_contains($js, 'Dashboard summaries omit descriptions') && str_contains($js, 'Project details could not be loaded.'), 'project editing loads the full authorized record before saving metadata');
