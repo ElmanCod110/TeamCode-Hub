@@ -2,13 +2,14 @@
 
 declare(strict_types=1);
 
-namespace TeamCodeHub\\Core;
+namespace TeamCodeHub\Core;
 
 final class Request
 {
-    /** @param array<string, mixed> $query */
-    /** @param array<string, mixed> $body */
-    /** @param array<string, string> $headers */
+    /** @param array<string, mixed> $query
+     *  @param array<string, mixed> $body
+     *  @param array<string, string> $headers
+     */
     public function __construct(
         private readonly string $method,
         private readonly string $path,
@@ -50,27 +51,14 @@ final class Request
         return new self($method, $path, $_GET, $body, $headers);
     }
 
-    public function method(): string
-    {
-        return $this->method;
-    }
-
-    public function path(): string
-    {
-        return $this->path;
-    }
+    public function method(): string { return $this->method; }
+    public function path(): string { return $this->path; }
 
     /** @return array<string, mixed> */
-    public function query(): array
-    {
-        return $this->query;
-    }
+    public function query(): array { return $this->query; }
 
     /** @return array<string, mixed> */
-    public function body(): array
-    {
-        return $this->body;
-    }
+    public function body(): array { return $this->body; }
 
     public function header(string $name): ?string
     {
@@ -79,7 +67,6 @@ final class Request
                 return $value;
             }
         }
-
         return null;
     }
 }
