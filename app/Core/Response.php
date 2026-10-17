@@ -37,6 +37,23 @@ final class Response
         ]);
     }
 
+
+    /**
+     * Return a complete HTML document with conservative browser security headers.
+     * Application templates load only same-origin stylesheets and scripts.
+     */
+    public static function html(string $body, int $status = 200): self
+    {
+        return new self($body, $status, [
+            'Content-Type' => 'text/html; charset=utf-8',
+            'Cache-Control' => 'no-store',
+            'X-Content-Type-Options' => 'nosniff',
+            'Referrer-Policy' => 'strict-origin-when-cross-origin',
+            'X-Frame-Options' => 'DENY',
+            'Content-Security-Policy' => "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; upgrade-insecure-requests",
+        ]);
+    }
+
     public function statusCode(): int
     {
         return $this->status;
