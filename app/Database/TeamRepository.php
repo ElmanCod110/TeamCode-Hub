@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace TeamCodeHub\Database;
 
+use DomainException;
 use PDO;
 use Throwable;
 
