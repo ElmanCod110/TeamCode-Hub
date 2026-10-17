@@ -1597,12 +1597,41 @@
     const form = el("form", "tch-modal-body");
     const error = el("div", "inline-error"); error.hidden = true; error.setAttribute("role", "alert");
     const controls = {};
+    const memberPickers = [];
     fields.forEach(field => {
       const wrap = el("div", "field" + (field.full ? " field-full" : ""));
       const label = el("label", "label", field.label);
       const id = "field-" + field.name + "-" + Math.random().toString(36).slice(2, 6);
-      label.htmlFor = id;
       let control;
+      if (field.type === "member-picker") {
+        control = el("input", "input");
+        control.type = "hidden";
+        control.id = id;
+        control.name = field.name;
+        control.value = field.value === undefined ? "" : String(field.value);
+        const search = el("input", "input assignee-picker-search");
+        search.type = "search";
+        search.id = id + "-search";
+        search.maxLength = 80;
+        search.autocomplete = "off";
+        search.placeholder = field.placeholder || "Search by name, email, or user ID";
+        search.setAttribute("aria-label", field.label);
+        const results = el("div", "assignee-picker-results");
+        results.setAttribute("role", "listbox");
+        results.setAttribute("aria-label", "Eligible task assignees");
+        results.setAttribute("aria-live", "polite");
+        const selection = el("div", "assignee-picker-selection");
+        selection.appendChild(el("p", "small", "No assignee selected. The task can remain unassigned."));
+        label.htmlFor = search.id;
+        append(wrap, label, control, search, results, selection);
+        memberPickers.push({ field, control, search, results, selection });
+        if (field.help) wrap.appendChild(el("span", "help", field.help)).id = id + "-help";
+        search.setAttribute("aria-describedby", id + "-help");
+        controls[field.name] = control;
+        form.appendChild(wrap);
+        return;
+      }
+      label.htmlFor = id;
       if (field.type === "select") {
         control = el("select", "select");
         (field.options || []).forEach(optionData => {
@@ -1627,6 +1656,7 @@
       if (field.help) wrap.appendChild(el("span", "help", field.help)).id = id + "-help";
       form.appendChild(wrap);
     });
+    memberPickers.forEach(picker => mountAssigneePicker(picker, controls));
     form.appendChild(error);
     const footer = el("div", "tch-modal-footer");
     append(footer, actionButton("Cancel", "close-modal", "btn btn-outline"));
