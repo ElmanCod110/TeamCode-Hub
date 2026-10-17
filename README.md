@@ -14,7 +14,7 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 - Overview dashboard connected to personalized teams, projects, due-today tasks, overdue tasks, and recent notifications.
 - Team list and detail views, project creation, and one-time team invitation creation for owners/managers.
 - Project directory and project detail views with overview, task, member-access, and chat tabs.
-- Task creation, status changes, priorities, UTC due-date conversion, and task filtering/search.
+- Task creation, editing/reassignment, status changes, priorities, UTC due-date conversion, threaded comments, checklist items, and task filtering/search.
 - Project member assignment, pending membership approval, and access revocation where the signed-in user has management permission.
 - Text-only project chat with incremental polling, periodic bounded-window reconciliation for edits/deletions, own-message editing/deletion, and message reporting.
 - Notification inbox with user-scoped read-state changes.
@@ -29,7 +29,7 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 - Team/project APIs with active/approved membership checks and transactional quota enforcement.
 - Seven-day team invitations with hashed tokens, acceptance, and revocation.
 - Member/viewer access separation; pending or revoked project members cannot access protected project resources.
-- Task listing, member-only creation/status changes, priorities, assignees, and UTC due dates.
+- Task listing, member-only creation/edit/status changes, priorities, approved-member assignment, UTC due dates, comments, and checklists.
 - Personalized dashboard API and user-scoped notifications.
 - Project chat with a 50-message response window, incremental ID cursor, edit/delete, 24-hour expiry, and report-context preservation.
 - Report review queues for team managers/site admins, duplicate-report controls, and escalation after two distinct valid reports within 24 hours.
@@ -74,7 +74,7 @@ node --check public/assets/js/workspace.js
 
 ## Remaining product work
 
-Public registration, email verification, password recovery, automatic invitation email delivery, team editing/deletion, project editing/deletion, editing/reassigning tasks after creation, comments, subtasks, Git synchronization, richer administrative pages, and automated browser-level visual/accessibility tests are not implemented yet. There is no automatic admin bypass of team/project access checks. Every protected route must continue to enforce authorization on the server.
+Public registration, email verification, password recovery, automatic invitation email delivery, team editing/deletion, project editing/deletion, Git synchronization, richer administrative pages, and automated browser-level visual/accessibility tests are not implemented yet. There is no automatic admin bypass of team/project access checks. Every protected route must continue to enforce authorization on the server.
 
 ## Repository layout
 
