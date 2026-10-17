@@ -35,6 +35,10 @@ The command is CLI-only, refuses to run if a `site_admin` role already exists, c
 
 `GET /health` checks only that the minimal request/router bootstrap responds. It does not test database connectivity or prove that product features are healthy.
 
+## Chat retention cron
+
+After applying all migrations, schedule `php /absolute/path/to/TeamCode-Hub/bin/cleanup-chat.php` through the hosting provider's cron interface at least once per day. Run it from a trusted CLI environment with the database environment variables configured. It deletes only chat rows whose expiry has passed; unresolved reported messages have no expiry and remain held. Resolved/rejected reports resume a 24-hour retention period before cleanup can remove the message and its context snapshot.
+
 ## Shared-hosting constraints
 
 Do not require a long-running worker or WebSocket server for the baseline. Use bounded AJAX polling and incremental cursors where real-time updates are introduced. Keep logs and caches bounded and define retention policies for personal/security data.
