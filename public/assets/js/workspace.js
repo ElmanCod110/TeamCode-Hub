@@ -1153,9 +1153,9 @@
       descriptionField.control.rows = 3;
       descriptionField.wrapper.classList.add("field-full");
       const dueField = makeTaskField("due_at", "Due date (local time)", "datetime-local", utcToLocalInput(task.due_at), false);
-      const assigneeField = makeTaskField("assigned_to", "Assignee user ID", "number", task.assigned_to || "", false);
-      assigneeField.control.min = "1";
-      assigneeField.control.placeholder = "Leave blank to unassign";
+      const assigneeField = makeAssigneeField("assigned_to", "Assignee (optional)", projectId,
+        task.assigned_to ? { user_id: task.assigned_to, display_name: task.assigned_to_name || "", email: "" } : null,
+        "Only approved member-level project users can be assigned. Leave empty to unassign this task.");
       append(grid, titleField.wrapper, priorityField.wrapper, descriptionField.wrapper, dueField.wrapper, assigneeField.wrapper);
       const saveRow = el("div", "task-detail-save-row");
       const save = el("button", "btn btn-primary btn-sm", "Save changes"); save.type = "submit";
@@ -1264,6 +1264,34 @@
     $("#modal-root").replaceChildren(overlay);
     const firstInput = $("input, textarea, select, button", modal);
     if (firstInput) firstInput.focus();
+  }
+
+  function makeAssigneeField(name, labelText, projectId, initialAssignee, helpText) {
+    const wrapper = el("div", "field field-full");
+    const label = el("label", "label", labelText);
+    const id = "assignee-field-" + Math.random().toString(36).slice(2, 8);
+    const control = el("input", "input");
+    control.type = "hidden";
+    control.name = name;
+    const search = el("input", "input assignee-picker-search");
+    search.type = "search";
+    search.id = id;
+    search.maxLength = 80;
+    search.autocomplete = "off";
+    search.placeholder = "Search by name, email, or user ID";
+    search.setAttribute("aria-label", labelText);
+    label.htmlFor = id;
+    const results = el("div", "assignee-picker-results");
+    results.setAttribute("role", "listbox");
+    results.setAttribute("aria-label", "Eligible task assignees");
+    results.setAttribute("aria-live", "polite");
+    const selection = el("div", "assignee-picker-selection");
+    append(wrapper, label, control, search, results, selection, el("span", "help", helpText));
+    mountAssigneePicker({
+      field: { name, projectField: "__project_id", initialAssignee },
+      control, search, results, selection
+    }, { __project_id: { value: projectId } });
+    return { wrapper, control };
   }
 
   function makeTaskField(name, labelText, type, value, required, maxLength) {
@@ -1673,7 +1701,7 @@
     });
 
     const projectControl = controls[field.projectField];
-    if (projectControl) {
+    if (projectControl && typeof projectControl.addEventListener === "function") {
       projectControl.addEventListener("change", () => {
         sequence++;
         if (controller) controller.abort();
@@ -1913,7 +1941,7 @@
       { name: "description", label: "Description", type: "textarea", placeholder: "Optional context or acceptance criteria", maxLength: 10000, full: true },
       { name: "priority", label: "Priority", type: "select", options: [{ value: "low", label: "Low" }, { value: "normal", label: "Normal" }, { value: "high", label: "High" }, { value: "urgent", label: "Urgent" }], value: "normal" },
       { name: "due_at", label: "Due date (your local time)", type: "datetime-local", value: localDue, help: "Converted to UTC before it is sent to the server." },
-      { name: "assigned_to", label: "Assignee user ID (optional)", type: "number", min: "1", placeholder: "Member user ID", help: "Assignee must already have approved member-level project access." }
+      { name: "assigned_to", label: "Assignee (optional)", type: "member-picker", projectField: "project_id", placeholder: "Search by name, email, or user ID", help: "Only approved member-level project users can be assigned. Leave empty to keep this task unassigned." }
     ], "Create task", async values => {
       await request("/api/projects/" + escapePath(values.project_id) + "/tasks", {
         method: "POST",
