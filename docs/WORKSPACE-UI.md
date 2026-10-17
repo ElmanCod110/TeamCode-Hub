@@ -20,7 +20,7 @@ The HTML has no inline style or script blocks. The front controller returns HTML
 | --- | --- | --- |
 | Overview | `GET /api/dashboard`, `GET /api/teams`, `GET /api/notifications`, project task endpoints | Review team/project counts, due-today and overdue tasks, recent notifications; navigate to records |
 | Teams | `GET /api/teams`, `POST /api/teams`, team project/invitation endpoints | Create teams, view a team's projects, create/revoke pending invitations, accept a token from a matching account |
-| Projects | Dashboard projection and `GET /api/projects/{projectId}` | Search projects and open a project workspace |
+| Projects | Dashboard projection and `GET /api/projects/{projectId}` | Search projects, open a project workspace, and edit project name/description when the active team role is owner or manager |
 | Project overview | Project detail and task endpoints | View task metrics and navigate to task/member/chat panels |
 | Tasks | Task list/create/edit/status endpoints and task detail/comment/checklist endpoints | Search/filter, edit/reassign, view task details, discuss work, and manage a bounded checklist; viewer access remains read-only |
 | Members | Project member listing/assignment/approval/revocation endpoints | Assign existing user IDs, select member/viewer access, approve pending access, revoke access when permitted |
@@ -58,7 +58,7 @@ The UI currently uses a bounded refresh for reconciliation; it is not a durable 
 - Invitation creation returns a one-time token but does not send an email. The token should be shared through a trusted channel.
 - Team invitation UI is available from a team detail view to users whose current team role is owner or manager. The server independently verifies the role.
 - Member assignment currently asks for an existing user ID; directory search and email-based user discovery are not yet implemented.
-- Task editing and reassignment after creation, comments, subtasks, project/team editing, Git provider integration, and the full site-administration interface remain planned.
+- Team editing/deletion, project deletion, Git provider synchronization, account registration/recovery, and broader site-administration tools remain planned. Project metadata editing and task comments/checklists are connected to their server APIs.
 - Theme preference is stored locally in the current browser; it does not change account-wide settings or access permissions.
 
 ## Verification
