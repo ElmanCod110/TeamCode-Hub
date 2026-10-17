@@ -11,7 +11,7 @@ All API responses are JSON. Responses are not a stable public contract yet; this
 
 After a successful login, fetch a new CSRF token because authentication rotates the token. Database-backed endpoints require the configured database and all migrations to have been applied.
 
-## Teams
+## Teams and invitations
 
 - `GET /api/teams` — lists teams where the current user has an active membership.
 - `POST /api/teams` — creates a team and makes the authenticated user its active owner. Body: `{"name":"Team name"}`. Requires CSRF protection.
@@ -23,17 +23,23 @@ After a successful login, fetch a new CSRF token because authentication rotates 
 
 Invitation creation reserves a team member slot. Active memberships plus unexpired pending invitations cannot exceed `member_limit`. Invitations can grant only the `member` role.
 
-## Projects
+## Projects and members
 
-- `GET /api/teams/{teamId}/projects` — lists active projects with an approved project membership and active team membership for the current user.
+- `GET /api/teams/{teamId}/projects` — lists active projects with approved project membership and active team membership for the current user.
 - `POST /api/teams/{teamId}/projects` — creates a project for an active team owner/manager. Body: `{"name":"Project name","description":"Optional description"}`. Requires CSRF protection. The creator receives approved `member` access. Active project quota is enforced transactionally; quota exhaustion returns `409`.
 - `GET /api/projects/{projectId}` — returns project details only when the user's project membership is approved and team membership is active. Viewers have read-only access.
 - `GET /api/projects/{projectId}/members` — lists membership details for active team owners/managers only.
-- `POST /api/projects/{projectId}/members` — assigns an active team member to a project with body `{"user_id":123,"access_level":"viewer"}` or `member`. Assignment is pending by default and requires CSRF protection.
+- `POST /api/projects/{projectId}/members` — assigns an active team member with body `{"user_id":123,"access_level":"viewer"}` or `member`. Assignment is pending by default and requires CSRF protection.
 - `POST /api/projects/{projectId}/members/{userId}/approve` — approves a pending project membership. Requires CSRF protection and active team owner/manager permissions.
 - `POST /api/projects/{projectId}/members/{userId}/revoke` — revokes pending or approved access. The project creator cannot be revoked through this endpoint. Requires CSRF protection.
 
-Pending and revoked project memberships cannot access project routes. Only an approved `member` can edit project content in future endpoints; a `viewer` is read-only.
+Pending and revoked project memberships cannot access project routes. Only approved `member` access can create or update tasks; a `viewer` is read-only.
+
+## Tasks
+
+- `GET /api/projects/{projectId}/tasks` — lists tasks for any user with approved project access, including viewers.
+- `POST /api/projects/{projectId}/tasks` — creates a task; requires approved `member` access and CSRF protection. Body: `{"title":"Review pull request","description":"Optional","priority":"normal","assigned_to":123,"due_at":"2026-11-01 12:00:00"}`. `description`, `assigned_to`, and `due_at` may be null/omitted. Priorities: `low`, `normal`, `high`, `urgent`. Due dates use UTC `YYYY-MM-DD HH:MM:SS`. An assignee must have approved `member` access to the same project.
+- `POST /api/projects/{projectId}/tasks/{taskId}/status` — changes task status; requires approved `member` access and CSRF protection. Body: `{"status":"in_progress"}`. Statuses: `todo`, `in_progress`, `blocked`, `done`. The completion timestamp is set when status becomes `done` and cleared when it leaves `done`.
 
 ## Common errors
 
@@ -46,4 +52,4 @@ Pending and revoked project memberships cannot access project routes. Only an ap
 
 ## Current limits
 
-Public registration, email verification, password recovery, invitation email delivery, team member management UI, team editing/deletion, project editing/deletion, tasks, chat, Git integration, and admin UI are not implemented yet. Future routes must repeat authorization checks in their data-access path rather than trusting a prior UI check alone.
+Public registration, email verification, password recovery, invitation email delivery, team editing/deletion, project editing/deletion, task editing/assignment after creation, comments, subtasks, chat, Git integration, and admin UI are not implemented yet. Future routes must repeat authorization checks in their data-access path rather than trusting a prior UI check alone.
