@@ -19,7 +19,7 @@ The HTML has no inline style or script blocks. The front controller returns HTML
 | View | Data source | Available interactions |
 | --- | --- | --- |
 | Overview | `GET /api/dashboard`, `GET /api/teams`, `GET /api/notifications`, project task endpoints | Review team/project counts, due-today and overdue tasks, recent notifications; navigate to records |
-| Teams | `GET /api/teams`, `POST /api/teams`, team project/invitation endpoints | Create teams, view a team's projects, create invitation tokens for authorized owners/managers |
+| Teams | `GET /api/teams`, `POST /api/teams`, team project/invitation endpoints | Create teams, view a team's projects, create/revoke pending invitations, accept a token from a matching account |
 | Projects | Dashboard projection and `GET /api/projects/{projectId}` | Search projects and open a project workspace |
 | Project overview | Project detail and task endpoints | View task metrics and navigate to task/member/chat panels |
 | Tasks | `GET /api/projects/{projectId}/tasks`, task creation and status endpoints | Search/filter tasks, create tasks, change status, convert local due dates to UTC |
