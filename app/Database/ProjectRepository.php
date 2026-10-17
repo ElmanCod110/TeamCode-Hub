@@ -108,6 +108,50 @@ final class ProjectRepository
         }
     }
 
+    /**
+     * Update a project's descriptive metadata while locking the active project and
+     * verifying the actor's active owner/manager role in its parent team.
+     *
+     * @return array<string, mixed>
+     */
+    public function updateDetailsForTeamManager(int $actorId, int $projectId, string $name, ?string $description): array
+    {
+        $this->pdo->beginTransaction();
+        try {
+            $access = $this->pdo->prepare(
+                "SELECT p.id, p.team_id, p.name, p.slug, p.description, p.status, tm.role
+                 FROM projects p
+                 INNER JOIN team_memberships tm ON tm.team_id = p.team_id
+                 INNER JOIN teams t ON t.id = p.team_id
+                 WHERE p.id = :project_id AND tm.user_id = :user_id
+                   AND tm.status = 'active' AND t.status = 'active' AND p.status = 'active'
+                 LIMIT 1 FOR UPDATE"
+            );
+            $access->execute(['project_id' => $projectId, 'user_id' => $actorId]);
+            $project = $access->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($project) || !in_array($project['role'], ['owner', 'manager'], true)) {
+                throw new DomainException('Active team manager role required.');
+            }
+
+            $update = $this->pdo->prepare(
+                "UPDATE projects SET name = :name, description = :description
+                 WHERE id = :project_id AND status = 'active'"
+            );
+            $update->execute(['name' => $name, 'description' => $description, 'project_id' => $projectId]);
+            $this->pdo->commit();
+
+            $project['name'] = $name;
+            $project['description'] = $description;
+            unset($project['role']);
+            return self::normalize($project);
+        } catch (Throwable $error) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $error;
+        }
+    }
+
     /** @param array<string, mixed> $row
      *  @return array<string, mixed>
      */
