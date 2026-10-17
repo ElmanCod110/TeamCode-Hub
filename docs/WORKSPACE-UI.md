@@ -24,7 +24,7 @@ The HTML has no inline style or script blocks. The front controller returns HTML
 | Projects | Dashboard projection and `GET /api/projects/{projectId}` | Search projects, edit name/description as an authorized team manager, archive a project without deleting its history, and open a project workspace |
 | Project overview | Project detail and task endpoints | View task metrics and navigate to task/member/chat panels |
 | Tasks | Task list/create/edit/status endpoints and task detail/comment/checklist endpoints | Search/filter, edit/reassign, view task details, discuss work, and manage a bounded checklist; viewer access remains read-only |
-| Members | Project member listing/assignment/approval/revocation endpoints | Assign existing user IDs, select member/viewer access, approve pending access, change approved member/viewer access, and revoke access when permitted |
+| Members | Project member listing/candidate search/assignment/approval/revocation endpoints | Search active team members by name, email, or exact user ID; request member/viewer access; approve pending access; change approved access; and revoke access when permitted |
 | Project chat | `GET|POST /api/projects/{projectId}/chat` and message edit/delete/report endpoints | Send text, edit/delete own messages, report another member's message |
 | Notifications | `GET /api/notifications`, `POST /api/notifications/{id}/read` | Mark individual or visible notifications as read |
 | Moderation | `GET /api/admin/reports`, `GET /api/teams/{teamId}/reports`, `POST /api/reports/{reportId}/review` | Review scoped report queues, inspect preserved message context, mark reports valid/rejected, or resolve valid cases |
@@ -59,7 +59,7 @@ The UI currently uses a bounded refresh for reconciliation; it is not a durable 
 - Accounts must already exist and be active. Public registration, email verification, and password recovery are not implemented.
 - Invitation creation returns a one-time token but does not send an email. The token should be shared through a trusted channel.
 - Team invitation UI is available from a team detail view to users whose current team role is owner or manager. The server independently verifies the role.
-- Member assignment currently asks for an existing user ID; directory search and email-based user discovery are not yet implemented.
+- Member assignment searches only active members of the selected project’s team. It does not provide global account discovery or invite an email address that does not already belong to the team.
 - Permanent team/project deletion, Git provider integration, richer site-administration pages, and browser-level visual/accessibility regression tests remain planned. Project archiving is reversible; restoration checks the active project quota and preserves historical records. Team renaming is owner-only; project metadata edits require an active team owner/manager and approved project membership.
 - Theme preference is stored locally in the current browser; it does not change account-wide settings or access permissions.
 
