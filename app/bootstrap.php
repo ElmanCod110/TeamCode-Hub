@@ -8,6 +8,7 @@ use TeamCodeHub\Core\Response;
 use TeamCodeHub\Core\Router;
 use TeamCodeHub\Database\ConnectionFactory;
 use TeamCodeHub\Database\ChatRepository;
+use TeamCodeHub\Database\AdminRepository;
 use TeamCodeHub\Database\DashboardRepository;
 use TeamCodeHub\Database\GitHubActivityCacheRepository;
 use TeamCodeHub\Database\ChatReportRepository;
@@ -22,6 +23,7 @@ use TeamCodeHub\Database\TaskCollaborationRepository;
 use TeamCodeHub\Database\TeamInvitationRepository;
 use TeamCodeHub\Database\UserRepository;
 use TeamCodeHub\Http\AuthController;
+use TeamCodeHub\Http\AdminController;
 use TeamCodeHub\Http\ChatController;
 use TeamCodeHub\Http\ChatReportController;
 use TeamCodeHub\Http\DashboardController;
@@ -123,6 +125,15 @@ return static function (): void {
         );
     });
 
+    // Construct the global admin repository lazily, only when a site-admin route is requested.
+    $modules->register('admin.controller', static function (): object {
+        $pdo = ConnectionFactory::connect(DatabaseConfig::fromEnvironment());
+        return new AdminController(
+            new AuthenticationService(new UserRepository($pdo)),
+            new AdminRepository($pdo),
+        );
+    });
+
     $modules->register('task.controller', static function (): object {
         $pdo = ConnectionFactory::connect(DatabaseConfig::fromEnvironment());
         $memberships = new MembershipRepository($pdo);
@@ -193,6 +204,9 @@ return static function (): void {
     );
     $router->get('/api/admin/reports', static fn (Request $request, array $params): Response =>
         $modules->get('chat-report.controller')->adminQueue($request)
+    );
+    $router->get('/api/admin/overview', static fn (Request $request, array $params): Response =>
+        $modules->get('admin.controller')->overview()
     );
     $router->post('/api/reports/{reportId}/review', static fn (Request $request, array $params): Response =>
         $modules->get('chat-report.controller')->review($request, $params)
