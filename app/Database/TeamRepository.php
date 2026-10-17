@@ -84,6 +84,45 @@ final class TeamRepository
         }
     }
 
+    /**
+     * Update a team's display name without changing its stable slug.
+     * Only an active owner or manager may change team settings.
+     */
+    public function updateNameForManager(int $userId, int $teamId, string $name): void
+    {
+        $this->pdo->beginTransaction();
+        try {
+            $permission = $this->pdo->prepare(
+                "SELECT tm.role
+                 FROM team_memberships tm
+                 INNER JOIN teams t ON t.id = tm.team_id
+                 WHERE tm.team_id = :team_id AND tm.user_id = :user_id
+                   AND tm.status = 'active' AND t.status = 'active'
+                 LIMIT 1 FOR UPDATE"
+            );
+            $permission->execute(['team_id' => $teamId, 'user_id' => $userId]);
+            $role = $permission->fetchColumn();
+            if (!in_array($role, ['owner', 'manager'], true)) {
+                throw new \\DomainException('Active team management permission required.');
+            }
+
+            $update = $this->pdo->prepare(
+                "UPDATE teams SET name = :name, updated_at = CURRENT_TIMESTAMP
+                 WHERE id = :team_id AND status = 'active'"
+            );
+            $update->execute(['name' => $name, 'team_id' => $teamId]);
+            if ($update->rowCount() < 0) {
+                throw new \\RuntimeException('Team settings could not be saved.');
+            }
+            $this->pdo->commit();
+        } catch (\\Throwable $error) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $error;
+        }
+    }
+
     /** @param array<string, mixed> $row
      *  @return array<string, mixed>
      */
