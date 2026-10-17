@@ -6,10 +6,10 @@ Notable changes to TeamCode Hub are recorded here.
 
 - Establish the PHP front controller, request/response, router, and lazy module registry.
 - Add validated MySQL/MariaDB configuration, PDO repositories, and explicit CLI migrations.
-- Add identity, team/project membership, authentication rate-limit, and system-role schema.
+- Add identity, team/project membership, authentication rate-limit, system-role, and team invitation schema.
 - Add CSRF-protected JSON authentication endpoints, login throttling, and CLI-only administrator bootstrap.
-- Add team listing/creation and membership-protected team reads.
-- Add approved-project listing/reads, manager-only project creation, and transactional active-project quota checks.
+- Add team/project APIs with approved membership checks and project quota enforcement.
+- Add expiring team invitations with hashed tokens, member quota reservations, acceptance, listing, and revocation.
 - Add exact scoped permissions, trusted-proxy-aware client IP resolution, and automated PHP lint/smoke tests.
 
 This is an in-progress development baseline, not a production-ready release.

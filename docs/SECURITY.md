@@ -6,25 +6,25 @@ This document distinguishes implemented primitives from controls still required 
 
 - Session startup enables strict mode, cookie-only session IDs, HttpOnly cookies, SameSite=Lax, and Secure cookies when direct HTTPS is detected or `APP_HTTPS=true` is configured.
 - Session IDs are rotated after successful authentication; logout clears session data and expires the session cookie.
-- `GET /api/auth/csrf` creates or returns a cryptographically random session-bound token. Login, logout, and state-changing team/project routes require the token via `X-Csrf-Token` or the request body's `csrf_token` field.
-- `AuthenticationService` checks password hashes, only accepts accounts whose status is `active`, rotates the session ID after successful authentication, and uses a generic failure response.
-- Login attempts are throttled using database-backed per-IP and per-email-hash buckets. Defaults: 20 attempts per IP and 8 per email hash per 15 minutes.
+- Login, logout, team/project creation, invitation creation/revocation/acceptance require a session-bound CSRF token.
+- Authentication accepts only active accounts and uses generic failure responses. Login attempts are throttled with database-backed per-IP and per-email-hash buckets (20/IP and 8/email per 15 minutes by default).
 - Forwarded client IP data is ignored unless `REMOTE_ADDR` matches an exact IP in `TRUSTED_PROXIES`.
-- Team API routes require active team membership. Only active `owner` and `manager` roles can create projects.
-- Project API routes require an approved project membership, an active team membership, and an active project. Viewer access is read-only.
-- Project quota checks run inside the project-creation transaction while locking the team membership row.
-- Permission checks are exact-match only; wildcard permissions are not supported.
-- Initial site administrator creation is a CLI-only operation and refuses to create a second `site_admin` role.
+- Team reads require active membership. Only active `owner` and `manager` roles can create projects or manage invitations.
+- Project reads require approved project membership plus active team membership. Viewers have read-only access.
+- Active project quota checks run inside a transaction while checking a manager role under a row lock.
+- Team invitations use 256-bit random tokens, store only SHA-256 token hashes, expire after seven days, and can be revoked. Only the `member` role can be invited. Acceptance requires an authenticated account whose email matches the invitation.
+- Invitation creation reserves capacity so active members plus unexpired pending invitations cannot exceed the team's member limit.
+- Initial site administrator creation is CLI-only and refuses to create a second `site_admin` role.
 
 ## Required controls before production
 
 - Add rate limiting and monitoring for invitations, account recovery, and other sensitive actions.
-- Implement public registration, email verification, password reset, and account recovery.
-- Enforce team-member quotas when invitation and membership workflows are introduced.
+- Implement public registration, email verification, password reset, and secure invitation delivery by email.
+- Implement project membership assignment/approval workflows and team-member quota enforcement for every membership-changing path.
 - Add authorization checks to every protected route, file download, chat history, and mutation. Future routes must not assume that membership in one project grants access to another.
-- Keep real secrets outside the web root and never log passwords, session tokens, secret keys, or sensitive request bodies.
-- Define retention and access restrictions for security logs and any personal data.
-- Test the migration and query behavior against the actual supported MySQL/MariaDB versions and HTTPS/shared-hosting topology.
+- Keep real secrets outside the web root and never log passwords, session tokens, secret keys, or raw invitation tokens.
+- Define retention and access restrictions for security logs and personal data.
+- Test migration and query behavior against supported MySQL/MariaDB versions and the production HTTPS/shared-hosting topology.
 
 ## Data and migrations
 

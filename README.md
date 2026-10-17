@@ -5,18 +5,17 @@
 
 TeamCode Hub is a modular, security-focused collaboration platform for software teams, targeting conventional PHP hosting with cPanel/DirectAdmin and MySQL/MariaDB.
 
-> This is an early foundation, not a production-ready application. Planned capabilities are not considered implemented until code and tests exist.
+> This is an early development foundation, not a production-ready application. Planned capabilities are not considered implemented until code and tests exist.
 
 ## Current foundation
 
 - Public front controller, request/response objects, pretty-route dispatcher, and lazy module registry.
 - Validated MySQL/MariaDB configuration, PDO repositories, and explicit CLI migration runner.
-- Identity, team/project membership, login-rate-limit, and system-role schema.
-- Hardened sessions, CSRF tokens, authentication API, login throttling, and trusted-proxy-aware IP resolution.
+- Identity, team/project membership, login-rate-limit, system-role, and invitation schema.
+- Hardened sessions, CSRF-protected authentication API, login throttling, and trusted-proxy-aware IP resolution.
 - CLI-only one-time administrator bootstrap.
-- Team API for listing/creating teams and reading a team when the user is an active member.
-- Project API for listing approved projects, creating projects as an active team owner/manager, and reading projects only after membership approval.
-- Project quota enforcement during creation and read-only viewer access.
+- Team/project APIs with active/approved membership checks and transactional project quota enforcement.
+- Seven-day team invitations with hashed tokens, manual trusted-channel delivery, acceptance, and revocation.
 - Automated linting and smoke tests on PHP 8.2, 8.3, and 8.4.
 
 ## Setup
@@ -28,13 +27,17 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 
 ## API
 
-Authentication routes: `GET /api/auth/csrf`, `POST /api/auth/login`, `GET /api/auth/me`, and `POST /api/auth/logout`.
+Authentication: `GET /api/auth/csrf`, `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`.
 
-Workspace routes: `GET|POST /api/teams`, `GET /api/teams/{teamId}`, `GET|POST /api/teams/{teamId}/projects`, and `GET /api/projects/{projectId}`. State-changing routes require a valid CSRF token. See [docs/API.md](docs/API.md) for request bodies, status codes, and access rules.
+Teams: `GET|POST /api/teams`, `GET /api/teams/{teamId}`, and `GET|POST /api/teams/{teamId}/invitations`, `DELETE /api/teams/{teamId}/invitations/{invitationId}`, `POST /api/team-invitations/accept`.
+
+Projects: `GET|POST /api/teams/{teamId}/projects`, `GET /api/projects/{projectId}`.
+
+State-changing routes require a valid CSRF token. Invitation tokens are returned once and are not emailed by the current baseline. See [docs/API.md](docs/API.md) for request bodies, status codes, and access rules.
 
 ## Not implemented yet
 
-Public registration, email verification, password recovery, invitations, project membership approval UI, team-member quota enforcement, project editing/deletion, tasks, chat, Git synchronization, and the admin dashboard remain future work. Every future protected route must explicitly enforce authorization; service classes do not secure routes automatically.
+Public registration, email verification, password recovery, automatic invitation email, project membership assignment/approval, team member management UI, project editing/deletion, tasks, chat, Git synchronization, and the admin dashboard remain future work. Every future protected route must explicitly enforce authorization; service classes do not secure routes automatically.
 
 ## Requirements and layout
 
