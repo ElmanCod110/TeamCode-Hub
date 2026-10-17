@@ -37,6 +37,31 @@ final class ProjectMembershipController
         }
     }
 
+    public function candidates(Request $request, array $params): Response
+    {
+        $user = $this->currentUser();
+        $projectId = $this->positiveId($params['projectId'] ?? null);
+        if ($user === null) {
+            return Response::json(['error' => 'Authentication required.'], 401);
+        }
+        if ($projectId === null) {
+            return Response::json(['error' => 'Project not found.'], 404);
+        }
+
+        $query = $request->query()['q'] ?? null;
+        if (!is_string($query) || trim($query) === '' || strlen(trim($query)) > 80 || preg_match('//u', trim($query)) !== 1) {
+            return Response::json(['error' => 'Search query must contain 1 to 80 valid UTF-8 bytes.'], 422);
+        }
+
+        try {
+            return Response::json([
+                'candidates' => $this->memberships->searchAssignableTeamMembers($user['id'], $projectId, trim($query)),
+            ]);
+        } catch (DomainException) {
+            return Response::json(['error' => 'Project not found or management permission denied.'], 404);
+        }
+    }
+
     public function assign(Request $request, array $params): Response
     {
         SecureSession::start();
