@@ -1,0 +1,26 @@
+# Local secrets and configuration
+.env
+.env.*
+!.env.example
+/config/local.php
+/config/secrets.php
+
+# Runtime data
+/storage/*
+!/storage/.gitkeep
+/logs/
+/cache/
+/uploads/
+/backups/
+
+# Dependencies and tooling
+/vendor/
+/node_modules/
+/.phpunit.cache/
+/.php-cs-fixer.cache
+
+# Editors and operating systems
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
