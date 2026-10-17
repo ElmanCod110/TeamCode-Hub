@@ -263,6 +263,7 @@ final class ProjectMembershipRepository
         $statement = $this->pdo->prepare(
             "SELECT p.team_id, p.created_by
              FROM projects p
+             INNER JOIN teams t ON t.id = p.team_id AND t.status = 'active'
              INNER JOIN team_memberships tm ON tm.team_id = p.team_id AND tm.user_id = :actor_id
              WHERE p.id = :project_id AND p.status = 'active'
                AND tm.status = 'active' AND tm.role IN ('owner', 'manager')
