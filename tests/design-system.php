@@ -71,6 +71,8 @@ $assert(str_contains($patterns, '.acc details') && str_contains($patterns, '.pag
 $assert(str_contains($patterns, '.steps') && str_contains($patterns, '.footer-grid'), 'workflow steps and responsive footer patterns are available');
 $assert(str_contains($patterns, 'prefers-reduced-motion:reduce') && str_contains($patterns, 'forced-colors:active'), 'extended components respect motion and forced-colors preferences');
 $assert(str_contains($patterns, '.grid.g2') && str_contains($patterns, '.avatar-wrap .status'), 'legacy layout aliases and avatar presence indicators are available');
+$assert(str_contains($patterns, '.swatches') && str_contains($patterns, '.type-list') && str_contains($patterns, '.sec-head'), 'reference palette, typography, and section helpers are available');
+$assert(str_contains($patterns, '.btn-xs') && str_contains($patterns, '.check .box') && str_contains($patterns, '.tabs.pill'), 'legacy button, form-state, and pill-tab aliases are available');
 $assert(str_contains($uiScript, 'textContent = String(message'), 'toast content is inserted as text rather than interpreted HTML');
 $assert(str_contains($uiScript, 'data-modal-open') && str_contains($uiScript, 'data-dropdown-toggle'), 'interaction controller includes modal and dropdown behavior');
 $assert(str_contains($demoPage, '<html lang="en" dir="ltr"'), 'showcase document declares English left-to-right content');
