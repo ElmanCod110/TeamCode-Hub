@@ -84,6 +84,90 @@ final class TeamRepository
         }
     }
 
+    /**
+     * Rename an active team without changing its stable URL slug.
+     * The role check is repeated under a row lock so callers cannot bypass authorization.
+     */
+    public function renameForManager(int $actorId, int $teamId, string $name): array
+    {
+        $this->pdo->beginTransaction();
+        try {
+            $access = $this->pdo->prepare(
+                "SELECT t.id, t.slug, tm.role
+                 FROM teams t
+                 INNER JOIN team_memberships tm ON tm.team_id = t.id
+                 WHERE t.id = :team_id AND tm.user_id = :actor_id
+                   AND tm.status = 'active' AND t.status = 'active'
+                 LIMIT 1 FOR UPDATE"
+            );
+            $access->execute(['team_id' => $teamId, 'actor_id' => $actorId]);
+            $row = $access->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($row) || !in_array($row['role'], ['owner', 'manager'], true)) {
+                throw new \\DomainException('Active team manager access required.');
+            }
+
+            $update = $this->pdo->prepare(
+                'UPDATE teams SET name = :name WHERE id = :team_id AND status = \'active\''
+            );
+            $update->execute(['name' => $name, 'team_id' => $teamId]);
+            $this->pdo->commit();
+
+            return [
+                'id' => $teamId,
+                'name' => $name,
+                'slug' => (string) $row['slug'],
+                'status' => 'active',
+                'role' => (string) $row['role'],
+            ];
+        } catch (Throwable $error) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $error;
+        }
+    }
+
+    /**
+     * Archive a team and its active projects atomically.
+     * Related work and memberships remain stored; this operation is intentionally non-destructive.
+     */
+    public function archiveForOwner(int $actorId, int $teamId): bool
+    {
+        $this->pdo->beginTransaction();
+        try {
+            $access = $this->pdo->prepare(
+                "SELECT t.id, tm.role
+                 FROM teams t
+                 INNER JOIN team_memberships tm ON tm.team_id = t.id
+                 WHERE t.id = :team_id AND tm.user_id = :actor_id
+                   AND tm.status = 'active' AND t.status = 'active'
+                 LIMIT 1 FOR UPDATE"
+            );
+            $access->execute(['team_id' => $teamId, 'actor_id' => $actorId]);
+            $row = $access->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($row) || $row['role'] !== 'owner') {
+                throw new \\DomainException('Active team owner access required to archive a team.');
+            }
+
+            $projects = $this->pdo->prepare(
+                "UPDATE projects SET status = 'archived' WHERE team_id = :team_id AND status = 'active'"
+            );
+            $projects->execute(['team_id' => $teamId]);
+
+            $archive = $this->pdo->prepare(
+                "UPDATE teams SET status = 'archived' WHERE id = :team_id AND status = 'active'"
+            );
+            $archive->execute(['team_id' => $teamId]);
+            $this->pdo->commit();
+            return $archive->rowCount() === 1;
+        } catch (Throwable $error) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $error;
+        }
+    }
+
     /** @param array<string, mixed> $row
      *  @return array<string, mixed>
      */
