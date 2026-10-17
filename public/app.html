@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="TeamCode Hub — a focused workspace for teams, projects, tasks, and communication.">
+  <title>TeamCode Hub — Workspace</title>
+  <link rel="stylesheet" href="/assets/css/app.css?v=0.2.0-dev">
+  <link rel="stylesheet" href="/assets/css/workspace.css?v=0.2.0-dev">
+  <script src="/assets/js/ui.js?v=0.2.0-dev" defer></script>
+  <script src="/assets/js/workspace.js?v=0.2.0-dev" defer></script>
+</head>
+<body class="tch-workspace">
+  <a class="skip-link" href="#workspace-main">Skip to main content</a>
+
+  <section id="auth-screen" class="auth-screen" hidden aria-labelledby="auth-title">
+    <div class="auth-aside">
+      <a class="brand brand-light" href="/" aria-label="TeamCode Hub home">
+        <span class="brand-mark" aria-hidden="true">T</span><span>TeamCode <span class="brand-light-sub">Hub</span></span>
+      </a>
+      <div class="auth-aside-copy">
+        <span class="eyebrow">A calmer way to build</span>
+        <h1>Good work happens when the whole team is in sync.</h1>
+        <p>Bring your teams, projects, tasks, and conversations into one focused workspace.</p>
+      </div>
+      <div class="auth-aside-foot"><span class="status-dot"></span> Private by default. Built for your team.</div>
+    </div>
+    <div class="auth-main">
+      <div class="auth-mobile-brand brand">
+        <span class="brand-mark" aria-hidden="true">T</span><span>TeamCode Hub</span>
+      </div>
+      <form id="login-form" class="auth-card" novalidate>
+        <div class="auth-card-heading">
+          <span class="eyebrow">Welcome back</span>
+          <h2 id="auth-title">Sign in to your workspace</h2>
+          <p>Use the account your administrator has enabled.</p>
+        </div>
+        <div id="login-error" class="alert alert-danger auth-error" role="alert" hidden></div>
+        <div class="field">
+          <label class="label" for="login-email">Email address</label>
+          <input class="input" id="login-email" name="email" type="email" autocomplete="username" maxlength="254" required placeholder="you@company.com">
+        </div>
+        <div class="field">
+          <label class="label" for="login-password">Password</label>
+          <div class="password-control">
+            <input class="input" id="login-password" name="password" type="password" autocomplete="current-password" maxlength="4096" required placeholder="Enter your password">
+            <button class="password-toggle" type="button" data-password-toggle aria-label="Show password" aria-pressed="false">Show</button>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-lg btn-block auth-submit" type="submit" id="login-submit">
+          <span>Sign in</span><span aria-hidden="true">→</span>
+        </button>
+        <p class="auth-footnote">Access is controlled by your TeamCode Hub account permissions.</p>
+      </form>
+      <p class="auth-copyright">TeamCode Hub <span aria-hidden="true">·</span> Workspace</p>
+    </div>
+  </section>
+
+  <div id="application" class="app-shell" hidden>
+    <aside id="app-sidebar" class="app-sidebar" aria-label="Main navigation">
+      <div class="sidebar-brand-row">
+        <a class="brand" href="/" aria-label="TeamCode Hub overview">
+          <span class="brand-mark" aria-hidden="true">T</span>
+          <span class="brand-wordmark">TeamCode <span>Hub</span></span>
+        </a>
+        <button class="btn btn-ghost btn-icon sidebar-close" type="button" data-sidebar-close aria-label="Close navigation">×</button>
+      </div>
+      <div class="workspace-switcher">
+        <span class="workspace-avatar" aria-hidden="true">TC</span>
+        <span class="workspace-switcher-copy"><strong>Team workspace</strong><small id="sidebar-team-count">Loading workspace…</small></span>
+        <span class="switcher-caret" aria-hidden="true">⌄</span>
+      </div>
+      <nav class="side-nav" aria-label="Workspace">
+        <span class="side-nav-label">WORKSPACE</span>
+        <button class="side-nav-item is-active" type="button" data-page="overview"><span class="nav-icon" data-icon="grid" aria-hidden="true"></span><span>Overview</span></button>
+        <button class="side-nav-item" type="button" data-page="teams"><span class="nav-icon" data-icon="users" aria-hidden="true"></span><span>Teams</span><span class="nav-count" id="nav-team-count">0</span></button>
+        <button class="side-nav-item" type="button" data-page="projects"><span class="nav-icon" data-icon="folder" aria-hidden="true"></span><span>Projects</span><span class="nav-count" id="nav-project-count">0</span></button>
+        <button class="side-nav-item" type="button" data-page="tasks"><span class="nav-icon" data-icon="check-square" aria-hidden="true"></span><span>My tasks</span><span class="nav-count" id="nav-task-count">0</span></button>
+        <button class="side-nav-item" type="button" data-page="notifications"><span class="nav-icon" data-icon="bell" aria-hidden="true"></span><span>Notifications</span><span class="nav-count nav-count-alert" id="nav-notification-count" hidden>0</span></button>
+        <span class="side-nav-label side-nav-label-spaced">COMMUNICATION</span>
+        <button class="side-nav-item" type="button" data-page="chat"><span class="nav-icon" data-icon="message" aria-hidden="true"></span><span>Project chat</span></button>
+        <span class="side-nav-label side-nav-label-spaced">PERSONAL</span>
+        <button class="side-nav-item" type="button" data-page="settings"><span class="nav-icon" data-icon="settings" aria-hidden="true"></span><span>Preferences</span></button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="sidebar-help"><span class="help-mark" aria-hidden="true">?</span><span><strong>Need a hand?</strong><small>Workspace guide</small></span><span class="help-arrow" aria-hidden="true">↗</span></div>
+        <div class="sidebar-profile">
+          <span class="avatar avatar-dark" id="user-avatar">U</span>
+          <span class="profile-copy"><strong id="sidebar-user-name">Your account</strong><small id="sidebar-user-role">Workspace member</small></span>
+          <button class="btn btn-ghost btn-icon profile-menu-button" type="button" data-dropdown-toggle aria-controls="profile-menu" aria-expanded="false" aria-label="Account menu">···</button>
+          <div id="profile-menu" class="menu dropdown-menu profile-menu" hidden>
+            <button class="menu-item" type="button" data-page="settings">Preferences</button>
+            <div class="menu-sep"></div>
+            <button class="menu-item danger" type="button" data-action="logout">Sign out</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <div id="sidebar-backdrop" class="sidebar-backdrop" data-sidebar-close hidden></div>
+
+    <div class="app-main">
+      <header class="app-topbar">
+        <button class="btn btn-ghost btn-icon mobile-menu-button" type="button" data-sidebar-toggle aria-controls="app-sidebar" aria-expanded="false" aria-label="Open navigation"><span data-icon="menu" aria-hidden="true"></span></button>
+        <div class="topbar-breadcrumb"><span>Workspace</span><span class="breadcrumb-slash">/</span><strong id="current-page-label">Overview</strong></div>
+        <div class="topbar-actions">
+          <span class="connection-indicator"><i aria-hidden="true"></i><span id="connection-label">Connected</span></span>
+          <button class="btn btn-ghost btn-icon topbar-icon-button" type="button" data-action="refresh" aria-label="Refresh workspace" title="Refresh"><span data-icon="refresh" aria-hidden="true"></span></button>
+          <button class="btn btn-ghost btn-icon topbar-icon-button notification-trigger" type="button" data-page="notifications" aria-label="Open notifications"><span data-icon="bell" aria-hidden="true"></span><i id="topbar-notification-dot" hidden></i></button>
+          <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch color theme" title="Switch color theme"><span data-icon="sun" aria-hidden="true"></span></button>
+        </div>
+      </header>
+
+      <main id="workspace-main" class="app-content" tabindex="-1">
+        <div id="global-message" class="global-message" role="status" hidden></div>
+        <div id="page-content" aria-live="polite" aria-busy="true">
+          <div class="page-loading"><span class="spinner lg" aria-hidden="true"></span><p>Preparing your workspace…</p></div>
+        </div>
+      </main>
+      <footer class="app-footer"><span>TeamCode Hub <span class="footer-dot">·</span> Built for focused collaboration</span><span><span class="footer-live-dot"></span> Workspace services</span></footer>
+    </div>
+  </div>
+
+  <div id="modal-root"></div>
+  <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="false"></div>
+  <noscript><div class="noscript-notice">TeamCode Hub requires JavaScript to power its interactive workspace. Please enable JavaScript and reload this page.</div></noscript>
+</body>
+</html>
