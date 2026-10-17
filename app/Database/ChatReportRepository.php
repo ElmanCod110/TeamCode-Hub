@@ -141,13 +141,14 @@ final class ChatReportRepository
                     target.display_name AS reported_name, reporter.display_name AS reporter_name
              FROM chat_reports r
              INNER JOIN projects p ON p.id = r.project_id
+             INNER JOIN team_memberships tm ON tm.team_id = p.team_id AND tm.user_id = :actor_id AND tm.status = 'active' AND tm.role IN ('owner', 'manager')
              INNER JOIN users target ON target.id = r.reported_user_id
              INNER JOIN users reporter ON reporter.id = r.reporter_user_id
              WHERE p.team_id = :team_id AND r.reviewer_scope = 'team_manager'
                AND r.status IN ('pending', 'valid')
              ORDER BY r.created_at ASC, r.id ASC LIMIT 50"
         );
-        $statement->execute(['team_id' => $teamId]);
+        $statement->execute(['actor_id' => $actorId, 'team_id' => $teamId]);
         return array_map(self::normalizeReport(...), $statement->fetchAll(PDO::FETCH_ASSOC));
     }
 
@@ -165,12 +166,13 @@ final class ChatReportRepository
                     target.display_name AS reported_name, reporter.display_name AS reporter_name
              FROM chat_reports r
              INNER JOIN projects p ON p.id = r.project_id
+             INNER JOIN user_system_roles usr ON usr.user_id = :actor_id AND usr.role = 'site_admin'
              INNER JOIN users target ON target.id = r.reported_user_id
              INNER JOIN users reporter ON reporter.id = r.reporter_user_id
              WHERE r.reviewer_scope = 'site_admin' AND r.status IN ('pending', 'valid')
              ORDER BY r.created_at ASC, r.id ASC LIMIT 50"
         );
-        $statement->execute();
+        $statement->execute(['actor_id' => $actorId]);
         return array_map(self::normalizeReport(...), $statement->fetchAll(PDO::FETCH_ASSOC));
     }
 
@@ -404,7 +406,7 @@ final class ChatReportRepository
 
     private function isSiteAdmin(int $userId): bool
     {
-        $statement = $this->pdo->prepare("SELECT 1 FROM user_system_roles WHERE user_id = :user_id AND role = 'site_admin' LIMIT 1");
+        $statement = $this->pdo->prepare("SELECT 1 FROM user_system_roles WHERE user_id = :user_id AND role = 'site_admin' LIMIT 1 FOR UPDATE");
         $statement->execute(['user_id' => $userId]);
         return $statement->fetchColumn() !== false;
     }
