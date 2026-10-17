@@ -42,8 +42,8 @@ final class DashboardRepository
             $userId,
         );
         $overdue = $this->taskQuery(
-            't.due_at < :now_time',
-            ['now_time' => $now],
+            't.due_at < :day_start',
+            ['day_start' => $dayStart],
             $userId,
         );
 
