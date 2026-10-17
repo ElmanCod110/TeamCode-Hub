@@ -51,6 +51,7 @@ Invitation creation reserves a team member slot. Active memberships plus unexpir
 - `POST /api/projects/{projectId}/members` — assigns an active team member with body `{"user_id":123,"access_level":"viewer"}` or `member`. Assignment is pending by default and requires CSRF protection.
 - `POST /api/projects/{projectId}/members/{userId}/approve` — approves a pending project membership. Requires CSRF protection and active team owner/manager permissions.
 - `POST /api/projects/{projectId}/members/{userId}/revoke` — revokes pending or approved access. The project creator cannot be revoked through this endpoint. Requires CSRF protection.
+- `POST /api/projects/{projectId}/members/{userId}/access` — changes an approved member between `viewer` and `member` using body `{"access_level":"viewer"}` or `member`. Requires CSRF protection and active team owner/manager role. The project creator cannot be demoted to viewer. The affected member is notified when their level changes; repeating the current level is a no-op.
 
 Pending and revoked project memberships cannot access project routes. Only approved `member` access can mutate tasks or send chat messages; a `viewer` is read-only.
 
