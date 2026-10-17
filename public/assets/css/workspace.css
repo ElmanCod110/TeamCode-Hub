@@ -547,7 +547,7 @@
 .member-picker-results-heading strong { font-size:11px; font-weight:750; }
 .member-picker-results-heading .small { color:var(--text-muted); font-size:10px; }
 .member-picker-results { display:flex; flex-direction:column; gap:7px; max-height:min(340px,36vh); overflow-y:auto; overscroll-behavior:contain; }
-.member-picker-option { display:flex; align-items:center; gap:11px; width:100%; min-width:0; padding:11px 12px; border:1px solid var(--border); border-radius:var(--r-lg); background:var(--surface); color:var(--text); text-align:start; cursor:pointer; transition:border-color var(--duration-fast),background var(--duration-fast); }
+.member-picker-option { display:flex; align-items:center; gap:11px; width:100%; min-width:0; padding:11px 12px; border:1px solid var(--border); border-radius:var(--r-lg); background:var(--surface); color:var(--text); text-align:start; cursor:pointer; transition:border-color .15s ease,background .15s ease; }
 .member-picker-option:hover,.member-picker-option:focus-visible { border-color:var(--border-strong); background:var(--surface-muted); }
 .member-picker-option[aria-selected="true"] { border-color:var(--g600); background:var(--g50); }
 [data-theme="dark"] .member-picker-option[aria-selected="true"] { background:var(--surface-muted); border-color:var(--g400); }
@@ -559,7 +559,7 @@
 .member-picker-chevron { display:grid; place-items:center; width:25px; height:25px; flex:0 0 25px; border-radius:8px; background:var(--surface-muted); color:var(--text-secondary); font-size:16px; }
 .member-picker-state { margin:0; padding:18px 12px; border:1px dashed var(--border); border-radius:var(--r-lg); color:var(--text-muted); font-size:11px; line-height:1.7; text-align:center; }
 .member-picker-state.is-loading { color:var(--text-secondary); }
-.member-picker-state.is-error { color:var(--danger-text); }
+.member-picker-state.is-error { color:var(--danger); }
 .member-picker-selection { padding:12px; border:1px solid var(--border); border-radius:var(--r-lg); background:var(--surface-muted); }
 .member-picker-selection > .small { color:var(--text-muted); font-size:10px; line-height:1.7; }
 .member-picker-selected { display:flex; align-items:center; gap:10px; margin-bottom:7px; }
