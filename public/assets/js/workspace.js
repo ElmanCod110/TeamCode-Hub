@@ -1581,6 +1581,119 @@
   /* All mutation forms share one accessible modal builder and the same CSRF path. */
   let modalReturnFocus = null;
 
+  function mountAssigneePicker(picker, controls) {
+    const { field, control, search, results, selection } = picker;
+    let timer = null;
+    let controller = null;
+    let sequence = 0;
+
+    const showState = (message, kind = "") => {
+      results.replaceChildren(el("p", "assignee-picker-state" + (kind ? " is-" + kind : ""), message));
+    };
+    const showSelection = person => {
+      selection.replaceChildren();
+      if (!person) {
+        selection.appendChild(el("p", "small", "No assignee selected. The task can remain unassigned."));
+        return;
+      }
+      const copy = el("div", "assignee-picker-selected-copy");
+      append(copy, el("strong", "", person.display_name || person.email),
+        el("span", "", person.email || ("User #" + person.user_id)));
+      append(selection, avatar(person.display_name || person.email, "sm"), copy,
+        actionButton("Clear", "clear-task-assignee", "btn btn-ghost btn-xs"));
+      $("[data-action='clear-task-assignee']", selection).addEventListener("click", event => {
+        event.preventDefault();
+        control.value = "";
+        search.value = "";
+        sequence++;
+        if (controller) controller.abort();
+        showSelection(null);
+        showState("Search for an eligible project member, or leave this task unassigned.");
+        search.focus();
+      });
+    };
+
+    async function runSearch(query, expectedSequence) {
+      const projectId = controls[field.projectField]?.value;
+      if (!projectId) {
+        showState("Select a project before searching for an assignee.");
+        return;
+      }
+      controller = new AbortController();
+      showState("Searching approved project members…", "loading");
+      try {
+        const data = await request("/api/projects/" + escapePath(projectId) + "/assignees?q=" + encodeURIComponent(query), { signal: controller.signal });
+        if (expectedSequence !== sequence) return;
+        const assignees = Array.isArray(data.assignees) ? data.assignees : [];
+        results.replaceChildren();
+        if (!assignees.length) {
+          showState("No eligible member-level project users matched this search.");
+          return;
+        }
+        assignees.forEach(person => {
+          const button = el("button", "assignee-picker-option");
+          button.type = "button";
+          button.setAttribute("role", "option");
+          button.setAttribute("aria-selected", control.value && Number(control.value) === Number(person.user_id) ? "true" : "false");
+          append(button, avatar(person.display_name || person.email, "sm"),
+            append(el("div", "assignee-picker-option-copy"),
+              el("strong", "", person.display_name || person.email),
+              el("span", "", person.email),
+              el("small", "", "User #" + person.user_id)));
+          button.addEventListener("click", () => {
+            control.value = String(person.user_id);
+            search.value = person.display_name || person.email;
+            showSelection(person);
+            $(".assignee-picker-option", results).forEach(option => {
+              option.setAttribute("aria-selected", option === button ? "true" : "false");
+            });
+          });
+          results.appendChild(button);
+        });
+      } catch (error) {
+        if (controller?.signal.aborted || expectedSequence !== sequence) return;
+        showState(error.message || "Assignee search failed. Try again.", "error");
+      }
+    }
+
+    search.addEventListener("input", () => {
+      sequence++;
+      if (controller) controller.abort();
+      control.value = "";
+      showSelection(null);
+      const query = search.value.trim();
+      if (timer) window.clearTimeout(timer);
+      if (!query) {
+        showState("Search for an eligible project member, or leave this task unassigned.");
+        return;
+      }
+      showState("Updating search…", "loading");
+      const expectedSequence = sequence;
+      timer = window.setTimeout(() => runSearch(query, expectedSequence), 250);
+    });
+
+    const projectControl = controls[field.projectField];
+    if (projectControl) {
+      projectControl.addEventListener("change", () => {
+        sequence++;
+        if (controller) controller.abort();
+        control.value = "";
+        search.value = "";
+        showSelection(null);
+        showState("Search for an eligible member of the selected project.");
+      });
+    }
+
+    if (field.initialAssignee) {
+      const initial = field.initialAssignee;
+      control.value = String(initial.user_id);
+      search.value = initial.display_name || initial.email || ("User #" + initial.user_id);
+      showSelection(initial);
+    } else {
+      showState("Search for an eligible project member, or leave this task unassigned.");
+    }
+  }
+
   function openFormModal(title, description, fields, submitLabel, onSubmit) {
     modalReturnFocus = document.activeElement;
     const overlay = el("div", "tch-modal-overlay");
