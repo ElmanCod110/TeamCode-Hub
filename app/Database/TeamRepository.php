@@ -28,6 +28,42 @@ final class TeamRepository
         return array_map(self::normalize(...), $statement->fetchAll());
     }
 
+    /**
+     * Return the active team roster only when the requester is an active owner/manager.
+     * Email addresses are intentionally limited to this management-only directory.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function listActiveMembersForManager(int $requesterId, int $teamId): array
+    {
+        $statement = $this->pdo->prepare(
+            "SELECT member.id AS user_id, member.display_name, member.email,
+                    membership.role, membership.created_at AS joined_at
+             FROM teams t
+             INNER JOIN team_memberships access_membership
+               ON access_membership.team_id = t.id
+              AND access_membership.user_id = :requester_id
+              AND access_membership.status = 'active'
+              AND access_membership.role IN ('owner', 'manager')
+             INNER JOIN team_memberships membership
+               ON membership.team_id = t.id AND membership.status = 'active'
+             INNER JOIN users member ON member.id = membership.user_id AND member.status = 'active'
+             WHERE t.id = :team_id AND t.status = 'active'
+             ORDER BY CASE membership.role WHEN 'owner' THEN 0 WHEN 'manager' THEN 1 ELSE 2 END,
+                      member.display_name ASC, member.id ASC"
+        );
+        $statement->execute(['requester_id' => $requesterId, 'team_id' => $teamId]);
+        $members = $statement->fetchAll(PDO::FETCH_ASSOC);
+        if ($members === []) {
+            throw new DomainException('Team not found or active team owner/manager role required.');
+        }
+
+        return array_map(static function (array $row): array {
+            $row['user_id'] = (int) $row['user_id'];
+            return $row;
+        }, $members);
+    }
+
     /** @return array<string, mixed>|null */
     public function findAccessibleByUser(int $teamId, int $userId): ?array
     {
