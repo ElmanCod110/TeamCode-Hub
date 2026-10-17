@@ -150,12 +150,22 @@ try {
 
     $projects = new ProjectRepository($pdo);
     $projectId = $projects->createForTeamManager($adminId, $teamId, 'Integration Project', 'Testing project access');
+    $updatedProject = $projects->updateForTeamManager($adminId, $projectId, 'Updated Integration Project', 'Updated project description');
+    $assert($updatedProject['name'] === 'Updated Integration Project' && $updatedProject['description'] === 'Updated project description', 'active team owner can update project name and description');
     $projectMemberships = new ProjectMembershipRepository($pdo);
 
     $projectMemberships->assignPending($adminId, $projectId, $memberId, 'member');
     $assert(!$projectAccess->canView($memberId, $projectId), 'pending project membership grants no access');
     $projectMemberships->approve($adminId, $projectId, $memberId);
     $assert($projectAccess->canView($memberId, $projectId) && $projectAccess->canEdit($memberId, $projectId), 'approved member can view and edit project');
+
+    $memberProjectUpdateDenied = false;
+    try {
+        $projects->updateForTeamManager($memberId, $projectId, 'Unauthorized rename', null);
+    } catch (DomainException) {
+        $memberProjectUpdateDenied = true;
+    }
+    $assert($memberProjectUpdateDenied, 'ordinary project member cannot update team-managed project metadata');
     $memberNotices = $notifications->listRecentForUser($memberId);
     $assert(count(array_filter($memberNotices, static fn (array $item): bool => $item['type'] === 'project_access_approved')) === 1, 'project access approval creates a notification');
 
