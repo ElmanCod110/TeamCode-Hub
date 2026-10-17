@@ -808,6 +808,9 @@
       append(el("div"), el("div", "eyebrow", "PROJECT WORKSPACE"), el("h1", "", project.name),
         el("p", "", project.description || "Plan work, coordinate the team, and keep decisions in context.")));
     const headActions = actionGroup();
+    if (canManageTeam(project.team_id)) {
+      headActions.appendChild(actionButton("Edit project", "edit-project", "btn btn-outline", { "data-project-id": project.id }));
+    }
     if (project.access_level !== "viewer") headActions.appendChild(actionButton("New task", "create-task", "btn btn-primary", { "data-project-id": project.id }));
     headActions.appendChild(actionButton("Back to projects", "navigate-projects", "btn btn-outline"));
     append(root, heading, headActions);
@@ -1633,6 +1636,31 @@
     });
   }
 
+  /**
+   * Edit project metadata without changing its stable URL slug or membership records.
+   * Server-side team role checks remain authoritative for this mutation.
+   */
+  function editProjectModal(project) {
+    if (!project || !canManageTeam(project.team_id)) {
+      toast("Only an active team owner or manager can edit project details.", "warning");
+      return;
+    }
+    openFormModal("Edit project", "Update the project name and description. Existing tasks and memberships stay unchanged.", [
+      { name: "name", label: "Project name", type: "text", required: true, maxLength: 120, value: project.name || "", full: true },
+      { name: "description", label: "Description", type: "textarea", maxLength: 5000, value: project.description || "", full: true }
+    ], "Save changes", async values => {
+      const result = await request("/api/projects/" + escapePath(project.id) + "/edit", {
+        method: "POST",
+        body: { name: values.name.trim(), description: values.description.trim() || null }
+      });
+      await refreshWorkspace(false);
+      const refreshed = projectById(project.id) || { ...project, ...result.project };
+      state.selectedProject = refreshed;
+      toast("Project details updated.");
+      await openProject(refreshed, true, state.projectTab);
+    });
+  }
+
   function createTaskModal(preselectedProjectId) {
     const writableProjects = state.projects.filter(project => project.access_level !== "viewer");
     if (!writableProjects.length) { toast("Task creation requires member-level project access.", "warning"); return; }
@@ -1736,6 +1764,7 @@
       if (name === "create-team") createTeamModal();
       else if (name === "accept-invitation") acceptInvitationModal();
       else if (name === "create-project") createProjectModal(action.dataset.teamId);
+      else if (name === "edit-project") editProjectModal(projectById(action.dataset.projectId) || state.selectedProject);
       else if (name === "create-task") createTaskModal(action.dataset.projectId);
       else if (name === "invite-member") inviteMember(action.dataset.teamId);
       else if (name === "navigate-projects") navigate("projects");
