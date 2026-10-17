@@ -297,6 +297,9 @@ return static function (): void {
     $router->get('/api/projects/{projectId}/members', static fn (Request $request, array $params): Response =>
         $modules->get('project-membership.controller')->list($request, $params)
     );
+    $router->get('/api/projects/{projectId}/members/candidates', static fn (Request $request, array $params): Response =>
+        $modules->get('project-membership.controller')->candidates($request, $params)
+    );
     $router->post('/api/projects/{projectId}/members', static fn (Request $request, array $params): Response =>
         $modules->get('project-membership.controller')->assign($request, $params)
     );
