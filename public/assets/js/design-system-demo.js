@@ -44,7 +44,7 @@
     document.querySelectorAll(".pager").forEach(function (pager) {
       const pageButtons = Array.from(pager.querySelectorAll("button"))
         .filter(function (button) {
-          return !button.hasAttribute("aria-label") && /^\\d+$/.test(button.textContent.trim());
+          return !button.hasAttribute("aria-label") && /^\d+$/.test(button.textContent.trim());
         });
       const previous = pager.querySelector('[aria-label="Previous page"]');
       const next = pager.querySelector('[aria-label="Next page"]');
