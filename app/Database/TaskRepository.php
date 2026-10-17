@@ -94,6 +94,81 @@ final class TaskRepository
         }
     }
 
+    public function updateDetails(
+        int $userId,
+        int $projectId,
+        int $taskId,
+        string $title,
+        ?string $description,
+        string $priority,
+        ?int $assignedTo,
+        ?string $dueAt,
+    ): void {
+        $this->pdo->beginTransaction();
+        try {
+            $this->lockProjectAccess($userId, $projectId, true);
+            $task = $this->pdo->prepare(
+                'SELECT id, title, assigned_to FROM tasks
+                 WHERE id = :task_id AND project_id = :project_id LIMIT 1 FOR UPDATE'
+            );
+            $task->execute(['task_id' => $taskId, 'project_id' => $projectId]);
+            $current = $task->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($current)) {
+                throw new DomainException('Task not found.');
+            }
+
+            if ($assignedTo !== null) {
+                $assignee = $this->pdo->prepare(
+                    "SELECT pm.user_id
+                     FROM project_memberships pm
+                     INNER JOIN projects p ON p.id = pm.project_id
+                     INNER JOIN team_memberships tm ON tm.team_id = p.team_id AND tm.user_id = pm.user_id
+                     INNER JOIN users u ON u.id = pm.user_id AND u.status = 'active'
+                     WHERE pm.project_id = :project_id AND pm.user_id = :user_id
+                       AND pm.status = 'approved' AND pm.access_level = 'member' AND tm.status = 'active'
+                     LIMIT 1 FOR UPDATE"
+                );
+                $assignee->execute(['project_id' => $projectId, 'user_id' => $assignedTo]);
+                if ($assignee->fetchColumn() === false) {
+                    throw new DomainException('Assignee must have approved member-level project access.');
+                }
+            }
+
+            $update = $this->pdo->prepare(
+                'UPDATE tasks
+                 SET title = :title, description = :description, priority = :priority,
+                     assigned_to = :assigned_to, due_at = :due_at
+                 WHERE id = :task_id AND project_id = :project_id'
+            );
+            $update->execute([
+                'title' => $title,
+                'description' => $description,
+                'priority' => $priority,
+                'assigned_to' => $assignedTo,
+                'due_at' => $dueAt,
+                'task_id' => $taskId,
+                'project_id' => $projectId,
+            ]);
+
+            $previousAssignee = $current['assigned_to'] === null ? null : (int) $current['assigned_to'];
+            if ($assignedTo !== null && $assignedTo !== $userId && $assignedTo !== $previousAssignee) {
+                $this->notifications->create(
+                    $assignedTo,
+                    'task_assigned',
+                    'Task assignment updated',
+                    $title,
+                    ['project_id' => $projectId, 'task_id' => $taskId],
+                );
+            }
+            $this->pdo->commit();
+        } catch (Throwable $error) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $error;
+        }
+    }
+
     public function updateStatus(int $userId, int $projectId, int $taskId, string $status): void
     {
         if (!in_array($status, ['todo', 'in_progress', 'blocked', 'done'], true)) {
