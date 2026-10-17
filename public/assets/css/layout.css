@@ -59,6 +59,10 @@
 .site-footer { margin-block-start: auto; padding-block: var(--space-8); background: var(--surface-muted); border-block-start: 1px solid var(--border); }
 .site-footer__inner { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; color: var(--text-muted); font-size: var(--text-sm); }
 
+/* The backdrop sits below the mobile drawer and prevents accidental page interaction. */
+.sidebar-backdrop { position: fixed; z-index: calc(var(--z-overlay) - 1); inset: 0; border: 0; background: rgb(10 10 10 / 42%); }
+.sidebar-open { overflow: hidden; }
+
 /* Tablet layouts prioritize content width over a permanently visible sidebar. */
 @media (max-width: 960px) {
   .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
