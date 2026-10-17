@@ -84,6 +84,46 @@ final class TeamRepository
         }
     }
 
+    /**
+     * Rename a team only after locking its active membership and role.
+     * The repository repeats authorization so callers cannot bypass the policy.
+     *
+     * @return array<string, mixed>
+     */
+    public function updateNameForManager(int $actorId, int $teamId, string $name): array
+    {
+        $this->pdo->beginTransaction();
+        try {
+            $access = $this->pdo->prepare(
+                "SELECT t.id, t.name, t.slug, t.status, t.member_limit, t.project_limit, tm.role
+                 FROM teams t
+                 INNER JOIN team_memberships tm ON tm.team_id = t.id
+                 WHERE t.id = :team_id AND tm.user_id = :user_id
+                   AND tm.status = 'active' AND t.status = 'active'
+                 LIMIT 1 FOR UPDATE"
+            );
+            $access->execute(['team_id' => $teamId, 'user_id' => $actorId]);
+            $team = $access->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($team) || !in_array($team['role'], ['owner', 'manager'], true)) {
+                throw new DomainException('Active team manager role required.');
+            }
+
+            $update = $this->pdo->prepare(
+                'UPDATE teams SET name = :name WHERE id = :team_id AND status = \'active\''
+            );
+            $update->execute(['name' => $name, 'team_id' => $teamId]);
+            $this->pdo->commit();
+
+            $team['name'] = $name;
+            return self::normalize($team);
+        } catch (Throwable $error) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $error;
+        }
+    }
+
     /** @param array<string, mixed> $row
      *  @return array<string, mixed>
      */
