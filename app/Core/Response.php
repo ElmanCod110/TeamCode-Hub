@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace TeamCodeHub\\Core;
+namespace TeamCodeHub\Core;
 
 final class Response
 {
@@ -45,7 +45,6 @@ final class Response
                 header($name . ': ' . $value, true);
             }
         }
-
         echo $this->body;
     }
 }
