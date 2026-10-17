@@ -205,7 +205,7 @@
 
   function setConnection(connected) {
     $("#connection-label").textContent = connected ? "Connected" : "Connection issue";
-    $(".connection-indicator i").style.background = connected ? "var(--success)" : "var(--danger)";
+    $(".connection-indicator").classList.toggle("is-disconnected", !connected);
   }
 
   function showAuth() {
@@ -649,7 +649,7 @@
     const modal = el("section", "tch-modal");
     modal.setAttribute("role", "dialog"); modal.setAttribute("aria-modal", "true"); modal.setAttribute("aria-labelledby", "invitation-modal-title");
     const header = el("div", "tch-modal-header");
-    append(header, append(el("div"), el("h2", "", "Invitation token created"), el("p", "", "Share this token with " + email + " through a trusted channel. The token is only shown once.")),
+    const invitationTitle = el("h2", "", "Invitation token created"); invitationTitle.id = "invitation-modal-title";\n    append(header, append(el("div"), invitationTitle, el("p", "", "Share this token with " + email + " through a trusted channel. The token is only shown once.")),
       actionButton("×", "close-modal", "btn btn-ghost btn-icon", { "aria-label": "Close dialog" }));
     const body = el("div", "tch-modal-body");
     const tokenBox = el("textarea", "textarea"); tokenBox.readOnly = true; tokenBox.rows = 3; tokenBox.value = token; tokenBox.setAttribute("aria-label", "One-time invitation token");
