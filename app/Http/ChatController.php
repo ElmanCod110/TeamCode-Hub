@@ -61,7 +61,7 @@ final class ChatController
         }
 
         $body = $request->body()['body'] ?? null;
-        if (!is_string($body) || trim($body) === '' || strlen(trim($body)) > 2000) {
+        if (!is_string($body) || trim($body) === '' || strlen(trim($body)) > 2000 || preg_match('//u', trim($body)) !== 1) {
             return Response::json(['error' => 'Message must contain 1 to 2000 bytes.'], 422);
         }
         try {
@@ -143,7 +143,7 @@ final class ChatController
         }
 
         $reason = $request->body()['reason'] ?? null;
-        if (!is_string($reason) || trim($reason) === '' || strlen(trim($reason)) > 500) {
+        if (!is_string($reason) || trim($reason) === '' || strlen(trim($reason)) > 500 || preg_match('//u', trim($reason)) !== 1) {
             return Response::json(['error' => 'Report reason must contain 1 to 500 bytes.'], 422);
         }
         try {
