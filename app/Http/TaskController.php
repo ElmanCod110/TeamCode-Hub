@@ -24,7 +24,7 @@ final class TaskController
     ) {
     }
 
-    public function list(Request $request, array $params): Response
+    public function listTasks(Request $request, array $params): Response
     {
         $user = $this->currentUser();
         $projectId = $this->positiveId($params['projectId'] ?? null);
