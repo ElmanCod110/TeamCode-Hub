@@ -7,8 +7,10 @@ use TeamCodeHub\Core\Request;
 use TeamCodeHub\Core\Response;
 use TeamCodeHub\Core\Router;
 use TeamCodeHub\Database\ConnectionFactory;
+use TeamCodeHub\Database\DashboardRepository;
 use TeamCodeHub\Database\DatabaseConfig;
 use TeamCodeHub\Database\MembershipRepository;
+use TeamCodeHub\Database\NotificationRepository;
 use TeamCodeHub\Database\ProjectRepository;
 use TeamCodeHub\Database\ProjectMembershipRepository;
 use TeamCodeHub\Database\TeamRepository;
@@ -16,6 +18,7 @@ use TeamCodeHub\Database\TaskRepository;
 use TeamCodeHub\Database\TeamInvitationRepository;
 use TeamCodeHub\Database\UserRepository;
 use TeamCodeHub\Http\AuthController;
+use TeamCodeHub\Http\DashboardController;
 use TeamCodeHub\Http\WorkspaceController;
 use TeamCodeHub\Http\TaskController;
 use TeamCodeHub\Http\ProjectMembershipController;
@@ -71,6 +74,15 @@ return static function (): void {
         );
     });
 
+    $modules->register('dashboard.controller', static function (): object {
+        $pdo = ConnectionFactory::connect(DatabaseConfig::fromEnvironment());
+        return new DashboardController(
+            new AuthenticationService(new UserRepository($pdo)),
+            new DashboardRepository($pdo),
+            new NotificationRepository($pdo),
+        );
+    });
+
     $modules->register('task.controller', static function (): object {
         $pdo = ConnectionFactory::connect(DatabaseConfig::fromEnvironment());
         $memberships = new MembershipRepository($pdo);
@@ -106,6 +118,16 @@ return static function (): void {
         'status' => 'ok',
         'checks' => ['router' => 'ok', 'module_registry' => 'ok'],
     ]));
+
+    $router->get('/api/dashboard', static fn (Request $request, array $params): Response =>
+        $modules->get('dashboard.controller')->overview($request)
+    );
+    $router->get('/api/notifications', static fn (Request $request, array $params): Response =>
+        $modules->get('dashboard.controller')->listNotifications($request)
+    );
+    $router->post('/api/notifications/{notificationId}/read', static fn (Request $request, array $params): Response =>
+        $modules->get('dashboard.controller')->markRead($request, $params)
+    );
 
     $router->get('/api/auth/csrf', static function (Request $request, array $params): Response {
         SecureSession::start();
