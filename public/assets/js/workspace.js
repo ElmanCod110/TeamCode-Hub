@@ -332,15 +332,6 @@
       state.tasks = await loadAllTasks();
       const notifications = await request("/api/notifications?limit=20");
       state.notifications = Array.isArray(notifications.notifications) ? notifications.notifications : [];
-      try {
-        const github = await request("/api/github/activity");
-        state.github = github.activity || null;
-        state.githubError = null;
-      } catch (error) {
-        if (error.status === 401) throw error;
-        state.github = null;
-        state.githubError = error.message || "GitHub activity is currently unavailable.";
-      }
       updateNavigationCounts();
       if (showNotice) toast("Workspace data refreshed.");
       if (state.page === "overview") renderOverview();
@@ -351,6 +342,8 @@
       else if (state.page === "github") renderGitHubActivity();
       else if (state.page === "chat" && state.selectedProject) renderProject(state.selectedProject.id, "chat");
       setConnection(true);
+      // Start the external integration only after core workspace data has rendered.
+      void loadGitHubActivity(false);
     } catch (error) {
       setConnection(false);
       if (error.status !== 401) {
@@ -360,6 +353,27 @@
     } finally {
       state.refreshing = false;
     }
+  }
+
+  async function loadGitHubActivity(notify = false) {
+    try {
+      const result = await request("/api/github/activity");
+      state.github = result.activity || null;
+      state.githubError = null;
+    } catch (error) {
+      if (error.status === 401) return;
+      state.github = null;
+      state.githubError = error.message || "GitHub activity is currently unavailable.";
+    }
+
+    // Refresh only the relevant integration surface; do not rebuild the whole dashboard.
+    if (state.page === "github") {
+      renderGitHubActivity();
+    } else if (state.page === "overview") {
+      const preview = $("#github-overview-panel");
+      if (preview) preview.replaceWith(renderGitHubPreview());
+    }
+    if (notify) toast(state.github?.stale ? "Showing the last successful GitHub snapshot." : "GitHub cache status checked.");
   }
 
   async function loadAllTasks() {
@@ -1106,7 +1120,9 @@
       content.appendChild(el("p", "small github-preview-empty", activity?.message || state.githubError || "Public GitHub activity will appear here when the cache is available."));
     }
     const freshness = activity?.fetched_at ? "Updated " + formatRelative(activity.fetched_at) : "Daily public activity cache";
-    return panel("GitHub activity", freshness, content, actionButton("View activity", "navigate-github", "btn btn-ghost btn-sm"));
+    const preview = panel("GitHub activity", freshness, content, actionButton("View activity", "navigate-github", "btn btn-ghost btn-sm"));
+    preview.id = "github-overview-panel";
+    return preview;
   }
 
   function renderGitHubActivity() {
@@ -1513,14 +1529,7 @@
       else if (name === "navigate-tasks") navigate("tasks");
       else if (name === "navigate-notifications") navigate("notifications");
       else if (name === "refresh") await refreshWorkspace(true);
-      else if (name === "refresh-github") {
-        const result = await request("/api/github/activity");
-        state.github = result.activity || null;
-        state.githubError = null;
-        if (state.page === "github") renderGitHubActivity();
-        else if (state.page === "overview") renderOverview();
-        toast(state.github?.stale ? "Showing the last successful GitHub snapshot." : "GitHub cache status checked.");
-      }
+      else if (name === "refresh-github") await loadGitHubActivity(true);
       else if (name === "refresh-moderation") await renderModeration();
       else if (name === "review-report") {
         const reviewAction = action.dataset.reviewAction;
