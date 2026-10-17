@@ -199,7 +199,7 @@ final class ChatReportRepository
             }
             $reportedUserId = (int) $report['reported_user_id'];
             $involvement = $this->pdo->prepare(
-                'SELECT COUNT(*) FROM chat_reports WHERE reported_user_id = :reported_user_id AND reporter_user_id = :reviewer_id AND created_at >= CURRENT_TIMESTAMP - INTERVAL 1 DAY'
+                'SELECT COUNT(*) FROM chat_reports WHERE reported_user_id = :reported_user_id AND reporter_user_id = :reviewer_id AND status IN ('pending', 'valid')'
             );
             $involvement->execute(['reported_user_id' => $reportedUserId, 'reviewer_id' => $actorId]);
             if ($reportedUserId === $actorId || (int) $involvement->fetchColumn() > 0) {
@@ -258,7 +258,8 @@ final class ChatReportRepository
                 if ((int) $validCount->fetchColumn() >= 2) {
                     $alreadyEscalated = $this->pdo->prepare(
                         "SELECT COUNT(*) FROM chat_reports WHERE reported_user_id = :user_id
-                         AND reviewer_scope = 'site_admin' AND created_at >= CURRENT_TIMESTAMP - INTERVAL 1 DAY
+                         AND reviewer_scope = 'site_admin'
+                         AND (created_at >= CURRENT_TIMESTAMP - INTERVAL 1 DAY OR valid_at >= CURRENT_TIMESTAMP - INTERVAL 1 DAY)
                          AND status IN ('pending', 'valid')"
                     );
                     $alreadyEscalated->execute(['user_id' => $reportedUserId]);
@@ -266,7 +267,7 @@ final class ChatReportRepository
                     $queue = $this->pdo->prepare(
                         "UPDATE chat_reports SET reviewer_scope = 'site_admin'
                          WHERE reported_user_id = :user_id
-                           AND created_at >= CURRENT_TIMESTAMP - INTERVAL 1 DAY
+                           AND (valid_at >= CURRENT_TIMESTAMP - INTERVAL 1 DAY OR (status = 'pending' AND created_at >= CURRENT_TIMESTAMP - INTERVAL 1 DAY))
                            AND status IN ('pending', 'valid')"
                     );
                     $queue->execute(['user_id' => $reportedUserId]);
