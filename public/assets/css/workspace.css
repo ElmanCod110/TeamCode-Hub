@@ -396,3 +396,41 @@
   .member-row { flex-wrap:wrap; }
   .member-row > .row-main { min-width:calc(100% - 60px); }
 }
+
+/* Scoped moderation UI keeps evidence readable without implying a verdict. */
+.moderation-guidance { align-items:flex-start; margin-bottom:20px; }
+.moderation-guidance > svg { width:18px; height:18px; flex:0 0 18px; margin-top:3px; }
+.moderation-guidance strong { display:block; font-size:12px; font-weight:750; }
+.moderation-guidance p { margin-top:4px; color:var(--text-muted); font-size:11px; line-height:1.7; }
+.moderation-cases { display:flex; flex-direction:column; }
+.moderation-case { padding:22px; border-bottom:1px solid var(--border); }
+.moderation-case:last-child { border-bottom:0; }
+.moderation-case-top { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.moderation-case-id { display:flex; align-items:center; gap:10px; }
+.moderation-case-id .eyebrow { color:var(--text-muted); font-variant-numeric:tabular-nums; }
+.moderation-facts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-top:18px; padding:13px 15px; border:1px solid var(--border); border-radius:var(--r); background:var(--surface-muted); }
+.moderation-fact { display:flex; flex-direction:column; gap:5px; min-width:0; }
+.moderation-fact span { color:var(--text-muted); font-size:10px; }
+.moderation-fact strong { overflow-wrap:anywhere; color:var(--text); font-size:11px; font-weight:650; }
+.moderation-reason { margin-top:17px; }
+.moderation-reason p { margin-top:7px; color:var(--text-secondary); font-size:12px; line-height:1.75; white-space:pre-wrap; overflow-wrap:anywhere; }
+.moderation-context { margin-top:17px; border:1px solid var(--border); border-radius:var(--r-lg); overflow:hidden; }
+.moderation-context-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; border-bottom:1px solid var(--border); background:var(--surface-muted); }
+.moderation-context-heading strong { font-size:11px; font-weight:700; }
+.moderation-context-heading .small { font-size:9px; }
+.moderation-context-message { padding:12px 14px; border-bottom:1px solid var(--border); }
+.moderation-context-message:last-child { border-bottom:0; }
+.moderation-context-message.is-reported { background:color-mix(in srgb,var(--warning-bg) 65%,var(--surface)); box-shadow:inset 3px 0 0 var(--warning); }
+.moderation-context-meta { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:5px; }
+.moderation-context-meta strong { font-size:10px; font-weight:700; }
+.moderation-context-meta > span:not(.badge-status) { color:var(--text-muted); font-size:9px; }
+.moderation-context-message p { color:var(--text-secondary); font-size:11px; line-height:1.75; white-space:pre-wrap; overflow-wrap:anywhere; }
+.moderation-case-footer { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-top:18px; }
+.moderation-actions { display:flex; flex-wrap:wrap; align-items:center; gap:7px; }
+@media (max-width:640px) {
+  .moderation-case { padding:16px; }
+  .moderation-facts { grid-template-columns:minmax(0,1fr); gap:11px; }
+  .moderation-context-heading,.moderation-case-footer { align-items:flex-start; flex-direction:column; }
+  .moderation-actions { width:100%; }
+  .moderation-actions .btn { flex:1; }
+}
