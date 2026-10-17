@@ -232,6 +232,9 @@ return static function (): void {
     $router->post('/api/teams', static fn (Request $request, array $params): Response =>
         $modules->get('workspace.controller')->createTeam($request)
     );
+    $router->post('/api/teams/{teamId}/edit', static fn (Request $request, array $params): Response =>
+        $modules->get('workspace.controller')->updateTeam($request, $params)
+    );
     $router->get('/api/teams/{teamId}', static fn (Request $request, array $params): Response =>
         $modules->get('workspace.controller')->showTeam($request, $params)
     );
@@ -243,6 +246,9 @@ return static function (): void {
     );
     $router->get('/api/projects/{projectId}', static fn (Request $request, array $params): Response =>
         $modules->get('workspace.controller')->showProject($request, $params)
+    );
+    $router->post('/api/projects/{projectId}/edit', static fn (Request $request, array $params): Response =>
+        $modules->get('workspace.controller')->updateProject($request, $params)
     );
 
     $router->get('/api/projects/{projectId}/tasks', static fn (Request $request, array $params): Response =>
