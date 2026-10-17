@@ -48,7 +48,9 @@ final class GitHubActivityService
                 $snapshot = $this->cache->snapshot();
             } catch (\Throwable $error) {
                 // Keep raw transport details in server logs, never in the public JSON response.
-                error_log('[TeamCode Hub] GitHub activity refresh failed: ' . $error->getMessage());
+                if ($this->testFetcher === null) {
+                    error_log('[TeamCode Hub] GitHub activity refresh failed: ' . $error->getMessage());
+                }
                 $this->cache->storeFailure($this->username, 'GitHub public activity could not be refreshed.');
                 $snapshot = $this->cache->snapshot();
             }
