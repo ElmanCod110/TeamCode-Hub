@@ -223,6 +223,9 @@
     if (saved === "dark" || saved === "light") root.dataset.theme = saved;
 
     document.querySelectorAll("[data-theme-toggle]").forEach(function (trigger) {
+      const isDark = root.dataset.theme === "dark";
+      trigger.setAttribute("aria-pressed", isDark ? "true" : "false");
+      trigger.setAttribute("aria-label", isDark ? "Switch to light theme" : "Switch to dark theme");
       trigger.addEventListener("click", function () {
         const next = root.dataset.theme === "dark" ? "light" : "dark";
         root.dataset.theme = next;
