@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use TeamCodeHub\Database\ConnectionFactory;
+use TeamCodeHub\Database\DashboardRepository;
+use TeamCodeHub\Database\NotificationRepository;
 use TeamCodeHub\Database\DatabaseConfig;
 use TeamCodeHub\Database\MembershipRepository;
 use TeamCodeHub\Database\MigrationRunner;
@@ -38,7 +40,7 @@ try {
     $pdo = ConnectionFactory::connect($config);
     $runner = new MigrationRunner($pdo, dirname(__DIR__) . '/database/migrations');
     $applied = $runner->migrate();
-    $assert(count($applied) >= 5, 'all versioned migrations are applied to MariaDB');
+    $assert(count($applied) >= 6, 'all versioned migrations are applied to MariaDB');
     $assert($runner->migrate() === [], 'migration runner is idempotent on a migrated schema');
 
     $insertUser = static function (string $email, string $name, string $password) use ($pdo): int {
@@ -66,6 +68,7 @@ try {
     $assert($teams->listForUser($outsiderId) === [], 'unrelated user cannot discover team in their list');
 
     $invitations = new TeamInvitationRepository($pdo);
+    $notifications = new NotificationRepository($pdo);
     $memberInvitation = $invitations->createForManager($adminId, $teamId, 'member@example.test');
     $assert(strlen($memberInvitation['token']) === 64, 'team invitation token has 256 bits of entropy');
     $storedHash = $pdo->prepare('SELECT token_hash FROM team_invitations WHERE id = :id');
@@ -80,6 +83,8 @@ try {
     }
     $assert($wrongEmailRejected, 'invitation cannot be accepted by a different email address');
     $assert($invitations->accept($memberId, 'member@example.test', $memberInvitation['token']) === $teamId, 'matching account can accept invitation');
+    $adminNotices = $notifications->listRecentForUser($adminId);
+    $assert(count(array_filter($adminNotices, static fn (array $item): bool => $item['type'] === 'team_invitation_accepted')) === 1, 'invitation acceptance notifies the inviter');
 
     $reuseRejected = false;
     try {
@@ -110,6 +115,8 @@ try {
     $assert(!$projectAccess->canView($memberId, $projectId), 'pending project membership grants no access');
     $projectMemberships->approve($adminId, $projectId, $memberId);
     $assert($projectAccess->canView($memberId, $projectId) && $projectAccess->canEdit($memberId, $projectId), 'approved member can view and edit project');
+    $memberNotices = $notifications->listRecentForUser($memberId);
+    $assert(count(array_filter($memberNotices, static fn (array $item): bool => $item['type'] === 'project_access_approved')) === 1, 'project access approval creates a notification');
 
     $projectMemberships->assignPending($adminId, $projectId, $viewerId, 'viewer');
     $projectMemberships->approve($adminId, $projectId, $viewerId);
@@ -122,7 +129,7 @@ try {
 
     $tasks = new TaskRepository($pdo);
     $taskId = $tasks->create(
-        $memberId,
+        $adminId,
         $projectId,
         'Validate integration workflow',
         'Task created in integration suite',
@@ -130,6 +137,8 @@ try {
         $memberId,
         '2026-10-20 12:00:00'
     );
+    $memberNotices = $notifications->listRecentForUser($memberId);
+    $assert(count(array_filter($memberNotices, static fn (array $item): bool => $item['type'] === 'task_assigned')) === 1, 'task assignment notifies the assignee');
     $viewerTasks = $tasks->listAccessibleByUser($viewerId, $projectId);
     $assert(count($viewerTasks) === 1 && $viewerTasks[0]['id'] === $taskId, 'approved viewer can read project tasks');
 
@@ -146,6 +155,21 @@ try {
     $taskRow->execute(['id' => $taskId]);
     $taskState = $taskRow->fetch(PDO::FETCH_ASSOC);
     $assert(is_array($taskState) && $taskState['status'] === 'done' && $taskState['completed_at'] !== null, 'marking a task done sets completion timestamp');
+    $adminNotices = $notifications->listRecentForUser($adminId);
+    $assert(count(array_filter($adminNotices, static fn (array $item): bool => $item['type'] === 'task_completed')) === 1, 'task completion notifies its creator');
+
+    $tasks->create($adminId, $projectId, 'Due today', null, 'normal', $memberId, gmdate('Y-m-d') . ' 23:59:00');
+    $tasks->create($adminId, $projectId, 'Overdue task', null, 'urgent', $memberId, gmdate('Y-m-d', strtotime('-1 day UTC')) . ' 12:00:00');
+    $dashboard = (new DashboardRepository($pdo))->overview($memberId);
+    $assert(count($dashboard['tasks_due_today']) === 1, 'dashboard separates tasks due today');
+    $assert(count($dashboard['overdue_tasks']) === 1, 'dashboard identifies overdue tasks without including today’s tasks');
+
+    $beforeUnread = $notifications->unreadCount($memberId);
+    $recent = $notifications->listRecentForUser($memberId, 1);
+    $assert($beforeUnread > 0 && count($recent) === 1, 'notification inbox returns recent items and unread count');
+    $assert(!$notifications->markRead($outsiderId, $recent[0]['id']), 'users cannot mark another user’s notification as read');
+    $assert($notifications->markRead($memberId, $recent[0]['id']), 'notification owner can mark an item as read');
+    $assert($notifications->unreadCount($memberId) === $beforeUnread - 1, 'marking a notification read updates unread count');
 
     $projectQuotaReached = false;
     $pdo->prepare('UPDATE teams SET project_limit = 1 WHERE id = :id')->execute(['id' => $teamId]);
