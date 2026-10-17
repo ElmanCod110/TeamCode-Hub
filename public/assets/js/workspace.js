@@ -860,8 +860,11 @@
     append(main, el("span", "row-title", task.title), el("span", "row-subtitle", task.description || "Created by " + (task.created_by_name || "a team member")));
     const due = el("span", "task-due", task.due_at ? formatDate(task.due_at, { month: "short", day: "numeric" }) : "No due date");
     const controls = el("div", "task-controls");
-    append(controls, priorityLabel(task.priority), badge(task.status), actionButton(nextTaskStatus(task.status).label, "set-task-status", "btn btn-outline btn-sm", { "data-task-id": task.id, "data-project-id": task.project_id, "data-next-status": nextTaskStatus(task.status).value }));
-    if (projectById(task.project_id)?.access_level === "viewer") controls.replaceChildren(priorityLabel(task.priority), badge(task.status));
+    append(controls, priorityLabel(task.priority), badge(task.status));
+    if (projectById(task.project_id)?.access_level !== "viewer") {
+      controls.appendChild(actionButton(nextTaskStatus(task.status).label, "set-task-status", "btn btn-outline btn-sm", { "data-task-id": task.id, "data-project-id": task.project_id, "data-next-status": nextTaskStatus(task.status).value }));
+    }
+    controls.appendChild(actionButton("Details", "task-details", "btn btn-ghost btn-sm", { "data-task-id": task.id, "data-project-id": task.project_id }));
     append(row, main, due, controls);
     return row;
   }
@@ -1026,6 +1029,216 @@
       list.appendChild(card);
     });
     root.appendChild(list);
+  }
+
+  function utcToLocalInput(value) {
+    if (!value) return "";
+    const date = new Date(String(value).replace(" ", "T") + (String(value).includes("Z") ? "" : "Z"));
+    if (Number.isNaN(date.getTime())) return "";
+    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  }
+
+  async function openTaskDetails(projectId, taskId) {
+    const details = await request("/api/projects/" + escapePath(projectId) + "/tasks/" + escapePath(taskId) + "/details");
+    const task = details.task;
+    if (!task) throw new Error("Task details were not returned by the server.");
+    modalReturnFocus = document.activeElement;
+    const overlay = el("div", "tch-modal-overlay");
+    const modal = el("section", "tch-modal task-details-modal");
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "task-details-title");
+    const header = el("div", "tch-modal-header task-details-header");
+    const headerCopy = el("div");
+    const title = el("h2", "", task.title); title.id = "task-details-title";
+    append(headerCopy, el("div", "eyebrow", "TASK DETAILS · #" + task.id), title,
+      el("p", "", projectById(projectId)?.name || "Project workspace"));
+    append(header, headerCopy, actionButton("×", "close-modal", "btn btn-ghost btn-icon", { "aria-label": "Close task details" }));
+    const body = el("div", "task-details-body");
+    const summary = el("div", "task-detail-summary");
+    append(summary, badge(task.status), priorityLabel(task.priority),
+      el("span", "task-detail-meta", task.due_at ? "Due " + formatDate(task.due_at) : "No due date"),
+      el("span", "task-detail-meta", task.assigned_to_name ? "Assigned to " + task.assigned_to_name : "Unassigned"));
+    body.appendChild(summary);
+
+    const writable = task.access_level !== "viewer";
+    if (writable) {
+      const editSection = el("section", "task-detail-section");
+      const sectionHead = el("div", "task-detail-section-head");
+      append(sectionHead, el("h3", "", "Task information"), el("span", "small", "Changes are saved to this project"));
+      const form = el("form", "task-edit-form");
+      const grid = el("div", "form-grid");
+      const titleField = makeTaskField("title", "Task title", "text", task.title, true, 160);
+      const priorityField = makeTaskField("priority", "Priority", "select", task.priority, true);
+      [["low","Low"],["normal","Normal"],["high","High"],["urgent","Urgent"]].forEach(([value,label]) => {
+        const option = el("option", "", label); option.value = value; priorityField.control.appendChild(option);
+      });
+      priorityField.control.value = task.priority;
+      const descriptionField = makeTaskField("description", "Description", "textarea", task.description || "", false, 10000);
+      descriptionField.control.rows = 3;
+      descriptionField.wrapper.classList.add("field-full");
+      const dueField = makeTaskField("due_at", "Due date (local time)", "datetime-local", utcToLocalInput(task.due_at), false);
+      const assigneeField = makeTaskField("assigned_to", "Assignee user ID", "number", task.assigned_to || "", false);
+      assigneeField.control.min = "1";
+      assigneeField.control.placeholder = "Leave blank to unassign";
+      append(grid, titleField.wrapper, priorityField.wrapper, descriptionField.wrapper, dueField.wrapper, assigneeField.wrapper);
+      const saveRow = el("div", "task-detail-save-row");
+      const save = el("button", "btn btn-primary btn-sm", "Save changes"); save.type = "submit";
+      const error = el("div", "inline-error"); error.hidden = true; error.setAttribute("role", "alert");
+      append(saveRow, save);
+      append(form, grid, error, saveRow);
+      form.addEventListener("submit", async event => {
+        event.preventDefault();
+        if (!form.reportValidity()) return;
+        save.disabled = true; save.textContent = "Saving…"; error.hidden = true;
+        try {
+          await request("/api/projects/" + escapePath(projectId) + "/tasks/" + escapePath(taskId) + "/edit", {
+            method: "POST",
+            body: {
+              title: titleField.control.value.trim(),
+              description: descriptionField.control.value.trim() || null,
+              priority: priorityField.control.value,
+              due_at: dateForApi(dueField.control.value),
+              assigned_to: assigneeField.control.value.trim() ? Number(assigneeField.control.value) : null
+            }
+          });
+          await refreshWorkspace(false);
+          toast("Task details updated.");
+          await openTaskDetails(projectId, taskId);
+        } catch (errorValue) {
+          error.textContent = errorValue.message || "Task details could not be saved.";
+          error.hidden = false;
+        } finally {
+          save.disabled = false;
+          save.textContent = "Save changes";
+        }
+      });
+      append(editSection, sectionHead, form);
+      body.appendChild(editSection);
+    } else {
+      const readOnly = el("section", "task-detail-section");
+      append(readOnly, el("h3", "", "Task information"), el("p", "task-readonly-description", task.description || "No description has been added."));
+      body.appendChild(readOnly);
+    }
+
+    const checklist = el("section", "task-detail-section");
+    const checklistHead = el("div", "task-detail-section-head");
+    const completedCount = details.subtasks.filter(item => item.is_done).length;
+    append(checklistHead, el("h3", "", "Checklist"), el("span", "small", completedCount + " of " + details.subtasks.length + " complete"));
+    checklist.appendChild(checklistHead);
+    if (details.subtasks.length) {
+      const list = el("div", "task-checklist");
+      details.subtasks.forEach(item => list.appendChild(renderTaskSubtask(item, task, projectId)));
+      checklist.appendChild(list);
+    } else checklist.appendChild(el("p", "small task-section-empty", "No checklist items yet."));
+    if (writable) {
+      const subtaskForm = el("form", "task-inline-form");
+      const input = el("input", "input"); input.name = "title"; input.type = "text"; input.maxLength = 160; input.required = true; input.placeholder = "Add a checklist item…"; input.setAttribute("aria-label", "New checklist item");
+      const add = el("button", "btn btn-outline btn-sm", "Add item"); add.type = "submit";
+      append(subtaskForm, input, add);
+      subtaskForm.addEventListener("submit", async event => {
+        event.preventDefault();
+        if (!input.value.trim()) return;
+        add.disabled = true;
+        try {
+          await request("/api/projects/" + escapePath(projectId) + "/tasks/" + escapePath(taskId) + "/subtasks", { method: "POST", body: { title: input.value.trim() } });
+          await openTaskDetails(projectId, taskId);
+        } catch (error) { toast(error.message, "error"); add.disabled = false; }
+      });
+      checklist.appendChild(subtaskForm);
+    }
+    body.appendChild(checklist);
+
+    const discussion = el("section", "task-detail-section");
+    const discussionHead = el("div", "task-detail-section-head");
+    append(discussionHead, el("h3", "", "Discussion"), el("span", "small", details.comments.length + " comments"));
+    discussion.appendChild(discussionHead);
+    const comments = el("div", "task-comments");
+    if (details.comments.length) details.comments.forEach(comment => comments.appendChild(renderTaskComment(comment, task, projectId)));
+    else comments.appendChild(el("p", "small task-section-empty", "No comments yet. Add context or leave a useful update for your team."));
+    discussion.appendChild(comments);
+    if (writable) {
+      const commentForm = el("form", "task-comment-form");
+      const textarea = el("textarea", "textarea"); textarea.rows = 3; textarea.maxLength = 4000; textarea.required = true; textarea.placeholder = "Write a comment…"; textarea.setAttribute("aria-label", "Task comment");
+      const actions = el("div", "task-comment-form-actions");
+      append(actions, el("span", "small", "Up to 4,000 bytes"), actionButton("Post comment", "submit-task-comment", "btn btn-primary btn-sm"));
+      append(commentForm, textarea, actions);
+      commentForm.addEventListener("submit", async event => {
+        event.preventDefault();
+        const submit = $("[data-action='submit-task-comment']", commentForm);
+        const value = textarea.value.trim();
+        if (!value) return;
+        submit.disabled = true;
+        try {
+          await request("/api/projects/" + escapePath(projectId) + "/tasks/" + escapePath(taskId) + "/comments", { method: "POST", body: { body: value } });
+          await refreshWorkspace(false);
+          toast("Comment posted.");
+          await openTaskDetails(projectId, taskId);
+        } catch (error) { toast(error.message, "error"); submit.disabled = false; }
+      });
+      discussion.appendChild(commentForm);
+    } else {
+      discussion.appendChild(el("p", "small task-section-empty", "You have read-only access to this task."));
+    }
+    body.appendChild(discussion);
+    append(modal, header, body);
+    overlay.appendChild(modal);
+    overlay.addEventListener("click", event => { if (event.target === overlay) closeModal(); });
+    overlay.addEventListener("keydown", event => handleDialogKeydown(event, overlay));
+    $("#modal-root").replaceChildren(overlay);
+    const firstInput = $("input, textarea, select, button", modal);
+    if (firstInput) firstInput.focus();
+  }
+
+  function makeTaskField(name, labelText, type, value, required, maxLength) {
+    const wrapper = el("div", "field");
+    const label = el("label", "label", labelText);
+    const id = "task-field-" + name;
+    label.htmlFor = id;
+    let control;
+    if (type === "textarea") control = el("textarea", "textarea");
+    else if (type === "select") control = el("select", "select");
+    else { control = el("input", "input"); control.type = type; }
+    control.id = id; control.name = name;
+    control.value = value == null ? "" : String(value);
+    if (required) control.required = true;
+    if (maxLength) control.maxLength = maxLength;
+    append(wrapper, label, control);
+    return { wrapper, control };
+  }
+
+  function renderTaskSubtask(item, task, projectId) {
+    const row = el("div", "task-subtask-row" + (item.is_done ? " is-done" : ""));
+    const toggle = el("button", "task-subtask-toggle" + (item.is_done ? " is-checked" : ""), item.is_done ? "✓" : "");
+    toggle.type = "button"; toggle.dataset.action = "toggle-subtask"; toggle.dataset.projectId = projectId; toggle.dataset.taskId = task.id; toggle.dataset.subtaskId = item.id;
+    toggle.setAttribute("aria-label", (item.is_done ? "Mark incomplete: " : "Mark complete: ") + item.title);
+    const title = el("span", "task-subtask-title", item.title);
+    const actions = el("div", "task-subtask-actions");
+    if (Number(item.created_by) === Number(state.user.id) || Number(task.created_by) === Number(state.user.id)) {
+      actions.appendChild(actionButton("Remove", "delete-subtask", "btn btn-ghost btn-xs", { "data-project-id": projectId, "data-task-id": task.id, "data-subtask-id": item.id }));
+    }
+    append(row, toggle, title, actions);
+    return row;
+  }
+
+  function renderTaskComment(comment, task, projectId) {
+    const own = Number(comment.user_id) === Number(state.user.id);
+    const deleted = Boolean(comment.deleted_at);
+    const row = el("article", "task-comment-row" + (deleted ? " is-deleted" : ""));
+    const top = el("div", "task-comment-top");
+    const author = comment.author_name || comment.author_email || "Team member";
+    append(top, avatar(author, "sm"), append(el("div", "task-comment-author"), el("strong", "", own ? "You" : author), el("span", "", formatRelative(comment.created_at))));
+    const body = el("p", "task-comment-body", deleted ? "This comment was deleted." : comment.body);
+    append(row, top, body);
+    if (own && !deleted) {
+      const actions = el("div", "task-comment-actions");
+      const created = new Date(String(comment.created_at).replace(" ", "T") + (String(comment.created_at).includes("Z") ? "" : "Z"));
+      const canEdit = !Number.isNaN(created.getTime()) && Date.now() - created.getTime() <= 15 * 60 * 1000;
+      if (canEdit) actions.appendChild(actionButton("Edit", "edit-task-comment", "btn btn-ghost btn-xs", { "data-project-id": projectId, "data-task-id": task.id, "data-comment-id": comment.id }));
+      actions.appendChild(actionButton("Delete", "delete-task-comment", "btn btn-ghost btn-xs", { "data-project-id": projectId, "data-task-id": task.id, "data-comment-id": comment.id }));
+      row.appendChild(actions);
+    }
+    return row;
   }
 
   function renderTasks() {
