@@ -264,7 +264,8 @@ final class ChatReportRepository
                            AND status IN ('pending', 'valid')"
                     );
                     $queue->execute(['user_id' => $reportedUserId]);
-                    foreach ($notifyAdmins ? $this->siteAdminIds() : [] as $adminId) {
+                    $adminIds = $notifyAdmins ? $this->siteAdminIds() : [];
+                    foreach ($adminIds as $adminId) {
                         $this->notifications->create(
                             $adminId,
                             'chat_report_escalated',
