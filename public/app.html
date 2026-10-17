@@ -7,9 +7,9 @@
   <meta name="description" content="TeamCode Hub — a focused workspace for teams, projects, tasks, and communication.">
   <title>TeamCode Hub — Workspace</title>
   <link rel="stylesheet" href="/assets/css/app.css?v=0.2.1-dev">
-  <link rel="stylesheet" href="/assets/css/workspace.css?v=0.2.0-dev">
+  <link rel="stylesheet" href="/assets/css/workspace.css?v=0.2.1-dev">
   <script src="/assets/js/ui.js?v=0.2.0-dev" defer></script>
-  <script src="/assets/js/workspace.js?v=0.2.2-dev" defer></script>
+  <script src="/assets/js/workspace.js?v=0.2.3-dev" defer></script>
 </head>
 <body class="tch-workspace">
   <!-- Keyboard users can bypass navigation and jump directly to the current page content. -->
@@ -87,6 +87,8 @@
         <span class="side-nav-label side-nav-label-spaced">COMMUNICATION</span>
         <button class="side-nav-item" type="button" data-page="chat"><span class="nav-icon" data-icon="message" aria-hidden="true"></span><span>Project chat</span></button>
         <button class="side-nav-item" id="nav-moderation-item" type="button" data-page="moderation" hidden><span class="nav-icon" data-icon="shield" aria-hidden="true"></span><span>Moderation</span><span class="nav-count" id="nav-report-count">Open</span></button>
+        <span class="side-nav-label side-nav-label-spaced" id="nav-admin-label" hidden>ADMINISTRATION</span>
+        <button class="side-nav-item" id="nav-admin-item" type="button" data-page="admin" hidden><span class="nav-icon" data-icon="shield" aria-hidden="true"></span><span>Site administration</span></button>
         <span class="side-nav-label side-nav-label-spaced">PERSONAL</span>
         <button class="side-nav-item" type="button" data-page="settings"><span class="nav-icon" data-icon="settings" aria-hidden="true"></span><span>Preferences</span></button>
       </nav>
