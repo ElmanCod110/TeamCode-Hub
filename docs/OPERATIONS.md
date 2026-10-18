@@ -20,6 +20,10 @@ Public registration is enabled after the account-token migration has been applie
 
 The application deliberately returns a generic response for both existing and unknown email addresses. New accounts stay pending until the recipient confirms a one-time link that expires after 24 hours. Resend requests have IP/email rate limits and a per-account cooldown. The verification token is placed in the URL fragment, not the HTTP request line, and the browser requires an explicit confirmation action. If mail delivery is unavailable, the account remains pending; server logs contain a generic configuration warning, not the recipient address or token. Test delivery and verification end-to-end before enabling public traffic.
 
+## Password recovery
+
+Password recovery reuses the `account_action_tokens` table created by the account-token migration; no additional schema migration is required. The request endpoint responds generically for known and unknown addresses and applies separate IP/email rate limits. Reset links are sent only for active, email-verified accounts, expire after 30 minutes, and can be used once. Configure `APP_URL` as the canonical HTTPS origin and `MAIL_FROM_ADDRESS` as a valid sender mailbox. Verify reset delivery in a staging environment before enabling public traffic. Reset tokens and recipient addresses are not written to application logs.
+
 ## Database migrations
 
 After configuring `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, and `DB_PASSWORD`, run `php bin/migrate.php` from a trusted CLI environment. Never run migrations automatically in response to normal web requests or arbitrary SQL errors. The runner records completed versions and uses a MySQL advisory lock to avoid concurrent runs.
