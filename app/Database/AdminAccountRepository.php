@@ -108,7 +108,7 @@ final class AdminAccountRepository
             }
 
             $update = $this->pdo->prepare(
-                'UPDATE users SET status = :status WHERE id = :user_id'
+                'UPDATE users SET status = :status, auth_version = auth_version + 1 WHERE id = :user_id'
             );
             $update->execute(['status' => $newStatus, 'user_id' => $targetUserId]);
             if ($update->rowCount() !== 1) {
