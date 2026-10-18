@@ -15,6 +15,9 @@ All API responses are JSON. Responses are not a stable public contract yet; this
 - `POST /api/auth/logout` — requires a valid CSRF token.
 - `POST /api/auth/profile` — body: `{"display_name":"New display name"}`. Requires authentication and CSRF protection. Updates only the current account's display name (1–80 bytes); email and system roles are not editable through this endpoint.
 - `POST /api/auth/password` — body: `{"current_password":"...","new_password":"...","confirm_password":"..."}`. Requires authentication, CSRF protection, the correct current password, matching confirmation, and a new password of 12–72 bytes. The password hash is replaced with a compare-and-swap update; success rotates the session ID and CSRF token, and the response returns the new `csrf_token`.
+- `POST /api/auth/password-reset/request` — body: `{"email":"person@example.com"}`. Requires CSRF protection and a valid email. Returns the same generic `202` response for known and unknown addresses; a purpose-specific IP/email rate limit and a 60-second per-account cooldown apply.
+- `POST /api/auth/password-reset/confirm` — body: `{"token":"<64 lowercase hex characters>","new_password":"...","confirm_password":"..."}`. Requires CSRF protection, a valid unused token, matching confirmation, and a 12–72 byte password. Tokens are stored as SHA-256 hashes, expire after 30 minutes, and are consumed transactionally with the password update. All outstanding reset tokens are revoked and `session_version` increments, invalidating existing authenticated sessions on their next request.
+- `GET /reset-password` — serves the workspace shell for password recovery. The bearer token is placed in the URL fragment and removed from browser history before submission; it is not sent to the server in the initial page request.
 
 After a successful login, fetch a new CSRF token because authentication rotates the token. Database-backed endpoints require the configured database and all migrations to have been applied.
 
@@ -126,4 +129,4 @@ Only one report per reporter per reported person per UTC day is accepted. A vali
 
 ## Current limits
 
-Password recovery, automatic invitation email delivery, permanent team/project deletion, private repository access, Git write operations/webhooks, other Git providers, richer administrative pages, and browser-level visual/accessibility tests are not implemented yet. Project chat uses bounded HTTP polling rather than WebSockets or push delivery. Future routes must repeat authorization checks in their data-access path rather than trusting a prior UI check alone.
+Automatic invitation email delivery, permanent team/project deletion, private repository access, Git write operations/webhooks, other Git providers, richer administrative pages, and browser-level visual/accessibility tests are not implemented yet. Project chat uses bounded HTTP polling rather than WebSockets or push delivery. Future routes must repeat authorization checks in their data-access path rather than trusting a prior UI check alone.
