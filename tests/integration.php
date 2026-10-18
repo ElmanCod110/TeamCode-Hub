@@ -14,6 +14,7 @@ use TeamCodeHub\Database\DatabaseConfig;
 use TeamCodeHub\Database\MembershipRepository;
 use TeamCodeHub\Database\MigrationRunner;
 use TeamCodeHub\Database\ProjectMembershipRepository;
+use TeamCodeHub\Database\ProjectFileRepository;
 use TeamCodeHub\Database\ProjectRepository;
 use TeamCodeHub\Database\TaskRepository;
 use TeamCodeHub\Database\TaskCollaborationRepository;
@@ -48,7 +49,7 @@ try {
     $pdo = ConnectionFactory::connect($config);
     $runner = new MigrationRunner($pdo, dirname(__DIR__) . '/database/migrations');
     $applied = $runner->migrate();
-    $assert(count($applied) >= 11, 'all versioned migrations are applied to MariaDB');
+    $assert(count($applied) >= 12, 'all versioned migrations are applied to MariaDB');
     $assert($runner->migrate() === [], 'migration runner is idempotent on a migrated schema');
 
     // Exercise the daily GitHub cache through an injected transport; tests never call GitHub.
@@ -377,6 +378,64 @@ try {
     $assert($projectAccess->canView($viewerId, $projectId), 'approved viewer can read project');
     $assert(!$projectAccess->canEdit($viewerId, $projectId), 'viewer cannot edit project');
     $assert(!$projectAccess->canView($outsiderId, $projectId), 'outsider cannot read project');
+    $projectFiles = new ProjectFileRepository($pdo);
+    $fileId = $projectFiles->create($adminId, $projectId, 'src/main.php', '<?php echo "v1";');
+    $firstFile = $projectFiles->findForUser($viewerId, $projectId, $fileId);
+    $assert($firstFile['version'] === 1 && $firstFile['content'] === '<?php echo "v1";', 'approved viewers can read source files stored outside the public web root');
+    $fileList = $projectFiles->listForUser($adminId, $projectId);
+    $assert($fileList['can_edit'] && count($fileList['files']) === 1 && $fileList['files'][0]['path'] === 'src/main.php', 'project source file list includes bounded metadata and edit capability');
+    $updatedFile = $projectFiles->update($memberId, $projectId, $fileId, 1, '<?php echo "v2";');
+    $assert($updatedFile['changed'] && $updatedFile['file']['version'] === 2 && $updatedFile['file']['content'] === '<?php echo "v2";', 'approved project members can save a new source revision');
+    $staleFileSaveRejected = false;
+    try {
+        $projectFiles->update($memberId, $projectId, $fileId, 1, '<?php echo "stale";');
+    } catch (DomainException $error) {
+        $staleFileSaveRejected = str_contains($error->getMessage(), 'version conflict');
+    }
+    $assert($staleFileSaveRejected, 'optimistic version checks reject overwrites from stale editor tabs');
+    $fileHistory = $projectFiles->historyForUser($viewerId, $projectId, $fileId);
+    $assert(count($fileHistory) === 2 && $fileHistory[0]['version'] === 2 && !array_key_exists('content', $fileHistory[0]), 'file history is bounded and lists metadata without leaking old content in list responses');
+    $restoredFile = $projectFiles->restore($memberId, $projectId, $fileId, 1, 2);
+    $assert($restoredFile['changed'] && $restoredFile['file']['version'] === 3 && $restoredFile['file']['content'] === '<?php echo "v1";', 'restoring a source revision creates a new version instead of rewriting history');
+    $restoredHistory = $projectFiles->historyForUser($adminId, $projectId, $fileId);
+    $assert(count($restoredHistory) === 3 && $restoredHistory[0]['action'] === 'restored', 'restored source content is recorded as a distinct audit revision');
+
+    $viewerFileWriteRejected = false;
+    try {
+        $projectFiles->update($viewerId, $projectId, $fileId, 3, 'viewer edit');
+    } catch (DomainException) {
+        $viewerFileWriteRejected = true;
+    }
+    $assert($viewerFileWriteRejected, 'project viewers cannot write source files');
+    $outsiderFileReadRejected = false;
+    try {
+        $projectFiles->listForUser($outsiderId, $projectId);
+    } catch (DomainException) {
+        $outsiderFileReadRejected = true;
+    }
+    $assert($outsiderFileReadRejected, 'unapproved outsiders cannot list project source files');
+
+    $unsafeFilePathRejected = false;
+    try {
+        ProjectFileRepository::validatePath('../config.php');
+    } catch (DomainException) {
+        $unsafeFilePathRejected = true;
+    }
+    $secretFilePathRejected = false;
+    try {
+        ProjectFileRepository::validatePath('.env');
+    } catch (DomainException) {
+        $secretFilePathRejected = true;
+    }
+    $assert($unsafeFilePathRejected && $secretFilePathRejected, 'source file path validation rejects traversal and environment-secret files');
+    $oversizedFileRejected = false;
+    try {
+        $projectFiles->create($adminId, $projectId, 'src/oversized.php', str_repeat('a', 262145));
+    } catch (DomainException) {
+        $oversizedFileRejected = true;
+    }
+    $assert($oversizedFileRejected, 'source files are bounded to 256 KiB before database writes');
+
 
     $managerMembers = $projectMemberships->listForManager($adminId, $projectId);
     $assert(count($managerMembers) === 3, 'project manager can list approved project memberships');
