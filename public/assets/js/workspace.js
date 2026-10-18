@@ -821,9 +821,7 @@
   }
 
   async function openProject(project, updateHash = true, tab = "overview") {
-    if (state.page === "project" && state.projectTab === "files"
-      && (Number(state.selectedProject?.id) !== Number(project.id) || tab !== "files")
-      && !confirmDiscardProjectFileChanges()) return;
+    if (state.page === "project" && state.projectTab === "files" && !confirmDiscardProjectFileChanges()) return;
     state.selectedProject = project;
     state.page = "project";
     state.projectTab = tab;
@@ -949,7 +947,10 @@
           const path = el("span", "project-file-path", file.path);
         const metadata = el("span", "project-file-meta", "v" + file.version + " · " + formatFileBytes(file.size_bytes));
         append(row, path, metadata);
-        fileList.appendChild(row);
+        const item = el("div", "project-file-list-item");
+        item.setAttribute("role", "listitem");
+        item.appendChild(row);
+        fileList.appendChild(item);
       });
       if (!files.length) fileList.appendChild(el("p", "small project-files-empty", "No source files yet."));
       search.addEventListener("input", () => {
@@ -976,6 +977,7 @@
       const file = result.file;
       editorSlot.replaceChildren();
       const editor = el("section", "project-files-editor surface-panel");
+      editor.id = "project-files-editor";
       const header = el("div", "project-files-editor-head");
       const fileHeading = el("div", "project-files-editor-title");
       append(fileHeading, el("span", "eyebrow", extensionForPath(file.path)),
