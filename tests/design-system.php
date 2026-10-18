@@ -74,14 +74,14 @@ $assert(str_contains($demoPage, '/assets/css/design-system-demo.css') && str_con
 $assert(str_contains($demoScript, 'window.TCHUI.notify'), 'showcase buttons use the shared notification API');
 
 /* Verify every stylesheet imported by the entry point exists on disk. */
-preg_match_all('/@import\\s+url\\(["\\']([^"\\']+)["\\']\\)/', $entry, $importMatches);
+preg_match_all('/@import\s+url\("([^"]+)"\)/', $entry, $importMatches);
 foreach ($importMatches[1] as $importUrl) {
     $relativePath = 'public/assets/css/' . strtok($importUrl, '?');
     $assert(is_file($root . '/' . $relativePath), 'entry stylesheet import resolves: ' . $relativePath);
 }
 
 /* Verify the showcase references existing local CSS and JavaScript assets. */
-preg_match_all('/(?:href|src)=["\\'](\\/assets\\/[^"\\']+)["\\']/', $demoPage, $assetMatches);
+preg_match_all('/(?:href|src)="(\/assets\/[^"]+)"/', $demoPage, $assetMatches);
 foreach ($assetMatches[1] as $assetUrl) {
     $relativePath = 'public' . strtok($assetUrl, '?');
     $assert(is_file($root . '/' . $relativePath), 'showcase asset URL resolves: ' . $relativePath);
