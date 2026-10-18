@@ -12,7 +12,7 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 - English workspace shell at `/` and `/login`, with accessible sign-in, public registration, verification resend, and explicit email verification flows.
 - Responsive application navigation, mobile sidebar, light/dark/system theme preference, loading states, and safe toast notifications.
 - Overview dashboard connected to personalized teams, projects, due-today tasks, overdue tasks, and recent notifications.
-- Team list and detail views, owner-only team renaming, project creation, metadata editing, reversible archive/restore controls for authorized team managers, and email-backed team invitations with a secure token fallback.
+- Team list and detail views, owner-only team renaming and reversible team archive/restore, project creation/metadata editing, reversible project archive/restore, and email-backed team invitations with a secure token fallback.
 - Project directory and project detail views with overview, task, member-access, chat, private source files, and public GitHub repository tabs.
 - Task creation, editing/reassignment, status changes, priorities, UTC due-date conversion, threaded comments, checklist items, and task filtering/search.
 - Searchable project-member assignment by display name, email, or exact user ID, pending membership approval, member/viewer access changes, and access revocation where the signed-in user has management permission.
@@ -28,7 +28,7 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 - Validated MySQL/MariaDB configuration, PDO repositories, and explicit CLI migration runner.
 - Hardened sessions, CSRF-protected authentication, login and registration throttling, one-time email verification and password reset tokens, credential-versioned session revocation, and trusted-proxy-aware IP resolution.
 - CLI-only one-time administrator bootstrap.
-- Team/project APIs with active/approved membership checks and transactional quota enforcement.
+- Team/project APIs with active/approved membership checks, transactional quota enforcement, and owner-only reversible team archiving that preserves child data.
 - Seven-day team invitations with hashed tokens, automatic email delivery, explicit acceptance, and revocation.
 - Member/viewer access separation; pending or revoked project members cannot access protected project resources.
 - Task listing, member-only creation/edit/status changes, searchable approved-member assignment, priorities, UTC due dates, comments, and checklists.
