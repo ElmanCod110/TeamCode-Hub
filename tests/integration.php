@@ -117,10 +117,10 @@ try {
     // The shared daily budget is global so an attacker cannot exhaust the unauthenticated API quota through many projects.
     $budgetClaimsSucceeded = true;
     for ($budgetIndex = 1; $budgetIndex <= 19; $budgetIndex++) {
-        $budgetClaim = $repositoryCache->claimDailyAttempt('budget-fixture/repository-' . $budgetIndex, $repositoryDate);
+        $budgetClaim = $repositoryCache->claimDailyAttempt('budget-fixture/repository-' . $budgetIndex, $nextRepositoryDate);
         $budgetClaimsSucceeded = $budgetClaimsSucceeded && $budgetClaim['claimed'];
     }
-    $budgetOverflow = $repositoryCache->claimDailyAttempt('budget-fixture/overflow', $repositoryDate);
+    $budgetOverflow = $repositoryCache->claimDailyAttempt('budget-fixture/overflow', $nextRepositoryDate);
     $assert($budgetClaimsSucceeded && $budgetOverflow['rate_limited'] && !$budgetOverflow['claimed'], 'public repository refresh budget caps outbound refreshes at 20 repositories per UTC day');
 
 
