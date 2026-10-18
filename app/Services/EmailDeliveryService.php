@@ -96,4 +96,54 @@ final class EmailDeliveryService
         }
     }
 
+
+    /**
+     * Deliver a seven-day team invitation using the configured HTTPS origin.
+     * The bearer token stays in the URL fragment and is not included in HTTP request logs.
+     */
+    public function sendTeamInvitationEmail(string $recipient, string $teamName, string $inviterName, string $token): bool
+    {
+        $sender = getenv('MAIL_FROM_ADDRESS');
+        $baseUrl = getenv('APP_URL');
+        if (!is_string($sender) || filter_var($sender, FILTER_VALIDATE_EMAIL) === false
+            || !is_string($baseUrl) || $baseUrl === '' || preg_match('/[\r\n]/', $baseUrl) === 1) {
+            return false;
+        }
+
+        $parts = parse_url($baseUrl);
+        if (!is_array($parts) || ($parts['scheme'] ?? '') !== 'https'
+            || !isset($parts['host']) || $parts['host'] === ''
+            || isset($parts['user']) || isset($parts['pass'])
+            || isset($parts['query']) || isset($parts['fragment'])
+            || (isset($parts['path']) && !in_array($parts['path'], ['', '/'], true))) {
+            return false;
+        }
+        if (filter_var($recipient, FILTER_VALIDATE_EMAIL) === false
+            || preg_match('/^[a-f0-9]{64}$/', $token) !== 1) {
+            return false;
+        }
+
+        // Keep email-derived and database-derived labels on one line in the plain-text body.
+        $teamName = trim((string) preg_replace('/[\\x00-\\x1F\\x7F]+/u', ' ', $teamName));
+        $inviterName = trim((string) preg_replace('/[\\x00-\\x1F\\x7F]+/u', ' ', $inviterName));
+        $teamName = substr($teamName, 0, 120);
+        $inviterName = substr($inviterName, 0, 80);
+        $invitationUrl = rtrim($baseUrl, '/') . '/accept-invitation#accept-invitation?token=' . rawurlencode($token);
+        $subject = 'You are invited to a team on TeamCode Hub';
+        $message = "You have been invited to join the team \"" . $teamName . "\" on TeamCode Hub.\n"
+            . $inviterName . " sent you this invitation.\n\n"
+            . "Open the link below, then sign in or create an account using this email address. Choose Accept invitation to join the team.\n\n"
+            . $invitationUrl . "\n\n"
+            . "This invitation expires in seven days and can be used only once. If you were not expecting it, you can ignore this message.\n";
+        $headers = "From: " . $sender . "\r\n"
+            . "MIME-Version: 1.0\r\n"
+            . "Content-Type: text/plain; charset=UTF-8\r\n";
+
+        try {
+            return @mail($recipient, $subject, $message, $headers);
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
 }
