@@ -232,14 +232,17 @@ return static function (): void {
     $router->post('/api/teams', static fn (Request $request, array $params): Response =>
         $modules->get('workspace.controller')->createTeam($request)
     );
+    $router->post('/api/teams/{teamId}/edit', static fn (Request $request, array $params): Response =>
+        $modules->get('workspace.controller')->updateTeam($request, $params)
+    );
     $router->get('/api/teams/{teamId}', static fn (Request $request, array $params): Response =>
         $modules->get('workspace.controller')->showTeam($request, $params)
     );
-    $router->post('/api/teams/{teamId}/edit', static fn (Request $request, array $params): Response =>
-        $modules->get('workspace.controller')->renameTeam($request, $params)
-    );
     $router->get('/api/teams/{teamId}/projects', static fn (Request $request, array $params): Response =>
         $modules->get('workspace.controller')->listProjects($request, $params)
+    );
+    $router->get('/api/teams/{teamId}/archived-projects', static fn (Request $request, array $params): Response =>
+        $modules->get('workspace.controller')->listArchivedProjects($request, $params)
     );
     $router->post('/api/teams/{teamId}/projects', static fn (Request $request, array $params): Response =>
         $modules->get('workspace.controller')->createProject($request, $params)
@@ -247,8 +250,14 @@ return static function (): void {
     $router->get('/api/projects/{projectId}', static fn (Request $request, array $params): Response =>
         $modules->get('workspace.controller')->showProject($request, $params)
     );
+    $router->post('/api/projects/{projectId}/archive', static fn (Request $request, array $params): Response =>
+        $modules->get('workspace.controller')->archiveProject($request, $params)
+    );
+    $router->post('/api/projects/{projectId}/restore', static fn (Request $request, array $params): Response =>
+        $modules->get('workspace.controller')->restoreProject($request, $params)
+    );
     $router->post('/api/projects/{projectId}/edit', static fn (Request $request, array $params): Response =>
-        $modules->get('workspace.controller')->editProject($request, $params)
+        $modules->get('workspace.controller')->updateProject($request, $params)
     );
 
     $router->get('/api/projects/{projectId}/tasks', static fn (Request $request, array $params): Response =>
@@ -288,6 +297,12 @@ return static function (): void {
     $router->get('/api/projects/{projectId}/members', static fn (Request $request, array $params): Response =>
         $modules->get('project-membership.controller')->list($request, $params)
     );
+    $router->get('/api/projects/{projectId}/members/candidates', static fn (Request $request, array $params): Response =>
+        $modules->get('project-membership.controller')->candidates($request, $params)
+    );
+    $router->get('/api/projects/{projectId}/assignees', static fn (Request $request, array $params): Response =>
+        $modules->get('project-membership.controller')->assignees($request, $params)
+    );
     $router->post('/api/projects/{projectId}/members', static fn (Request $request, array $params): Response =>
         $modules->get('project-membership.controller')->assign($request, $params)
     );
@@ -296,6 +311,9 @@ return static function (): void {
     );
     $router->post('/api/projects/{projectId}/members/{userId}/revoke', static fn (Request $request, array $params): Response =>
         $modules->get('project-membership.controller')->revoke($request, $params)
+    );
+    $router->post('/api/projects/{projectId}/members/{userId}/access', static fn (Request $request, array $params): Response =>
+        $modules->get('project-membership.controller')->changeAccessLevel($request, $params)
     );
 
     $router->get('/api/teams/{teamId}/invitations', static fn (Request $request, array $params): Response =>
