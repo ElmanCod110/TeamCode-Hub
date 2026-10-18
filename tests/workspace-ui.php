@@ -47,6 +47,7 @@ $accountLifecycleService = $read('app/Services/AccountLifecycleService.php');
 $emailDeliveryService = $read('app/Services/EmailDeliveryService.php');
 $adminUserController = $read('app/Http/AdminUserController.php');
 $userRepository = $read('app/Database/UserRepository.php');
+$authVersionMigration = $read('database/migrations/20261018000300_add_user_auth_version.php');
 $adminAccountRepository = $read('app/Database/AdminAccountRepository.php');
 $authService = $read('app/Security/AuthenticationService.php');
 $workspaceController = $read('app/Http/WorkspaceController.php');
@@ -112,6 +113,8 @@ $assert(str_contains($passwordResetService, 'hash(' . "'sha256', " . '$token)') 
 $assert(str_contains($js, 'editProfileModal') && str_contains($js, 'changePasswordModal') && str_contains($js, 'confirm_password'), 'preferences connect profile editing and password confirmation forms');
 $assert(str_contains($authController, 'CsrfToken::rotate()') && str_contains($authController, 'SecureSession::regenerateAfterAuthentication()'), 'successful password changes rotate the session identifier and CSRF token');
 $assert(str_contains($authService, 'password_verify($currentPassword') && str_contains($authService, 'strlen($newPassword) < 12'), 'password changes verify the current credential and enforce password limits');
+$assert(str_contains($authVersionMigration, 'auth_version INT UNSIGNED') && str_contains($userRepository, 'auth_version = auth_version + 1'), 'credential changes advance a persistent account authentication version');
+$assert(str_contains($authService, "\$_SESSION['auth_version']") && str_contains($authService, 'findAuthVersionById') && str_contains($passwordResetRepository, 'auth_version = auth_version + 1'), 'password reset invalidates other authenticated sessions at their next request');
 
 $assert(str_contains($js, '/api/dashboard') && str_contains($js, '/api/teams') && str_contains($js, '/api/projects/') && str_contains($js, '/api/notifications'), 'controller connects the existing dashboard, team, project, and notification APIs');
 $assert(str_contains($bootstrap, "/api/teams/{teamId}/edit") && str_contains($bootstrap, "/api/projects/{projectId}/edit"), 'team and project metadata update routes are registered');
