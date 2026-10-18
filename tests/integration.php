@@ -8,6 +8,7 @@ use TeamCodeHub\Database\ChatRepository;
 use TeamCodeHub\Database\ChatReportRepository;
 use TeamCodeHub\Database\DashboardRepository;
 use TeamCodeHub\Database\GitHubActivityCacheRepository;
+use TeamCodeHub\Database\GitHubRepositoryCacheRepository;
 use TeamCodeHub\Database\NotificationRepository;
 use TeamCodeHub\Database\DatabaseConfig;
 use TeamCodeHub\Database\MembershipRepository;
@@ -26,6 +27,7 @@ use TeamCodeHub\Security\SecureSession;
 use TeamCodeHub\Security\TeamAccessService;
 use TeamCodeHub\Core\QuotaExceededException;
 use TeamCodeHub\Services\GitHubActivityService;
+use TeamCodeHub\Services\GitHubRepositoryService;
 
 require dirname(__DIR__) . '/app/bootstrap.php';
 
@@ -46,7 +48,7 @@ try {
     $pdo = ConnectionFactory::connect($config);
     $runner = new MigrationRunner($pdo, dirname(__DIR__) . '/database/migrations');
     $applied = $runner->migrate();
-    $assert(count($applied) >= 10, 'all versioned migrations are applied to MariaDB');
+    $assert(count($applied) >= 11, 'all versioned migrations are applied to MariaDB');
     $assert($runner->migrate() === [], 'migration runner is idempotent on a migrated schema');
 
     // Exercise the daily GitHub cache through an injected transport; tests never call GitHub.
@@ -70,6 +72,57 @@ try {
     $assert($githubFetchCount === 1, 'GitHub activity cache claims at most one refresh per username per UTC day');
     $assert($githubFirst['available'] && !$githubFirst['stale'] && count($githubFirst['events']) === 1, 'GitHub public activity is normalized and cached after a successful refresh');
     $assert($githubSecond['events'][0]['summary'] === 'Pushed 1 commit: Integration fixture commit', 'cached GitHub activity is served without another transport request');
+    // Project repository integration uses an injected transport; tests never call GitHub.
+    $repositoryCache = new GitHubRepositoryCacheRepository($pdo);
+    $repositoryFetchCount = 0;
+    $repositoryFetcher = static function (string $repository) use (&$repositoryFetchCount): array {
+        $repositoryFetchCount++;
+        return [
+            'description' => 'Fixture repository',
+            'stars' => 12,
+            'forks' => 3,
+            'open_issues' => 4,
+            'default_branch' => 'main',
+            'language' => 'PHP',
+            'pushed_at' => '2026-10-17T12:00:00Z',
+            'commits' => [[
+                'sha' => 'abcdef1234567',
+                'message' => 'Integration fixture commit',
+                'author' => 'Fixture Author',
+                'committed_at' => '2026-10-17T12:00:00Z',
+            ]],
+        ];
+    };
+    $repositoryService = new GitHubRepositoryService($repositoryCache, $repositoryFetcher);
+    $repositoryDate = gmdate('Y-m-d');
+    $repositoryFirst = $repositoryService->repository('integration-fixture/repository', $repositoryDate);
+    $repositorySecond = $repositoryService->repository('integration-fixture/repository', $repositoryDate);
+    $assert($repositoryFetchCount === 1, 'project repository cache permits one refresh per repository per UTC day');
+    $assert($repositoryFirst['available'] && $repositoryFirst['data']['stars'] === 12
+        && $repositoryFirst['data']['commits'][0]['message'] === 'Integration fixture commit', 'public repository metadata and recent commits are normalized into the cache');
+    $assert($repositorySecond['data'] === $repositoryFirst['data'], 'subsequent project repository reads reuse the cached snapshot');
+
+    $repositoryFailureService = new GitHubRepositoryService($repositoryCache, static function (string $repository): array {
+        throw new RuntimeException('Simulated public GitHub API outage.');
+    });
+    $nextRepositoryDate = gmdate('Y-m-d', strtotime($repositoryDate . ' +1 day UTC'));
+    $staleRepository = $repositoryFailureService->repository('integration-fixture/repository', $nextRepositoryDate);
+    $assert($staleRepository['stale'] && $staleRepository['data']['stars'] === 12, 'failed repository refresh preserves the last good public snapshot');
+    $assert(GitHubRepositoryService::parseRepositoryReference('https://github.com/Example-Org/sample-repo.git/') === 'Example-Org/sample-repo', 'repository URL parser canonicalizes a public GitHub URL');
+    $assert(GitHubRepositoryService::parseRepositoryReference('https://github.com.evil.test/Example-Org/sample-repo') === null
+        && GitHubRepositoryService::parseRepositoryReference('http://github.com/Example-Org/sample-repo') === null
+        && GitHubRepositoryService::parseRepositoryReference('https://github.com/Example-Org/../settings') === null,
+        'repository URL parser rejects alternate hosts, insecure schemes, and traversal paths');
+
+    // The shared daily budget is global so an attacker cannot exhaust the unauthenticated API quota through many projects.
+    $budgetClaimsSucceeded = true;
+    for ($budgetIndex = 1; $budgetIndex <= 19; $budgetIndex++) {
+        $budgetClaim = $repositoryCache->claimDailyAttempt('budget-fixture/repository-' . $budgetIndex, $repositoryDate);
+        $budgetClaimsSucceeded = $budgetClaimsSucceeded && $budgetClaim['claimed'];
+    }
+    $budgetOverflow = $repositoryCache->claimDailyAttempt('budget-fixture/overflow', $repositoryDate);
+    $assert($budgetClaimsSucceeded && $budgetOverflow['rate_limited'] && !$budgetOverflow['claimed'], 'public repository refresh budget caps outbound refreshes at 20 repositories per UTC day');
+
 
     $failureFetchCount = 0;
     $failureFetcher = static function (string $username) use (&$failureFetchCount): array {
