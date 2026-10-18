@@ -83,7 +83,7 @@ The UI currently uses a bounded refresh for reconciliation; it is not a durable 
 
 ## Operational limitations
 
-- Public registration and email verification are connected; password recovery is not implemented. New accounts stay pending until the recipient verifies the email address.
+- Public registration, email verification, and password recovery are connected. New accounts stay pending until the recipient verifies the email address.
 - Invitation creation returns a one-time token but does not send an email. The token should be shared through a trusted channel.
 - Team invitation UI is available from a team detail view to users whose current team role is owner or manager. The server independently verifies the role.
 - Member assignment searches only active members of the selected project’s team. It does not provide global account discovery or invite an email address that does not already belong to the team.
