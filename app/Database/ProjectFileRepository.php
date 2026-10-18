@@ -13,6 +13,7 @@ final class ProjectFileRepository
     private const MAX_FILES_PER_PROJECT = 200;
     private const MAX_FILE_BYTES = 262144;
     private const MAX_PROJECT_BYTES = 10485760;
+    private const MAX_PROJECT_HISTORY_BYTES = 20971520;
     private const HISTORY_LIMIT = 20;
 
     public function __construct(private readonly PDO $pdo)
@@ -22,7 +23,7 @@ final class ProjectFileRepository
     /**
      * List project files for approved members and viewers.
      *
-     * @return array{can_edit:bool,limits:array{max_files:int,max_file_bytes:int,max_project_bytes:int},files:list<array<string,mixed>>}
+     * @return array{can_edit:bool,limits:array{max_files:int,max_file_bytes:int,max_project_bytes:int,max_history_bytes:int},files:list<array<string,mixed>>}
      */
     public function listForUser(int $userId, int $projectId): array
     {
@@ -60,6 +61,7 @@ final class ProjectFileRepository
                 'max_files' => self::MAX_FILES_PER_PROJECT,
                 'max_file_bytes' => self::MAX_FILE_BYTES,
                 'max_project_bytes' => self::MAX_PROJECT_BYTES,
+                'max_history_bytes' => self::MAX_PROJECT_HISTORY_BYTES,
             ],
             'files' => $files,
         ];
@@ -185,7 +187,7 @@ final class ProjectFileRepository
                 throw new DomainException('File version conflict. Reload the current version before saving.');
             }
             $this->insertVersion($fileId, $projectId, $nextVersion, 'updated', $content, $userId);
-            $this->pruneHistory($fileId, $nextVersion);
+            $this->pruneHistory($projectId, $fileId, $nextVersion);
             $this->pdo->commit();
 
             $file['content'] = $content;
@@ -291,7 +293,7 @@ final class ProjectFileRepository
                 throw new DomainException('File version conflict. Reload the current version before restoring.');
             }
             $this->insertVersion($fileId, $projectId, $nextVersion, 'restored', $content, $userId);
-            $this->pruneHistory($fileId, $nextVersion);
+            $this->pruneHistory($projectId, $fileId, $nextVersion);
             $this->pdo->commit();
 
             $file['content'] = $content;
@@ -342,6 +344,7 @@ final class ProjectFileRepository
             "SELECT pm.access_level
              FROM projects p
              INNER JOIN project_memberships pm ON pm.project_id = p.id AND pm.user_id = :user_id AND pm.status = 'approved'
+             INNER JOIN users u ON u.id = pm.user_id AND u.status = 'active'
              INNER JOIN team_memberships tm ON tm.team_id = p.team_id AND tm.user_id = pm.user_id AND tm.status = 'active'
              WHERE p.id = :project_id AND p.status = 'active'
              LIMIT 1"
@@ -357,6 +360,7 @@ final class ProjectFileRepository
             "SELECT p.id
              FROM projects p
              INNER JOIN project_memberships pm ON pm.project_id = p.id AND pm.user_id = :user_id
+             INNER JOIN users u ON u.id = pm.user_id AND u.status = 'active'
              INNER JOIN team_memberships tm ON tm.team_id = p.team_id AND tm.user_id = pm.user_id
              WHERE p.id = :project_id AND p.status = 'active'
                AND pm.status = 'approved' AND pm.access_level = 'member' AND tm.status = 'active'
@@ -410,13 +414,62 @@ final class ProjectFileRepository
         ]);
     }
 
-    private function pruneHistory(int $fileId, int $currentVersion): void
+    /**
+     * Keep the last 20 versions per file and cap all stored revision text per project.
+     * The current version of each file is never pruned; only older snapshots are eligible.
+     */
+    private function pruneHistory(int $projectId, int $fileId, int $currentVersion): void
     {
         $minimumVersion = max(1, $currentVersion - self::HISTORY_LIMIT + 1);
-        $statement = $this->pdo->prepare(
+        $perFile = $this->pdo->prepare(
             'DELETE FROM project_file_versions WHERE file_id = :file_id AND version_number < :minimum_version'
         );
-        $statement->execute(['file_id' => $fileId, 'minimum_version' => $minimumVersion]);
+        $perFile->execute(['file_id' => $fileId, 'minimum_version' => $minimumVersion]);
+
+        $totalQuery = $this->pdo->prepare(
+            'SELECT COALESCE(SUM(OCTET_LENGTH(content)), 0)
+             FROM project_file_versions WHERE project_id = :project_id'
+        );
+        $totalQuery->execute(['project_id' => $projectId]);
+        $totalBytes = (int) $totalQuery->fetchColumn();
+        if ($totalBytes <= self::MAX_PROJECT_HISTORY_BYTES) {
+            return;
+        }
+
+        $oldVersions = $this->pdo->prepare(
+            'SELECT v.id, OCTET_LENGTH(v.content) AS size_bytes
+             FROM project_file_versions v
+             INNER JOIN project_files f ON f.id = v.file_id
+             WHERE v.project_id = :project_id AND v.version_number < f.version_number
+             ORDER BY v.created_at ASC, v.id ASC'
+        );
+        $oldVersions->execute(['project_id' => $projectId]);
+        $deleteIds = [];
+        foreach ($oldVersions->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            if ($totalBytes <= self::MAX_PROJECT_HISTORY_BYTES) {
+                break;
+            }
+            $deleteIds[] = (int) $row['id'];
+            $totalBytes -= (int) $row['size_bytes'];
+        }
+
+        if ($totalBytes > self::MAX_PROJECT_HISTORY_BYTES) {
+            throw new DomainException('Project revision storage quota reached.');
+        }
+
+        foreach (array_chunk($deleteIds, 100) as $chunk) {
+            $placeholders = [];
+            $params = [];
+            foreach ($chunk as $index => $id) {
+                $key = 'version_id_' . $index;
+                $placeholders[] = ':' . $key;
+                $params[$key] = $id;
+            }
+            $delete = $this->pdo->prepare(
+                'DELETE FROM project_file_versions WHERE id IN (' . implode(', ', $placeholders) . ')'
+            );
+            $delete->execute($params);
+        }
     }
 
     /** @param array<string,mixed> $row
