@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add password recovery with generic request responses and 30-minute, single-use reset links for active verified accounts.
+- Increment `auth_version` on password reset, password change, and account status transitions to invalidate stale sessions.
+- Add MariaDB integration coverage for password reset token replay prevention, password replacement, and session revocation.
+- Add accessible reset request/confirmation forms, route wiring, and API/operations/security documentation.
 - Add public account registration that creates pending users and avoids email-existence disclosure.
 - Add hashed, single-use 24-hour email verification tokens, transactional activation, resend cooldowns, and purpose-specific rate limits.
 - Add HTTPS-only verification email delivery configuration and an explicit browser confirmation step that keeps tokens out of HTTP request logs.
