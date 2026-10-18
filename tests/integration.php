@@ -102,6 +102,22 @@ try {
     $manager2Id = $insertUser('manager2@example.test', 'Integration Manager Two', 'A-Strong-Test-Password-46');
     $pdo->prepare("INSERT INTO user_system_roles (user_id, role) VALUES (:user_id, 'site_admin')")->execute(['user_id' => $adminId]);
 
+    $userDirectory = new UserRepository($pdo);
+    $adminSearch = $userDirectory->searchForSiteAdmin($adminId, 'admin@example.test', 'active');
+    $assert(count($adminSearch['users']) === 1 && $adminSearch['users'][0]['id'] === $adminId, 'site admin can search the directory by email');
+    $assert(!array_key_exists('password_hash', $adminSearch['users'][0]), 'admin user directory never exposes password hashes');
+    $exactIdSearch = $userDirectory->searchForSiteAdmin($adminId, (string) $adminId, 'all');
+    $assert(count($exactIdSearch['users']) === 1 && $exactIdSearch['users'][0]['email'] === 'admin@example.test', 'admin user directory supports exact user ID lookup');
+    $literalWildcardSearch = $userDirectory->searchForSiteAdmin($adminId, '%', 'all');
+    $assert($literalWildcardSearch['users'] === [], 'user search treats SQL wildcard characters as literal input');
+    $nonAdminDirectoryDenied = false;
+    try {
+        $userDirectory->searchForSiteAdmin($outsiderId);
+    } catch (DomainException) {
+        $nonAdminDirectoryDenied = true;
+    }
+    $assert($nonAdminDirectoryDenied, 'non-admin accounts cannot query the site-wide user directory');
+
     $teams = new TeamRepository($pdo);
     $team = $teams->createForOwner($adminId, 'Integration Team');
     $teamId = $team['id'];
