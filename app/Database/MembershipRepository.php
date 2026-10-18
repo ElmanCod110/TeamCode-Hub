@@ -15,7 +15,11 @@ final class MembershipRepository
     public function activeTeamRole(int $userId, int $teamId): ?string
     {
         $statement = $this->pdo->prepare(
-            "SELECT role FROM team_memberships WHERE user_id = :user_id AND team_id = :team_id AND status = 'active' LIMIT 1"
+            "SELECT tm.role
+             FROM team_memberships tm
+             INNER JOIN teams active_team ON active_team.id = tm.team_id AND active_team.status = 'active'
+             WHERE tm.user_id = :user_id AND tm.team_id = :team_id AND tm.status = 'active'
+             LIMIT 1"
         );
         $statement->execute(['user_id' => $userId, 'team_id' => $teamId]);
         $role = $statement->fetchColumn();
@@ -29,6 +33,7 @@ final class MembershipRepository
             "SELECT pm.access_level
              FROM project_memberships pm
              INNER JOIN projects p ON p.id = pm.project_id
+             INNER JOIN teams active_team ON active_team.id = p.team_id AND active_team.status = 'active'
              INNER JOIN team_memberships tm ON tm.team_id = p.team_id AND tm.user_id = pm.user_id
              WHERE pm.user_id = :user_id
                AND pm.project_id = :project_id
