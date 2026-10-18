@@ -59,6 +59,9 @@ try {
         'Verification Fixture'
     );
     $assert(is_int($verificationUserId) && $verificationUserId > 0, 'registration creates a pending account before email verification');
+    SecureSession::start();
+    $pendingAuthentication = new AuthenticationService(new UserRepository($pdo));
+    $assert(!$pendingAuthentication->authenticate('email-verification@example.test', 'A-Strong-Verification-Password-48'), 'pending accounts cannot sign in before email verification');
     $duplicateVerificationUser = (new UserRepository($pdo))->createPendingAccount(
         'email-verification@example.test',
         password_hash('A-Strong-Verification-Password-49', PASSWORD_DEFAULT),
