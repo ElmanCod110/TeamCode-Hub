@@ -340,6 +340,19 @@ try {
 
     $projects = new ProjectRepository($pdo);
     $projectId = $projects->createForTeamManager($adminId, $teamId, 'Integration Project', 'Testing project access');
+    $projects->updateGitHubRepositoryForTeamManager($adminId, $projectId, 'example-org/sample-repo');
+    $linkedProject = $projects->findAccessibleByUser($adminId, $projectId);
+    $assert(is_array($linkedProject) && $linkedProject['github_repository'] === 'example-org/sample-repo', 'team owner can link a public GitHub repository to a project');
+    $unauthorizedRepositoryLinkRejected = false;
+    try {
+        $projects->updateGitHubRepositoryForTeamManager($outsiderId, $projectId, 'example-org/unauthorized-repo');
+    } catch (DomainException) {
+        $unauthorizedRepositoryLinkRejected = true;
+    }
+    $assert($unauthorizedRepositoryLinkRejected, 'unrelated users cannot change a project repository link');
+    $projects->updateGitHubRepositoryForTeamManager($adminId, $projectId, null);
+    $unlinkedProject = $projects->findAccessibleByUser($adminId, $projectId);
+    $assert(is_array($unlinkedProject) && $unlinkedProject['github_repository'] === null, 'team owner can unlink a project repository without deleting project history');
     $projects->updateMetadataForTeamManager($adminId, $projectId, 'Integration Project Updated', 'Updated project description');
     $updatedProject = $projects->findAccessibleByUser($adminId, $projectId);
     $assert(is_array($updatedProject) && $updatedProject['name'] === 'Integration Project Updated' && $updatedProject['description'] === 'Updated project description', 'team owner can update project name and description');
