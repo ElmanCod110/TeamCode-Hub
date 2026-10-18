@@ -40,6 +40,7 @@ final class AuthenticationService
         $this->users->updateLastLogin($user['id']);
         SecureSession::regenerateAfterAuthentication();
         $_SESSION['user_id'] = $user['id'];
+        $_SESSION['auth_version'] = (int) $user['auth_version'];
         $_SESSION['authenticated_at'] = time();
         CsrfToken::rotate();
 
@@ -75,7 +76,19 @@ final class AuthenticationService
             return false;
         }
 
-        return $this->users->replacePasswordHash($userId, $user['password_hash'], $newHash);
+        if (!$this->users->replacePasswordHash($userId, $user['password_hash'], $newHash)) {
+            return false;
+        }
+
+        // Password changes invalidate other sessions while keeping this authenticated session alive.
+        $updated = $this->users->findAuthenticationById($userId);
+        if ($updated === null) {
+            return false;
+        }
+        if (session_status() === PHP_SESSION_ACTIVE && ($_SESSION['user_id'] ?? null) === $userId) {
+            $_SESSION['auth_version'] = (int) $updated['auth_version'];
+        }
+        return true;
     }
 
     /** @return array{id:int,email:string,status:string,display_name:string,roles:list<string>}|null */
@@ -90,12 +103,16 @@ final class AuthenticationService
             return null;
         }
 
-        $user = $this->users->findPublicById($id);
-        if ($user === null || $user['status'] !== 'active') {
+        $user = $this->users->findSessionUserById($id);
+        $sessionVersion = $_SESSION['auth_version'] ?? null;
+        if ($user === null || $user['status'] !== 'active'
+            || !is_int($sessionVersion) || $sessionVersion !== $user['auth_version']) {
             SecureSession::destroy();
             return null;
         }
 
+        // Never expose the internal credential version in the /api/auth/me response.
+        unset($user['auth_version']);
         $user['roles'] = $this->users->systemRoles($id);
         return $user;
     }
