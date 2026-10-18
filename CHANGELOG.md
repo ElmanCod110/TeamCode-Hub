@@ -6,6 +6,10 @@
 - Store only SHA-256 token hashes, enforce a 30-minute expiry and 60-second resend cooldown, rate-limit public requests, and consume reset tokens transactionally.
 - Increment account session versions after credential changes so password reset invalidates existing sessions.
 - Add MariaDB integration and workspace contract checks for token expiry, replay prevention, password replacement, and session invalidation.
+- Send seven-day team invitations through the configured HTTPS email transport.
+- Omit raw invitation tokens from API responses after successful delivery; retain a one-time trusted-channel fallback only when delivery fails.
+- Add fragment-based invitation deep links that resume after sign-in and require explicit acceptance by the matching account email.
+- Add integration/UI contract checks and deployment documentation for invitation email delivery.
 
 
 - Add public account registration that creates pending users and avoids email-existence disclosure.
