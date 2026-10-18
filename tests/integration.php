@@ -8,6 +8,7 @@ use TeamCodeHub\Database\ChatRepository;
 use TeamCodeHub\Database\ChatReportRepository;
 use TeamCodeHub\Database\DashboardRepository;
 use TeamCodeHub\Database\EmailVerificationRepository;
+use TeamCodeHub\Database\PasswordResetRepository;
 use TeamCodeHub\Services\EmailDeliveryService;
 use TeamCodeHub\Database\GitHubActivityCacheRepository;
 use TeamCodeHub\Database\GitHubRepositoryCacheRepository;
@@ -216,6 +217,32 @@ try {
     $viewerId = $insertUser('viewer@example.test', 'Integration Viewer', 'A-Strong-Test-Password-44');
     $outsiderId = $insertUser('outsider@example.test', 'Integration Outsider', 'A-Strong-Test-Password-45');
     $manager2Id = $insertUser('manager2@example.test', 'Integration Manager Two', 'A-Strong-Test-Password-46');
+
+    // Exercise password recovery without invoking the server's real mail transport.
+    $resetUserId = $insertUser('password-reset@example.test', 'Password Reset Fixture', 'Old-Password-For-Reset-41');
+    $passwordReset = new PasswordResetRepository($pdo);
+    $resetToken = bin2hex(random_bytes(32));
+    $resetHash = hash('sha256', $resetToken);
+    $issuedResetEmail = $passwordReset->issueForEmail('password-reset@example.test', $resetHash);
+    $assert($issuedResetEmail === 'password-reset@example.test', 'active verified account can receive a password reset token');
+    $storedReset = $pdo->prepare("SELECT token_hash, expires_at FROM account_action_tokens WHERE user_id = :user_id AND purpose = 'password_reset' LIMIT 1");
+    $storedReset->execute(['user_id' => $resetUserId]);
+    $storedResetRow = $storedReset->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($storedResetRow) && $storedResetRow['token_hash'] === $resetHash && $resetHash !== $resetToken, 'password reset persists only the token hash');
+    $resetExpirySeconds = $pdo->prepare("SELECT TIMESTAMPDIFF(SECOND, CURRENT_TIMESTAMP, expires_at) FROM account_action_tokens WHERE token_hash = :hash");
+    $resetExpirySeconds->execute(['hash' => $resetHash]);
+    $assert((int) $resetExpirySeconds->fetchColumn() > 1700 && (int) $resetExpirySeconds->fetchColumn() <= 1800, 'password reset tokens expire after 30 minutes');
+    $assert($passwordReset->issueForEmail('password-reset@example.test', hash('sha256', bin2hex(random_bytes(32)))) === null, 'password reset issuance enforces a per-account cooldown');
+    $assert($passwordReset->issueForEmail('unknown-reset@example.test', hash('sha256', bin2hex(random_bytes(32)))) === null, 'unknown accounts do not receive password reset tokens');
+    $newResetPassword = 'New-Unique-Password-For-Reset-52';
+    $newResetHash = password_hash($newResetPassword, PASSWORD_DEFAULT);
+    $assert(is_string($newResetHash) && $passwordReset->resetPassword($resetHash, $newResetHash), 'valid password reset token changes the password transactionally');
+    $assert(!$passwordReset->resetPassword($resetHash, password_hash('Another-Reset-Password-53', PASSWORD_DEFAULT)), 'password reset token cannot be replayed');
+    $resetAuthentication = new AuthenticationService(new UserRepository($pdo));
+    $assert($resetAuthentication->authenticate('password-reset@example.test', $newResetPassword), 'new password works after a successful reset');
+    $assert(!$resetAuthentication->authenticate('password-reset@example.test', 'Old-Password-For-Reset-41'), 'old password stops working after a successful reset');
+    $pdo->prepare('DELETE FROM users WHERE id = :id')->execute(['id' => $resetUserId]);
+
     $pdo->prepare("INSERT INTO user_system_roles (user_id, role) VALUES (:user_id, 'site_admin')")->execute(['user_id' => $adminId]);
 
     $userDirectory = new UserRepository($pdo);
