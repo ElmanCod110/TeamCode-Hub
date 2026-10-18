@@ -215,7 +215,7 @@ final class ProjectFileController
         if ($token === null && isset($body['csrf_token']) && is_string($body['csrf_token'])) {
             $token = $body['csrf_token'];
         }
-        return CsrfToken::validate($token);
+        return is_string($token) && CsrfToken::validate($token);
     }
 
     private function positiveId(mixed $value): ?int
