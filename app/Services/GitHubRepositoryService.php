@@ -48,11 +48,12 @@ final class GitHubRepositoryService
     /** @return array<string,mixed> */
     public function repository(string $repository, ?string $utcDate = null): array
     {
+        $repository = strtolower($repository);
         if (preg_match('~^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?/([A-Za-z0-9_.-]{1,100})$~', $repository) !== 1) {
             throw new RuntimeException('GitHub repository reference is invalid.');
         }
         [$owner, $name] = explode('/', $repository, 2);
-        if ($name === '.' || $name === '..') {
+        if ($name === '.' || $name === '..' || str_ends_with($name, '.git')) {
             throw new RuntimeException('GitHub repository reference is invalid.');
         }
 
