@@ -134,6 +134,7 @@ final class ChatRepository
         $statement = $this->pdo->prepare(
             "SELECT p.id
              FROM projects p
+              INNER JOIN teams active_team ON active_team.id = p.team_id AND active_team.status = 'active'
              INNER JOIN project_memberships pm ON pm.project_id = p.id AND pm.user_id = :user_id
              INNER JOIN team_memberships tm ON tm.team_id = p.team_id AND tm.user_id = pm.user_id
              WHERE p.id = :project_id AND p.status = 'active'
