@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Added authenticated display-name editing without exposing email or system-role mutation.
+- Added password changes requiring the current password, matching confirmation, and a 12-character minimum.
+- Persisted password updates with a compare-and-swap hash check to avoid overwriting concurrent changes.
+- Rotated the current session identifier and CSRF token after successful password changes.
+- Connected account dialogs to Preferences and added integration/UI contract coverage.
+
 - Added owner/manager-only team renaming with CSRF validation and repository-level authorization.
 - Added owner/manager-only project name and description editing without changing membership or access levels.
 - Added workspace dialogs for team and project settings and expanded authorization/integration checks.
