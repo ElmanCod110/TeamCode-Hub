@@ -111,6 +111,9 @@ $assert(str_contains($html, 'id="password-recovery-form"') && str_contains($html
 $assert(str_contains($js, 'requestPasswordReset') && str_contains($js, 'resetPassword') && str_contains($js, 'reset-password?'), 'browser flow reads reset tokens from fragments and connects both recovery endpoints');
 $assert(str_contains($passwordRecoveryController, 'allowsForPurpose') && str_contains($passwordRecoveryController, 'GENERIC_RESPONSE') && str_contains($passwordRecoveryController, 'validCsrf'), 'password recovery uses generic responses, rate limiting, and CSRF validation');
 $assert(str_contains($passwordRecoveryRepository, 'INTERVAL 30 MINUTE') && str_contains($passwordRecoveryRepository, 'session_version = session_version + 1') && str_contains($passwordRecoveryRepository, 'FOR UPDATE'), 'reset token redemption is time-bounded, transactional, and revokes old sessions');
+$userLockPosition = strpos($passwordRecoveryRepository, '$userLock =');
+$tokenLockPosition = strpos($passwordRecoveryRepository, '$tokenLock =');
+$assert(is_int($userLockPosition) && is_int($tokenLockPosition) && $userLockPosition < $tokenLockPosition, 'password reset locks the account before its token to match token issuance order');
 $assert(str_contains($adminAccountRepository, 'session_version = session_version + 1'), 'administrator account status transitions invalidate existing sessions');
 $assert(str_contains($passwordRecoveryService, "hash('sha256'") && str_contains($emailDeliveryService, 'sendPasswordResetEmail') && str_contains($sessionVersionMigration, 'session_version'), 'password reset stores token hashes and versions account sessions');
 
