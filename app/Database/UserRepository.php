@@ -122,7 +122,7 @@ final class UserRepository
      *
      * @return array{users:list<array<string, mixed>>,has_more:bool}
      */
-    public function searchForSiteAdmin(int $actorId, string $query = '', string $status = 'all'): array
+    public function searchForSiteAdmin(int $actorId, string $query = '', string $status = 'all', int $page = 1): array
     {
         $access = $this->pdo->prepare(
             "SELECT 1 FROM user_system_roles
@@ -131,6 +131,10 @@ final class UserRepository
         $access->execute(['user_id' => $actorId]);
         if ($access->fetchColumn() === false) {
             throw new DomainException('Site administrator role required.');
+        }
+
+        if ($page < 1 || $page > 10000) {
+            throw new DomainException('Directory page is outside the supported range.');
         }
 
         $conditions = [];
@@ -154,9 +158,13 @@ final class UserRepository
                        ) AS is_site_admin
                 FROM users u {$where}
                 ORDER BY u.created_at DESC, u.id DESC
-                LIMIT 51";
+                LIMIT 51 OFFSET :offset";
         $statement = $this->pdo->prepare($sql);
-        $statement->execute($parameters);
+        foreach ($parameters as $key => $value) {
+            $statement->bindValue(':' . $key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+        }
+        $statement->bindValue(':offset', ($page - 1) * 50, PDO::PARAM_INT);
+        $statement->execute();
         $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
         $hasMore = count($rows) > 50;
         if ($hasMore) {
