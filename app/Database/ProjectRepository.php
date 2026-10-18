@@ -21,6 +21,7 @@ final class ProjectRepository
         $statement = $this->pdo->prepare(
             "SELECT p.id, p.team_id, p.name, p.slug, p.description, p.github_repository, p.status, p.created_by, p.created_at, p.updated_at, pm.access_level
              FROM projects p
+              INNER JOIN teams active_team ON active_team.id = p.team_id AND active_team.status = 'active'
              INNER JOIN project_memberships pm ON pm.project_id = p.id AND pm.user_id = :user_id
              INNER JOIN team_memberships tm ON tm.team_id = p.team_id AND tm.user_id = pm.user_id
              WHERE p.team_id = :team_id AND p.status = 'active'
@@ -59,6 +60,7 @@ final class ProjectRepository
         $statement = $this->pdo->prepare(
             "SELECT p.id, p.team_id, p.name, p.slug, p.description, p.github_repository, p.status, p.created_by, p.created_at, p.updated_at, pm.access_level
              FROM projects p
+              INNER JOIN teams active_team ON active_team.id = p.team_id AND active_team.status = 'active'
              INNER JOIN project_memberships pm ON pm.project_id = p.id AND pm.user_id = :user_id
              INNER JOIN team_memberships tm ON tm.team_id = p.team_id AND tm.user_id = pm.user_id
              WHERE p.id = :project_id AND p.status = 'active'
