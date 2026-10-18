@@ -975,9 +975,9 @@
           try {
             const result = await request("/api/teams/" + escapePath(team.id) + "/invitations", { method: "POST", body: { email: email.value.trim() } });
             const invitation = result.invitation || {};
-            showInvitationToken(invitation.token || "", email.value.trim());
+            showInvitationToken(invitation.token || "", email.value.trim(), result.email_sent === true);
             inviteForm.reset();
-            toast("Invitation created. Copy the token now; it is shown only once.");
+            toast(result.email_sent ? "Invitation email sent." : "Email delivery failed. Use the one-time token fallback.");
             await renderPendingInvitations(team, memberContent);
           } catch (error) { toast(error.message, "error"); }
           finally { submit.disabled = false; }
