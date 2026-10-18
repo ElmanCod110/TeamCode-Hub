@@ -38,6 +38,10 @@ $css = $read('public/assets/css/workspace.css');
 $js = $read('public/assets/js/workspace.js');
 $bootstrap = $read('app/bootstrap.php');
 $authController = $read('app/Http/AuthController.php');
+$accountLifecycleController = $read('app/Http/AccountLifecycleController.php');
+$emailVerificationRepository = $read('app/Database/EmailVerificationRepository.php');
+$accountLifecycleService = $read('app/Services/AccountLifecycleService.php');
+$emailDeliveryService = $read('app/Services/EmailDeliveryService.php');
 $adminUserController = $read('app/Http/AdminUserController.php');
 $userRepository = $read('app/Database/UserRepository.php');
 $adminAccountRepository = $read('app/Database/AdminAccountRepository.php');
@@ -59,6 +63,12 @@ foreach ($workspaceAssetMatches[1] as $assetUrl) {
 $assert(str_contains($html, 'data-theme="light"') && str_contains($read('public/assets/js/ui.js'), 'root.dataset.theme = next'), 'workspace theme switcher updates the shared light/dark design tokens');
 
 $assert(str_contains($html, 'id="login-form"') && str_contains($html, 'id="application"'), 'login and authenticated application shells are present');
+$assert(str_contains($html, 'id="register-form"') && str_contains($html, 'id="verification-resend-form"') && str_contains($html, 'id="verify-screen"'), 'public registration, resend, and explicit email verification forms are present');
+$assert(str_contains($js, 'registerAccount') && str_contains($js, 'resendVerification') && str_contains($js, 'state.verificationToken'), 'authentication UI connects registration, resend, and token confirmation flows');
+$assert(str_contains($bootstrap, "/api/auth/register") && str_contains($bootstrap, "/api/auth/verification/resend") && str_contains($bootstrap, "/api/auth/verify-email"), 'public account lifecycle endpoints are registered');
+$assert(str_contains($accountLifecycleController, 'allowsForPurpose') && str_contains($accountLifecycleController, 'CsrfToken::validate'), 'public account lifecycle endpoints require CSRF and purpose-specific rate limiting');
+$assert(str_contains($emailVerificationRepository, 'expires_at > CURRENT_TIMESTAMP') && str_contains($emailVerificationRepository, 'used_at IS NULL') && str_contains($emailVerificationRepository, "SET status = 'active'"), 'email verification enforces expiry, single use, and transactional account activation');
+$assert(str_contains($accountLifecycleService, 'hash(\'sha256\', $token)') && str_contains($emailDeliveryService, "($parts['scheme'] ?? '') !== 'https'") === false, 'verification service hashes bearer tokens before persistence');
 $assert(str_contains($html, 'id="nav-moderation-item"') && str_contains($html, 'data-page="moderation"'), 'moderation navigation exists as a permission-gated workspace view');
 $assert(str_contains($html, 'data-page="github"') && str_contains($js, '/api/github/activity'), 'GitHub activity page is connected to its authenticated endpoint');
 $assert(str_contains($html, 'id="nav-admin-users-item"') && str_contains($js, '"admin-users"') && str_contains($js, 'renderAdminUsers'), 'site-admin user directory has a dedicated navigation entry and rendered view');
