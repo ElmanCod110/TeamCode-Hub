@@ -79,7 +79,10 @@ final class ProjectGitHubController
         }
 
         $body = $request->body();
-        $reference = $body['repository_url'] ?? null;
+        if (!array_key_exists('repository_url', $body)) {
+            return Response::json(['error' => 'Provide repository_url as a public GitHub URL or null to unlink.'], 422);
+        }
+        $reference = $body['repository_url'];
         if ($reference !== null && !is_string($reference)) {
             return Response::json(['error' => 'Repository URL must be a string or null.'], 422);
         }
