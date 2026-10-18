@@ -343,6 +343,7 @@ final class ProjectFileRepository
         $statement = $this->pdo->prepare(
             "SELECT pm.access_level
              FROM projects p
+              INNER JOIN teams active_team ON active_team.id = p.team_id AND active_team.status = 'active'
              INNER JOIN project_memberships pm ON pm.project_id = p.id AND pm.user_id = :user_id AND pm.status = 'approved'
              INNER JOIN users u ON u.id = pm.user_id AND u.status = 'active'
              INNER JOIN team_memberships tm ON tm.team_id = p.team_id AND tm.user_id = pm.user_id AND tm.status = 'active'
@@ -359,6 +360,7 @@ final class ProjectFileRepository
         $statement = $this->pdo->prepare(
             "SELECT p.id
              FROM projects p
+              INNER JOIN teams active_team ON active_team.id = p.team_id AND active_team.status = 'active'
              INNER JOIN project_memberships pm ON pm.project_id = p.id AND pm.user_id = :user_id
              INNER JOIN users u ON u.id = pm.user_id AND u.status = 'active'
              INNER JOIN team_memberships tm ON tm.team_id = p.team_id AND tm.user_id = pm.user_id
