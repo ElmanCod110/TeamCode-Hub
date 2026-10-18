@@ -17,6 +17,7 @@ use TeamCodeHub\Database\MembershipRepository;
 use TeamCodeHub\Database\MigrationRunner;
 use TeamCodeHub\Database\ProjectMembershipRepository;
 use TeamCodeHub\Database\ProjectRepository;
+use TeamCodeHub\Database\PasswordResetRepository;
 use TeamCodeHub\Database\TaskRepository;
 use TeamCodeHub\Database\TaskCollaborationRepository;
 use TeamCodeHub\Database\TeamInvitationRepository;
@@ -50,7 +51,7 @@ try {
     $pdo = ConnectionFactory::connect($config);
     $runner = new MigrationRunner($pdo, dirname(__DIR__) . '/database/migrations');
     $applied = $runner->migrate();
-    $assert(count($applied) >= 12, 'all versioned migrations are applied to MariaDB');
+    $assert(count($applied) >= 13, 'all versioned migrations are applied to MariaDB');
     $assert($runner->migrate() === [], 'migration runner is idempotent on a migrated schema');
 
     // Exercise email verification directly without invoking the server's real mail transport.
@@ -779,6 +780,42 @@ try {
     $projects->restoreForTeamManager($adminId, $projectId);
     $restoredProject = $projects->findAccessibleByUser($adminId, $projectId);
     $assert(is_array($restoredProject) && $restoredProject['status'] === 'active', 'team owner can restore an archived project after quota capacity is available');
+
+    // Verify password reset consumes a one-time token and revokes sessions through auth_version.
+    $resetUsers = new UserRepository($pdo);
+    $resetUserId = $resetUsers->createPendingAccount(
+        'password-reset@example.test',
+        password_hash('Old-Password-For-Reset-Example-52', PASSWORD_DEFAULT),
+        'Password Reset Fixture'
+    );
+    if (!is_int($resetUserId) || $resetUserId < 1) {
+        throw new RuntimeException('Password reset fixture could not be created.');
+    }
+    $resetEmailToken = bin2hex(random_bytes(32));
+    $assert($verificationRepository->issueToken($resetUserId, hash('sha256', $resetEmailToken)), 'password reset fixture can receive email verification');
+    $assert($verificationRepository->verifyToken(hash('sha256', $resetEmailToken)), 'password reset fixture becomes verified before recovery is enabled');
+
+    $passwordResets = new PasswordResetRepository($pdo);
+    $pendingResetRejected = !$passwordResets->issueToken($resetUserId + 99999999, hash('sha256', bin2hex(random_bytes(32))));
+    $assert($pendingResetRejected, 'password reset token cannot be issued for a missing account');
+
+    SecureSession::start();
+    $resetAuthentication = new AuthenticationService($resetUsers);
+    $oldResetPassword = 'Old-Password-For-Reset-Example-52';
+    $assert($resetAuthentication->authenticate('password-reset@example.test', $oldResetPassword), 'verified account can sign in before password reset');
+    $resetToken = bin2hex(random_bytes(32));
+    $resetHash = hash('sha256', $resetToken);
+    $assert($passwordResets->issueToken($resetUserId, $resetHash), 'verified active account receives a password reset token');
+    $oldAuthVersion = $resetUsers->findAuthenticationById($resetUserId)['auth_version'];
+    $newResetPassword = 'New-Password-For-Reset-Example-53';
+    $assert($passwordResets->resetPasswordWithToken($resetHash, password_hash($newResetPassword, PASSWORD_DEFAULT)), 'valid reset token atomically changes the password');
+    $updatedResetUser = $resetUsers->findAuthenticationById($resetUserId);
+    $assert(is_array($updatedResetUser) && password_verify($newResetPassword, $updatedResetUser['password_hash'])
+        && $updatedResetUser['auth_version'] === $oldAuthVersion + 1, 'password reset increments the credential version and stores the new hash');
+    $assert(!$passwordResets->resetPasswordWithToken($resetHash, password_hash('Another-Password-For-Reset-54', PASSWORD_DEFAULT)), 'password reset token cannot be replayed');
+    $assert($resetAuthentication->currentUser() === null, 'password reset invalidates a previously authenticated session');
+
+    $pdo->prepare('DELETE FROM users WHERE id = :id')->execute(['id' => $resetUserId]);
 
     echo "\n{$passed} integration assertions passed.\n";
     $output = ob_get_clean();
