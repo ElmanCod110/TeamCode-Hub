@@ -429,10 +429,19 @@
       status.textContent = result.message || "Email verified. You can now sign in.";
       submit.hidden = true;
     } catch (failure) {
-      state.verificationToken = "";
       status.className = "alert alert-danger auth-status";
-      status.textContent = failure.message || "This verification link is invalid, expired, or already used.";
-      submit.hidden = true;
+      if (failure.status === 400) {
+        state.verificationToken = "";
+        status.textContent = failure.message || "This verification link is invalid, expired, or already used.";
+        submit.hidden = true;
+      } else {
+        if (failure.status === 419) {
+          try { await loadCsrf(); } catch (_) {}
+        }
+        status.textContent = "The verification request could not be completed. Check your connection and try again.";
+        // Keep the token in memory so a transient network failure does not strand the user.
+        submit.hidden = false;
+      }
     } finally {
       submit.disabled = false;
       submit.textContent = "Verify email";
