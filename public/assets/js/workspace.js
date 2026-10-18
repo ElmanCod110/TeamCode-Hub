@@ -19,12 +19,16 @@
     projects: [],
     tasks: [],
     notifications: [],
+    unreadNotificationCount: null,
+    notificationTimer: null,
+    notificationBusy: false,
     github: null,
     githubError: null,
     page: "overview",
     selectedProject: null,
     projectTab: "overview",
     chatCursor: 0,
+    chatPollCount: 0,
     chatTimer: null,
     chatBusy: false,
     refreshing: false,
@@ -213,6 +217,7 @@
 
   function showAuth() {
     stopChatPolling();
+    stopNotificationPolling();
     $("#application").hidden = true;
     $("#auth-screen").hidden = false;
     $("#login-password").value = "";
@@ -222,6 +227,7 @@
   function showApplication() {
     $("#auth-screen").hidden = true;
     $("#application").hidden = false;
+    startNotificationPolling();
     $("#sidebar-user-name").textContent = state.user?.display_name || state.user?.email || "Your account";
     $("#sidebar-user-role").textContent = (state.user?.roles || []).includes("site_admin") ? "Site administrator" : "Workspace member";
     $("#user-avatar").textContent = initials(state.user?.display_name || state.user?.email || "User");
@@ -332,6 +338,7 @@
       state.tasks = await loadAllTasks();
       const notifications = await request("/api/notifications?limit=20");
       state.notifications = Array.isArray(notifications.notifications) ? notifications.notifications : [];
+      state.unreadNotificationCount = Number.isFinite(Number(notifications.unread_count)) ? Number(notifications.unread_count) : state.notifications.filter(item => !item.is_read).length;
       updateNavigationCounts();
       if (showNotice) toast("Workspace data refreshed.");
       if (state.page === "overview") renderOverview();
@@ -394,7 +401,9 @@
     $("#nav-project-count").textContent = String(state.projects.length);
     const openTasks = state.tasks.filter(task => task.status !== "done").length;
     $("#nav-task-count").textContent = String(openTasks);
-    const unread = state.notifications.filter(item => !item.is_read).length;
+    const unread = Number.isFinite(state.unreadNotificationCount)
+      ? state.unreadNotificationCount
+      : state.notifications.filter(item => !item.is_read).length;
     $("#nav-notification-count").textContent = String(unread);
     $("#nav-notification-count").hidden = unread === 0;
     $("#topbar-notification-dot").hidden = unread === 0;
@@ -632,10 +641,8 @@
     closeSidebar();
     const root = pageRoot();
     const teamActions = actionGroup();
-    if (canManageTeam(team.id)) append(teamActions,
-      actionButton("Edit team", "edit-team", "btn btn-outline", { "data-team-id": team.id }),
-      actionButton("Invite member", "invite-member", "btn btn-outline", { "data-team-id": team.id }),
-      actionButton("New project", "create-project", "btn btn-primary", { "data-team-id": team.id }));
+    if (canManageTeam(team.id)) append(teamActions, actionButton("Invite member", "invite-member", "btn btn-outline", { "data-team-id": team.id }), actionButton("New project", "create-project", "btn btn-primary", { "data-team-id": team.id }));
+    if (team.role === "owner") teamActions.appendChild(actionButton("Edit team", "edit-team", "btn btn-outline", { "data-team-id": team.id }));
     root.appendChild(pageHeading("TEAM WORKSPACE", team.name, "Projects and invitations for this team.", teamActions));
     const layout = el("div", "overview-columns");
     const projectContent = el("div", "project-mini-list");
@@ -644,6 +651,10 @@
     const invitePanel = panel("Team invitations", "Create a secure one-time invitation token", memberContent);
     append(layout, projectsPanel, invitePanel);
     root.appendChild(layout);
+    const archivedContent = canManageTeam(team.id) ? el("div", "project-mini-list") : null;
+    if (archivedContent) {
+      root.appendChild(panel("Archived projects", "Restore archived work without losing its tasks or conversation history", archivedContent));
+    }
     try {
       const data = await request("/api/teams/" + escapePath(team.id) + "/projects");
       const projects = data.projects || [];
@@ -679,6 +690,21 @@
         await renderPendingInvitations(team, memberContent);
       } else {
         memberContent.appendChild(el("p", "small", "Only team owners and managers can create or revoke invitations."));
+      }
+
+      if (archivedContent) {
+        const archivedData = await request("/api/teams/" + escapePath(team.id) + "/archived-projects");
+        const archivedProjects = archivedData.projects || [];
+        if (!archivedProjects.length) {
+          archivedContent.appendChild(emptyState("No archived projects", "Projects archived by your team will appear here and can be restored."));
+        }
+        archivedProjects.forEach(project => {
+          const row = el("div", "project-mini-row archived-project-row");
+          append(row, el("span", "project-mark", initials(project.name).slice(0, 2)),
+            append(el("span", "row-main"), el("span", "row-title", project.name), el("span", "row-subtitle", project.description || "Archived project")),
+            actionButton("Restore", "restore-project", "btn btn-outline btn-sm", { "data-project-id": project.id, "data-team-id": team.id }));
+          archivedContent.appendChild(row);
+        });
       }
     } catch (error) {
       projectContent.appendChild(el("div", "inline-error", error.message));
@@ -801,8 +827,16 @@
   async function renderProject(projectId, tab = state.projectTab) {
     // Stop any prior room poller before replacing the project view or its message list.
     stopChatPolling();
-    const project = projectById(projectId) || state.selectedProject;
+    let project = state.selectedProject && Number(state.selectedProject.id) === Number(projectId)
+      ? state.selectedProject
+      : projectById(projectId);
     if (!project) { navigate("projects", false); return; }
+
+    // Dashboard summaries omit descriptions; load the authorized detail record before rendering project metadata.
+    if (typeof project.description === "undefined") {
+      const detail = await request("/api/projects/" + escapePath(projectId));
+      project = detail.project || project;
+    }
     state.selectedProject = project;
     state.projectTab = tab;
     const root = pageRoot();
@@ -811,8 +845,9 @@
       append(el("div"), el("div", "eyebrow", "PROJECT WORKSPACE"), el("h1", "", project.name),
         el("p", "", project.description || "Plan work, coordinate the team, and keep decisions in context.")));
     const headActions = actionGroup();
-    if (canManageTeam(project.team_id)) headActions.appendChild(actionButton("Edit project", "edit-project", "btn btn-outline", { "data-project-id": project.id }));
     if (project.access_level !== "viewer") headActions.appendChild(actionButton("New task", "create-task", "btn btn-primary", { "data-project-id": project.id }));
+    if (canManageTeam(project.team_id)) headActions.appendChild(actionButton("Edit project", "edit-project", "btn btn-outline", { "data-project-id": project.id }));
+    if (canManageTeam(project.team_id)) headActions.appendChild(actionButton("Archive project", "archive-project", "btn btn-danger-outline", { "data-project-id": project.id }));
     headActions.appendChild(actionButton("Back to projects", "navigate-projects", "btn btn-outline"));
     append(root, heading, headActions);
     const tabs = el("div", "project-tabs");
@@ -895,8 +930,14 @@
       members.forEach(member => {
         const row = el("div", "member-row");
         append(row, avatar(member.display_name || member.email), append(el("div", "row-main"), el("span", "row-title", member.display_name || member.email), el("span", "row-subtitle", member.email || ("User #" + member.user_id))),
-          badge(member.status || member.access_level || "member"));
+          badge(member.status === "approved" ? (member.access_level || "member") : (member.status || "pending")));
         if (canManageTeam(project.team_id) && member.status === "pending") row.appendChild(actionButton("Approve", "approve-member", "btn btn-outline btn-sm", { "data-project-id": project.id, "data-user-id": member.user_id }));
+        if (canManageTeam(project.team_id) && member.status === "approved" && !member.is_project_creator && Number(member.user_id) !== Number(state.user.id)) {
+          const nextLevel = member.access_level === "member" ? "viewer" : "member";
+          row.appendChild(actionButton(nextLevel === "viewer" ? "Make viewer" : "Grant edit access", "change-member-access", "btn btn-outline btn-sm", {
+            "data-project-id": project.id, "data-user-id": member.user_id, "data-access-level": nextLevel
+          }));
+        }
         if (canManageTeam(project.team_id) && member.status !== "revoked" && Number(member.user_id) !== Number(state.user.id)) row.appendChild(actionButton("Revoke", "revoke-member", "btn btn-ghost btn-sm", { "data-project-id": project.id, "data-user-id": member.user_id }));
         list.appendChild(row);
       });
@@ -967,14 +1008,46 @@
       const query = fullSync ? "" : "?after_id=" + encodeURIComponent(state.chatCursor);
       const data = await request("/api/projects/" + escapePath(project.id) + "/chat" + query);
       const messages = Array.isArray(data.messages) ? data.messages : [];
-      if (fullSync) list.replaceChildren();
+      if (messages.length > 0) {
+        // Remove the initial empty state when the first new message arrives on an
+        // incremental poll, not only during a full-window reconciliation.
+        const placeholder = $(".empty-state", list);
+        if (placeholder) placeholder.remove();
+      }
+      if (fullSync) {
+        // Reconcile the bounded window instead of rebuilding every message. This
+        // makes edits and deletions visible without re-announcing unchanged chat.
+        const incomingIds = new Set(messages.map(message => String(message.id)));
+        $(".chat-message", list).forEach(row => {
+          if (!incomingIds.has(row.id.replace("chat-message-", ""))) row.remove();
+        });
+        if (messages.length === 0) {
+          $(".chat-message", list).forEach(row => row.remove());
+          if (!$(".empty-state", list)) list.appendChild(emptyState("Start the conversation", "Share a short update, ask a question, or unblock a teammate."));
+        } else {
+          const placeholder = $(".empty-state", list);
+          if (placeholder) placeholder.remove();
+        }
+      }
+
       messages.forEach(message => {
-        if ($("#chat-message-" + message.id, list)) return;
-        list.appendChild(renderChatMessage(message));
+        const existing = $("#chat-message-" + message.id, list);
+        if (existing) {
+          if (fullSync && existing.dataset.messageVersion !== chatMessageVersion(message)) {
+            existing.replaceWith(renderChatMessage(message));
+          }
+        } else {
+          list.appendChild(renderChatMessage(message));
+        }
         state.chatCursor = Math.max(state.chatCursor, Number(message.id) || 0);
       });
-      if (initial && !messages.length) list.appendChild(emptyState("Start the conversation", "Share a short update, ask a question, or unblock a teammate."));
-      if (initial || forceScroll) list.scrollTop = list.scrollHeight;
+
+      if (initial || forceScroll || wasNearBottom) {
+        list.scrollTop = list.scrollHeight;
+      } else if (fullSync) {
+        // Keep the visible part of the conversation stable if a message changed height.
+        list.scrollTop = Math.max(0, previousScrollTop + list.scrollHeight - previousScrollHeight);
+      }
       setConnection(true);
     } catch (error) {
       if (error.status !== 401) setConnection(false);
@@ -983,11 +1056,16 @@
     }
   }
 
+  function chatMessageVersion(message) {
+    return JSON.stringify([message.body, message.edited_at, message.deleted_at, message.display_name, message.created_at]);
+  }
+
   function renderChatMessage(message) {
     const own = Number(message.user_id) === Number(state.user.id);
     const deleted = Boolean(message.deleted_at);
     const row = el("article", "chat-message" + (own ? " own" : "") + (deleted ? " deleted" : ""));
     row.id = "chat-message-" + message.id;
+    row.dataset.messageVersion = chatMessageVersion(message);
     const displayName = message.display_name || "Team member";
     const meta = el("div", "chat-message-meta");
     append(meta, el("strong", "", own ? "You" : displayName), el("span", "", formatRelative(message.created_at)));
@@ -1013,6 +1091,7 @@
     if (state.chatTimer) window.clearInterval(state.chatTimer);
     state.chatTimer = null;
     state.chatCursor = 0;
+    state.chatPollCount = 0;
     state.chatBusy = false;
   }
 
@@ -1082,9 +1161,9 @@
       descriptionField.control.rows = 3;
       descriptionField.wrapper.classList.add("field-full");
       const dueField = makeTaskField("due_at", "Due date (local time)", "datetime-local", utcToLocalInput(task.due_at), false);
-      const assigneeField = makeTaskField("assigned_to", "Assignee user ID", "number", task.assigned_to || "", false);
-      assigneeField.control.min = "1";
-      assigneeField.control.placeholder = "Leave blank to unassign";
+      const assigneeField = makeAssigneeField("assigned_to", "Assignee (optional)", projectId,
+        task.assigned_to ? { user_id: task.assigned_to, display_name: task.assigned_to_name || "", email: "" } : null,
+        "Only approved member-level project users can be assigned. Leave empty to unassign this task.");
       append(grid, titleField.wrapper, priorityField.wrapper, descriptionField.wrapper, dueField.wrapper, assigneeField.wrapper);
       const saveRow = el("div", "task-detail-save-row");
       const save = el("button", "btn btn-primary btn-sm", "Save changes"); save.type = "submit";
@@ -1193,6 +1272,34 @@
     $("#modal-root").replaceChildren(overlay);
     const firstInput = $("input, textarea, select, button", modal);
     if (firstInput) firstInput.focus();
+  }
+
+  function makeAssigneeField(name, labelText, projectId, initialAssignee, helpText) {
+    const wrapper = el("div", "field field-full");
+    const label = el("label", "label", labelText);
+    const id = "assignee-field-" + Math.random().toString(36).slice(2, 8);
+    const control = el("input", "input");
+    control.type = "hidden";
+    control.name = name;
+    const search = el("input", "input assignee-picker-search");
+    search.type = "search";
+    search.id = id;
+    search.maxLength = 80;
+    search.autocomplete = "off";
+    search.placeholder = "Search by name, email, or user ID";
+    search.setAttribute("aria-label", labelText);
+    label.htmlFor = id;
+    const results = el("div", "assignee-picker-results");
+    results.setAttribute("role", "listbox");
+    results.setAttribute("aria-label", "Eligible task assignees");
+    results.setAttribute("aria-live", "polite");
+    const selection = el("div", "assignee-picker-selection");
+    append(wrapper, label, control, search, results, selection, el("span", "help", helpText));
+    mountAssigneePicker({
+      field: { name, projectField: "__project_id", initialAssignee },
+      control, search, results, selection
+    }, { __project_id: { value: projectId } });
+    return { wrapper, control };
   }
 
   function makeTaskField(name, labelText, type, value, required, maxLength) {
@@ -1510,6 +1617,121 @@
   /* All mutation forms share one accessible modal builder and the same CSRF path. */
   let modalReturnFocus = null;
 
+  function mountAssigneePicker(picker, controls) {
+    const { field, control, search, results, selection } = picker;
+    let timer = null;
+    let controller = null;
+    let sequence = 0;
+
+    const showState = (message, kind = "") => {
+      results.replaceChildren(el("p", "assignee-picker-state" + (kind ? " is-" + kind : ""), message));
+    };
+    const showSelection = person => {
+      selection.replaceChildren();
+      if (!person) {
+        selection.appendChild(el("p", "small", "No assignee selected. The task can remain unassigned."));
+        return;
+      }
+      const copy = el("div", "assignee-picker-selected-copy");
+      append(copy, el("strong", "", person.display_name || person.email),
+        el("span", "", person.email || ("User #" + person.user_id)));
+      const clear = el("button", "btn btn-ghost btn-xs", "Clear");
+      clear.type = "button";
+      append(selection, avatar(person.display_name || person.email, "sm"), copy, clear);
+      clear.addEventListener("click", () => {
+        control.value = "";
+        search.value = "";
+        sequence++;
+        if (controller) controller.abort();
+        showSelection(null);
+        showState("Search for an eligible project member, or leave this task unassigned.");
+        search.focus();
+      });
+    };
+
+    async function runSearch(query, expectedSequence) {
+      const projectId = controls[field.projectField]?.value;
+      if (!projectId) {
+        showState("Select a project before searching for an assignee.");
+        return;
+      }
+      controller = new AbortController();
+      showState("Searching approved project members…", "loading");
+      try {
+        const data = await request("/api/projects/" + escapePath(projectId) + "/assignees?q=" + encodeURIComponent(query), { signal: controller.signal });
+        if (expectedSequence !== sequence) return;
+        const assignees = Array.isArray(data.assignees) ? data.assignees : [];
+        results.replaceChildren();
+        if (!assignees.length) {
+          showState("No eligible member-level project users matched this search.");
+          return;
+        }
+        assignees.forEach(person => {
+          const button = el("button", "assignee-picker-option");
+          button.type = "button";
+          button.setAttribute("role", "option");
+          button.setAttribute("aria-selected", control.value && Number(control.value) === Number(person.user_id) ? "true" : "false");
+          append(button, avatar(person.display_name || person.email, "sm"),
+            append(el("div", "assignee-picker-option-copy"),
+              el("strong", "", person.display_name || person.email),
+              el("span", "", person.email),
+              el("small", "", "User #" + person.user_id)));
+          button.addEventListener("click", () => {
+            control.value = String(person.user_id);
+            search.value = person.display_name || person.email;
+            showSelection(person);
+            $(".assignee-picker-option", results).forEach(option => {
+              option.setAttribute("aria-selected", option === button ? "true" : "false");
+            });
+          });
+          results.appendChild(button);
+        });
+      } catch (error) {
+        if (controller?.signal.aborted || expectedSequence !== sequence) return;
+        showState(error.message || "Assignee search failed. Try again.", "error");
+      }
+    }
+
+    search.addEventListener("input", () => {
+      sequence++;
+      if (controller) controller.abort();
+      control.value = "";
+      showSelection(null);
+      const query = search.value.trim();
+      if (timer) window.clearTimeout(timer);
+      if (!query) {
+        showState("Search for an eligible project member, or leave this task unassigned.");
+        return;
+      }
+      showState("Updating search…", "loading");
+      const expectedSequence = sequence;
+      timer = window.setTimeout(() => runSearch(query, expectedSequence), 250);
+    });
+
+    const projectControl = controls[field.projectField];
+    if (projectControl && typeof projectControl.addEventListener === "function") {
+      projectControl.addEventListener("change", () => {
+        sequence++;
+        if (controller) controller.abort();
+        if (timer) window.clearTimeout(timer);
+        control.value = "";
+        search.value = "";
+        showSelection(null);
+        showState("Search for an eligible member of the selected project.");
+      });
+    }
+
+    if (field.initialAssignee) {
+      const initial = field.initialAssignee;
+      control.value = String(initial.user_id);
+      search.value = initial.display_name || initial.email || ("User #" + initial.user_id);
+      showSelection(initial);
+    } else {
+      showSelection(null);
+      showState("Search for an eligible project member, or leave this task unassigned.");
+    }
+  }
+
   function openFormModal(title, description, fields, submitLabel, onSubmit) {
     modalReturnFocus = document.activeElement;
     const overlay = el("div", "tch-modal-overlay");
@@ -1526,12 +1748,41 @@
     const form = el("form", "tch-modal-body");
     const error = el("div", "inline-error"); error.hidden = true; error.setAttribute("role", "alert");
     const controls = {};
+    const memberPickers = [];
     fields.forEach(field => {
       const wrap = el("div", "field" + (field.full ? " field-full" : ""));
       const label = el("label", "label", field.label);
       const id = "field-" + field.name + "-" + Math.random().toString(36).slice(2, 6);
-      label.htmlFor = id;
       let control;
+      if (field.type === "member-picker") {
+        control = el("input", "input");
+        control.type = "hidden";
+        control.id = id;
+        control.name = field.name;
+        control.value = field.value === undefined ? "" : String(field.value);
+        const search = el("input", "input assignee-picker-search");
+        search.type = "search";
+        search.id = id + "-search";
+        search.maxLength = 80;
+        search.autocomplete = "off";
+        search.placeholder = field.placeholder || "Search by name, email, or user ID";
+        search.setAttribute("aria-label", field.label);
+        const results = el("div", "assignee-picker-results");
+        results.setAttribute("role", "listbox");
+        results.setAttribute("aria-label", "Eligible task assignees");
+        results.setAttribute("aria-live", "polite");
+        const selection = el("div", "assignee-picker-selection");
+        selection.appendChild(el("p", "small", "No assignee selected. The task can remain unassigned."));
+        label.htmlFor = search.id;
+        append(wrap, label, control, search, results, selection);
+        memberPickers.push({ field, control, search, results, selection });
+        if (field.help) wrap.appendChild(el("span", "help", field.help)).id = id + "-help";
+        search.setAttribute("aria-describedby", id + "-help");
+        controls[field.name] = control;
+        form.appendChild(wrap);
+        return;
+      }
+      label.htmlFor = id;
       if (field.type === "select") {
         control = el("select", "select");
         (field.options || []).forEach(optionData => {
@@ -1556,6 +1807,7 @@
       if (field.help) wrap.appendChild(el("span", "help", field.help)).id = id + "-help";
       form.appendChild(wrap);
     });
+    memberPickers.forEach(picker => mountAssigneePicker(picker, controls));
     form.appendChild(error);
     const footer = el("div", "tch-modal-footer");
     append(footer, actionButton("Cancel", "close-modal", "btn btn-outline"));
@@ -1620,6 +1872,23 @@
     });
   }
 
+  function editTeamModal(teamId) {
+    const team = teamById(teamId);
+    if (!team || team.role !== "owner") {
+      toast("Only the team owner can rename this team.", "warning");
+      return;
+    }
+    openFormModal("Edit team", "Update the team name. Existing project links and team membership remain unchanged.", [
+      { name: "name", label: "Team name", type: "text", required: true, maxLength: 100, value: team.name, full: true }
+    ], "Save team", async values => {
+      await request("/api/teams/" + escapePath(team.id) + "/edit", { method: "POST", body: { name: values.name.trim() } });
+      await refreshWorkspace(false);
+      const updated = teamById(team.id);
+      toast("Team details updated.");
+      if (updated) await openTeam(updated.id);
+    });
+  }
+
   function createProjectModal(preselectedTeamId) {
     const manageableTeams = state.teams.filter(team => canManageTeam(team.id));
     if (!manageableTeams.length) { toast("Project creation requires a team owner or manager. Create a new team or ask a manager for access.", "warning"); if (!state.teams.length) createTeamModal(); return; }
@@ -1637,58 +1906,36 @@
     });
   }
 
-
-  /**
-   * Rename a team through the server-authorized settings endpoint.
-   * Refresh the current view so all visible labels use the canonical response.
-   */
-  function editTeamModal(teamId) {
-    const team = teamById(teamId);
-    if (!team || !canManageTeam(teamId)) {
-      toast("Only team owners and managers can edit team settings.", "warning");
-      return;
-    }
-    openFormModal("Edit team settings", "Update the name shown across this workspace. Membership and permissions remain unchanged.", [
-      { name: "name", label: "Team name", type: "text", value: team.name, required: true, maxLength: 100, full: true }
-    ], "Save team", async values => {
-      const result = await request("/api/teams/" + escapePath(team.id) + "/edit", {
-        method: "POST",
-        body: { name: values.name.trim() }
-      });
-      team.name = result.name || values.name.trim();
-      await refreshWorkspace(false);
-      toast("Team settings saved.");
-      await openTeam(team.id);
-    });
-  }
-
-  /**
-   * Edit a project's display metadata without changing its membership or status.
-   * The backend independently checks the caller's team-management role.
-   */
-  function editProjectModal(projectId) {
-    const project = projectById(projectId);
+  async function editProjectModal(projectId) {
+    let project = state.selectedProject && Number(state.selectedProject.id) === Number(projectId)
+      ? state.selectedProject
+      : projectById(projectId);
     if (!project || !canManageTeam(project.team_id)) {
-      toast("Only team owners and managers can edit project settings.", "warning");
+      toast("Project editing requires an active team owner or manager role.", "warning");
       return;
     }
-    openFormModal("Edit project settings", "Update the project name and description. Access permissions stay the same.", [
-      { name: "name", label: "Project name", type: "text", value: project.name, required: true, maxLength: 120, full: true },
-      { name: "description", label: "Description", type: "textarea", value: project.description || "", maxLength: 5000, full: true }
+    try {
+      // Fetch the current authorized record so a summary response never overwrites its description with an empty value.
+      const detail = await request("/api/projects/" + escapePath(project.id));
+      project = detail.project || project;
+      state.selectedProject = project;
+    } catch (error) {
+      toast(error.message || "Project details could not be loaded.", "error");
+      return;
+    }
+    const tab = state.projectTab;
+    openFormModal("Edit project", "Update project details without changing its members, tasks, or conversation history.", [
+      { name: "name", label: "Project name", type: "text", required: true, maxLength: 120, value: project.name, full: true },
+      { name: "description", label: "Description", type: "textarea", maxLength: 5000, value: project.description || "", full: true }
     ], "Save project", async values => {
       const result = await request("/api/projects/" + escapePath(project.id) + "/edit", {
         method: "POST",
         body: { name: values.name.trim(), description: values.description.trim() || null }
       });
-      project.name = result.name || values.name.trim();
-      project.description = result.description ?? null;
-      if (state.selectedProject && Number(state.selectedProject.id) === Number(project.id)) {
-        state.selectedProject.name = project.name;
-        state.selectedProject.description = project.description;
-      }
       await refreshWorkspace(false);
-      toast("Project settings saved.");
-      await openProject(projectById(project.id) || project, true, state.projectTab || "overview");
+      const updated = projectById(project.id) || result.project;
+      toast("Project details updated.");
+      if (updated) await openProject(updated, true, tab);
     });
   }
 
@@ -1704,7 +1951,7 @@
       { name: "description", label: "Description", type: "textarea", placeholder: "Optional context or acceptance criteria", maxLength: 10000, full: true },
       { name: "priority", label: "Priority", type: "select", options: [{ value: "low", label: "Low" }, { value: "normal", label: "Normal" }, { value: "high", label: "High" }, { value: "urgent", label: "Urgent" }], value: "normal" },
       { name: "due_at", label: "Due date (your local time)", type: "datetime-local", value: localDue, help: "Converted to UTC before it is sent to the server." },
-      { name: "assigned_to", label: "Assignee user ID (optional)", type: "number", min: "1", placeholder: "Member user ID", help: "Assignee must already have approved member-level project access." }
+      { name: "assigned_to", label: "Assignee (optional)", type: "member-picker", projectField: "project_id", placeholder: "Search by name, email, or user ID", help: "Only approved member-level project users can be assigned. Leave empty to keep this task unassigned." }
     ], "Create task", async values => {
       await request("/api/projects/" + escapePath(values.project_id) + "/tasks", {
         method: "POST",
@@ -1718,13 +1965,180 @@
   }
 
   function addProjectMemberModal(projectId) {
-    openFormModal("Add a project member", "Assign an existing team member. Their access remains pending until approved.", [
-      { name: "user_id", label: "User ID", type: "number", min: "1", required: true, placeholder: "Enter an existing user ID" },
-      { name: "access_level", label: "Access level", type: "select", options: [{ value: "member", label: "Member — can contribute" }, { value: "viewer", label: "Viewer — read only" }], value: "member" }
-    ], "Assign member", async values => {
-      await request("/api/projects/" + escapePath(projectId) + "/members", { method: "POST", body: { user_id: Number(values.user_id), access_level: values.access_level } });
-      toast("Membership request created.");
-      await renderProject(projectId, "members");
+    modalReturnFocus = document.activeElement;
+    let selected = null;
+    let searchTimer = null;
+    let searchController = null;
+    let searchSequence = 0;
+
+    const overlay = el("div", "tch-modal-overlay");
+    const modal = el("section", "tch-modal member-picker-modal");
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "member-picker-title");
+    const header = el("div", "tch-modal-header");
+    const headingBlock = el("div");
+    const heading = el("h2", "", "Add a project member");
+    heading.id = "member-picker-title";
+    append(headingBlock, heading, el("p", "", "Find an active team member by name, email, or exact user ID. Their access remains pending until approved."));
+    append(header, headingBlock, actionButton("×", "close-modal", "btn btn-ghost btn-icon", { "aria-label": "Close member search" }));
+
+    const form = el("form", "tch-modal-body member-picker-body");
+    const searchField = el("div", "field field-full");
+    const searchLabel = el("label", "label", "Search team members");
+    const search = el("input", "input");
+    search.type = "search";
+    search.name = "member_search";
+    search.maxLength = 80;
+    search.autocomplete = "off";
+    search.placeholder = "Name, email address, or user ID";
+    search.required = true;
+    search.setAttribute("aria-label", "Search active team members");
+    searchLabel.htmlFor = "member-search-input";
+    search.id = "member-search-input";
+    const searchHelp = el("span", "help", "Only active members of this project's team are shown. Approved project members are excluded.");
+    searchHelp.id = "member-search-help";
+    search.setAttribute("aria-describedby", "member-search-help");
+    append(searchField, searchLabel, search, searchHelp);
+
+    const resultHeading = el("div", "member-picker-results-heading");
+    append(resultHeading, el("strong", "", "Matching members"), el("span", "small", "Up to 12 results"));
+    const results = el("div", "member-picker-results");
+    results.setAttribute("role", "listbox");
+    results.setAttribute("aria-label", "Assignable team members");
+    results.setAttribute("aria-live", "polite");
+    const selection = el("div", "member-picker-selection");
+    selection.setAttribute("aria-live", "polite");
+    selection.appendChild(el("p", "small", "Choose a person from the search results."));
+    const accessField = el("div", "field field-full");
+    const accessLabel = el("label", "label", "Project access");
+    const access = el("select", "select");
+    accessLabel.htmlFor = "member-picker-access";
+    access.id = "member-picker-access";
+    [["member", "Member — can contribute"], ["viewer", "Viewer — read only"]].forEach(([value, label]) => {
+      const option = el("option", "", label);
+      option.value = value;
+      access.appendChild(option);
+    });
+    append(accessField, accessLabel, access);
+    const error = el("div", "inline-error");
+    error.hidden = true;
+    error.setAttribute("role", "alert");
+    const footer = el("div", "tch-modal-footer");
+    append(footer, actionButton("Cancel", "close-modal", "btn btn-outline"));
+    const submit = el("button", "btn btn-primary", "Request access");
+    submit.type = "submit";
+    submit.disabled = true;
+    footer.appendChild(submit);
+    append(form, searchField, resultHeading, results, selection, accessField, error, footer);
+    append(modal, header, form);
+    overlay.appendChild(modal);
+    $("#modal-root").replaceChildren(overlay);
+    overlay.addEventListener("click", event => { if (event.target === overlay) closeModal(); });
+    overlay.addEventListener("keydown", event => handleDialogKeydown(event, overlay));
+    search.focus();
+
+    function showSearchState(message, kind) {
+      results.replaceChildren(el("p", "member-picker-state" + (kind ? " is-" + kind : ""), message));
+    }
+
+    function renderSelection() {
+      selection.replaceChildren();
+      if (!selected) {
+        selection.appendChild(el("p", "small", "Choose a person from the search results."));
+        submit.disabled = true;
+        return;
+      }
+      const person = el("div", "member-picker-selected");
+      append(person, avatar(selected.display_name || selected.email, "md"),
+        append(el("div", "row-main"), el("strong", "", selected.display_name || selected.email),
+          el("span", "row-subtitle", selected.email + " · User #" + selected.user_id)));
+      const statusText = selected.existing_status === "pending"
+        ? "A pending request exists. Submitting will update its access level."
+        : "Ready to request project access.";
+      append(selection, person, el("p", "small", statusText));
+      submit.disabled = false;
+    }
+
+    async function searchCandidates(value) {
+      const query = value.trim();
+      const sequence = ++searchSequence;
+      if (searchController) searchController.abort();
+      if (query.length < 1) {
+        showSearchState("Type a name, email, or user ID to search.", "");
+        return;
+      }
+      searchController = new AbortController();
+      showSearchState("Searching active team members…", "loading");
+      try {
+        const data = await request("/api/projects/" + escapePath(projectId) + "/members/candidates?q=" + encodeURIComponent(query), { signal: searchController.signal });
+        if (sequence !== searchSequence) return;
+        const candidates = Array.isArray(data.candidates) ? data.candidates : [];
+        results.replaceChildren();
+        if (!candidates.length) {
+          showSearchState("No assignable team members matched this search.", "");
+          return;
+        }
+        candidates.forEach(person => {
+          const button = el("button", "member-picker-option");
+          button.type = "button";
+          button.setAttribute("role", "option");
+          button.setAttribute("aria-selected", selected && Number(selected.user_id) === Number(person.user_id) ? "true" : "false");
+          const copy = el("div", "member-picker-option-copy");
+          append(copy, el("strong", "", person.display_name || person.email),
+            el("span", "", person.email),
+            el("small", "", "Team " + person.team_role + " · User #" + person.user_id + (person.existing_status === "pending" ? " · Pending request" : "")));
+          append(button, avatar(person.display_name || person.email, "md"), copy, el("span", "member-picker-chevron", "＋"));
+          button.addEventListener("click", () => {
+            selected = person;
+            error.hidden = true;
+            renderSelection();
+            $(".member-picker-option", results).forEach(option => {
+              option.setAttribute("aria-selected", option === button ? "true" : "false");
+            });
+          });
+          results.appendChild(button);
+        });
+      } catch (errorValue) {
+        if (searchController?.signal.aborted || sequence !== searchSequence) return;
+        showSearchState(errorValue.message || "Team member search failed. Try again.", "error");
+      }
+    }
+
+    search.addEventListener("input", () => {
+      // Invalidate an in-flight response immediately, before the debounce timer runs.
+      searchSequence++;
+      if (searchController) searchController.abort();
+      selected = null;
+      renderSelection();
+      error.hidden = true;
+      showSearchState(search.value.trim() ? "Updating search…" : "Type a name, email, or user ID to search.", search.value.trim() ? "loading" : "");
+      if (searchTimer) window.clearTimeout(searchTimer);
+      searchTimer = window.setTimeout(() => searchCandidates(search.value), 250);
+    });
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      if (!selected || submit.disabled) return;
+      submit.disabled = true;
+      submit.textContent = "Requesting…";
+      error.hidden = true;
+      try {
+        await request("/api/projects/" + escapePath(projectId) + "/members", {
+          method: "POST",
+          body: { user_id: Number(selected.user_id), access_level: access.value }
+        });
+        closeModal();
+        toast("Membership request created.");
+        await renderProject(projectId, "members");
+      } catch (errorValue) {
+        error.textContent = errorValue.message || "The membership request could not be created.";
+        error.hidden = false;
+      } finally {
+        if ($("#member-picker-title")) {
+          submit.disabled = !selected;
+          submit.textContent = "Request access";
+        }
+      }
     });
   }
 
@@ -1742,7 +2156,8 @@
   }
 
   async function markNotificationRead(id) {
-    await request("/api/notifications/" + escapePath(id) + "/read", { method: "POST", body: {} });
+    const result = await request("/api/notifications/" + escapePath(id) + "/read", { method: "POST", body: {} });
+    if (Number.isFinite(Number(result.unread_count))) state.unreadNotificationCount = Number(result.unread_count);
     const item = state.notifications.find(notification => Number(notification.id) === Number(id));
     if (item) item.is_read = true;
     updateNavigationCounts();
@@ -1750,14 +2165,62 @@
     else if (state.page === "overview") renderOverview();
   }
 
+  function startNotificationPolling() {
+    stopNotificationPolling();
+    state.notificationTimer = window.setInterval(() => {
+      if (!document.hidden) void pollNotifications();
+    }, 30000);
+  }
+
+  function stopNotificationPolling() {
+    if (state.notificationTimer) window.clearInterval(state.notificationTimer);
+    state.notificationTimer = null;
+    state.notificationBusy = false;
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) void pollNotifications();
+  });
+
+  async function pollNotifications() {
+    if (!state.user || document.hidden || $("#application").hidden || state.notificationBusy) return;
+    state.notificationBusy = true;
+    try {
+      const result = await request("/api/notifications?limit=20");
+      const incoming = Array.isArray(result.notifications) ? result.notifications : [];
+      const previousSnapshot = JSON.stringify(state.notifications.map(item => [item.id, item.is_read, item.title, item.message]));
+      const nextSnapshot = JSON.stringify(incoming.map(item => [item.id, item.is_read, item.title, item.message]));
+      state.notifications = incoming;
+      state.unreadNotificationCount = Number.isFinite(Number(result.unread_count))
+        ? Number(result.unread_count)
+        : incoming.filter(item => !item.is_read).length;
+      updateNavigationCounts();
+      if (state.page === "notifications" && previousSnapshot !== nextSnapshot) renderNotifications();
+    } catch (error) {
+      // A single notification poll failure should not interrupt the active workspace.
+      if (error.status === 401) showAuth();
+    } finally {
+      state.notificationBusy = false;
+    }
+  }
+
   async function markAllVisibleRead() {
     const unread = state.notifications.filter(item => !item.is_read);
     for (const item of unread) {
       try {
-        await request("/api/notifications/" + escapePath(item.id) + "/read", { method: "POST", body: {} });
+        const result = await request("/api/notifications/" + escapePath(item.id) + "/read", { method: "POST", body: {} });
         item.is_read = true;
+        if (Number.isFinite(Number(result.unread_count))) state.unreadNotificationCount = Number(result.unread_count);
       } catch (_) { /* Continue marking other visible items even if one has expired. */ }
     }
+    // Refresh the authoritative unread count, including unread items outside this visible page.
+    try {
+      const refreshed = await request("/api/notifications?limit=20");
+      state.notifications = Array.isArray(refreshed.notifications) ? refreshed.notifications : [];
+      state.unreadNotificationCount = Number.isFinite(Number(refreshed.unread_count))
+        ? Number(refreshed.unread_count)
+        : state.notifications.filter(item => !item.is_read).length;
+    } catch (_) { /* Keep the latest locally confirmed state if refresh fails. */ }
     updateNavigationCounts();
     renderNotifications();
     toast("Visible notifications marked as read.");
@@ -1794,7 +2257,26 @@
     try {
       if (name === "create-team") createTeamModal();
       else if (name === "edit-team") editTeamModal(action.dataset.teamId);
-      else if (name === "edit-project") editProjectModal(action.dataset.projectId);
+      else if (name === "edit-project") await editProjectModal(action.dataset.projectId);
+      else if (name === "archive-project") {
+        const project = state.selectedProject;
+        if (!project || !window.confirm("Archive this project? It will leave active lists, but its tasks, memberships, and chat history will be preserved. A team owner or manager can restore it later.")) return;
+        await request("/api/projects/" + escapePath(action.dataset.projectId) + "/archive", { method: "POST", body: {} });
+        const team = teamById(project.team_id);
+        await refreshWorkspace(false);
+        toast("Project archived. Its history is preserved.");
+        if (team) await openTeam(team.id);
+        else navigate("projects");
+      }
+      else if (name === "restore-project") {
+        const teamId = action.dataset.teamId;
+        if (!window.confirm("Restore this project to the active project list? The team's active project quota will be checked.")) return;
+        await request("/api/projects/" + escapePath(action.dataset.projectId) + "/restore", { method: "POST", body: {} });
+        await refreshWorkspace(false);
+        toast("Project restored successfully.");
+        if (teamId) await openTeam(teamId);
+        else navigate("projects");
+      }
       else if (name === "accept-invitation") acceptInvitationModal();
       else if (name === "create-project") createProjectModal(action.dataset.teamId);
       else if (name === "create-task") createTaskModal(action.dataset.projectId);
@@ -1880,6 +2362,18 @@
       else if (name === "approve-member") {
         await request("/api/projects/" + escapePath(action.dataset.projectId) + "/members/" + escapePath(action.dataset.userId) + "/approve", { method: "POST", body: {} });
         toast("Project membership approved."); await renderProject(action.dataset.projectId, "members");
+      }
+      else if (name === "change-member-access") {
+        const accessLevel = action.dataset.accessLevel;
+        const explanation = accessLevel === "viewer"
+          ? "Make this member read-only? They will no longer be able to edit project tasks or send chat messages."
+          : "Grant this member edit access to project tasks and chat?";
+        if (!window.confirm(explanation)) return;
+        const result = await request("/api/projects/" + escapePath(action.dataset.projectId) + "/members/" + escapePath(action.dataset.userId) + "/access", {
+          method: "POST", body: { access_level: accessLevel }
+        });
+        toast(result.changed === false ? "This member already has that access level." : (accessLevel === "viewer" ? "Member is now read-only." : "Member edit access granted."));
+        await renderProject(action.dataset.projectId, "members");
       }
       else if (name === "revoke-member") {
         if (!window.confirm("Revoke this member's project access?")) return;
