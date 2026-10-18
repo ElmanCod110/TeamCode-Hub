@@ -44,6 +44,13 @@ Notifications are generated for team invitation acceptance, project access chang
 
 Invitation creation reserves a team member slot. Active memberships plus unexpired pending invitations cannot exceed `member_limit`. Invitations can grant only the `member` role.
 
+## Project GitHub repositories
+
+- `GET /api/projects/{projectId}/github` — returns the linked public GitHub repository summary and up to five recent commits to approved project members. If no repository is linked, the response reports `linked: false` and whether the current user can manage the setting.
+- `POST /api/projects/{projectId}/github` — body: `{"repository_url":"https://github.com/owner/repository"}` to link a repository, or `{"repository_url":null}` to unlink it. Requires CSRF protection, approved project membership, and an active owner/manager role in the parent team.
+- Only direct HTTPS URLs on `github.com` are accepted. Private repositories, alternate hosts, URL query strings, fragments, and non-HTTPS schemes are rejected. No GitHub token, webhook, or repository write permission is required.
+- Public metadata and the latest five commits are cached per canonical repository name. Each repository gets at most one refresh attempt per UTC day, and a shared budget caps refresh attempts at 20 distinct repositories per UTC day. A failed refresh preserves the last successful snapshot; cache data is shared when multiple projects link the same repository.
+
 ## Projects and members
 
 - `GET /api/teams/{teamId}/projects` — lists active projects with approved project membership and active team membership for the current user.
@@ -114,4 +121,4 @@ Only one report per reporter per reported person per UTC day is accepted. A vali
 
 ## Current limits
 
-Public registration, email verification, password recovery, automatic invitation email delivery, permanent team/project deletion, Git provider synchronization, richer administrative pages, and browser-level visual/accessibility tests are not implemented yet. Project chat uses bounded HTTP polling rather than WebSockets or push delivery. Future routes must repeat authorization checks in their data-access path rather than trusting a prior UI check alone.
+Public registration, email verification, password recovery, automatic invitation email delivery, permanent team/project deletion, private repository access, Git write operations/webhooks, other Git providers, richer administrative pages, and browser-level visual/accessibility tests are not implemented yet. Project chat uses bounded HTTP polling rather than WebSockets or push delivery. Future routes must repeat authorization checks in their data-access path rather than trusting a prior UI check alone.

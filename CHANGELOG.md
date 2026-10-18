@@ -24,6 +24,12 @@ Notable changes to TeamCode Hub are recorded here.
 
 ## [0.2.0-dev] - Unreleased
 
+### Project repository integration
+
+- Add project-scoped public GitHub repository linking for team owners/managers and read-only summaries for approved project members.
+- Cache repository metadata and five recent commits once per repository per UTC day, preserving the last good snapshot after failures.
+- Add a shared 20-repository daily refresh budget, strict HTTPS GitHub URL validation, and no-token public API transport.
+
 ### GitHub integration
 
 - Add a public GitHub events reader with strict username validation and HTTPS-only transport.

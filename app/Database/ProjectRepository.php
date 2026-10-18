@@ -19,7 +19,7 @@ final class ProjectRepository
     public function listAccessibleByUserInTeam(int $userId, int $teamId): array
     {
         $statement = $this->pdo->prepare(
-            "SELECT p.id, p.team_id, p.name, p.slug, p.description, p.status, p.created_by, p.created_at, p.updated_at, pm.access_level
+            "SELECT p.id, p.team_id, p.name, p.slug, p.description, p.github_repository, p.status, p.created_by, p.created_at, p.updated_at, pm.access_level
              FROM projects p
              INNER JOIN project_memberships pm ON pm.project_id = p.id AND pm.user_id = :user_id
              INNER JOIN team_memberships tm ON tm.team_id = p.team_id AND tm.user_id = pm.user_id
@@ -40,7 +40,7 @@ final class ProjectRepository
     public function listArchivedForManager(int $userId, int $teamId): array
     {
         $statement = $this->pdo->prepare(
-            "SELECT p.id, p.team_id, p.name, p.slug, p.description, p.status, p.created_by, p.created_at, p.updated_at
+            "SELECT p.id, p.team_id, p.name, p.slug, p.description, p.github_repository, p.status, p.created_by, p.created_at, p.updated_at
              FROM projects p
              INNER JOIN teams t ON t.id = p.team_id AND t.status = 'active'
              INNER JOIN team_memberships tm ON tm.team_id = t.id AND tm.user_id = :user_id AND tm.status = 'active'
@@ -57,7 +57,7 @@ final class ProjectRepository
     public function findAccessibleByUser(int $userId, int $projectId): ?array
     {
         $statement = $this->pdo->prepare(
-            "SELECT p.id, p.team_id, p.name, p.slug, p.description, p.status, p.created_by, p.created_at, p.updated_at, pm.access_level
+            "SELECT p.id, p.team_id, p.name, p.slug, p.description, p.github_repository, p.status, p.created_by, p.created_at, p.updated_at, pm.access_level
              FROM projects p
              INNER JOIN project_memberships pm ON pm.project_id = p.id AND pm.user_id = :user_id
              INNER JOIN team_memberships tm ON tm.team_id = p.team_id AND tm.user_id = pm.user_id
@@ -246,6 +246,55 @@ final class ProjectRepository
                 'description' => $description,
                 'project_id' => $projectId,
             ]);
+            $this->pdo->commit();
+        } catch (Throwable $error) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $error;
+        }
+    }
+
+
+    /**
+     * Link or unlink a public GitHub repository only for an active team owner/manager.
+     * The role and approved project membership are rechecked while the project row is locked.
+     */
+    public function updateGitHubRepositoryForTeamManager(int $userId, int $projectId, ?string $repository): void
+    {
+        if ($repository !== null) {
+            $repository = strtolower($repository);
+            if (preg_match('~^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?/[A-Za-z0-9_.-]{1,100}$~', $repository) !== 1
+                || str_ends_with($repository, '.git')) {
+                throw new DomainException('GitHub repository reference is invalid.');
+            }
+        }
+
+        $this->pdo->beginTransaction();
+        try {
+            $access = $this->pdo->prepare(
+                "SELECT p.id, tm.role
+                 FROM projects p
+                 INNER JOIN teams t ON t.id = p.team_id AND t.status = 'active'
+                 INNER JOIN team_memberships tm ON tm.team_id = p.team_id AND tm.user_id = :team_user_id AND tm.status = 'active'
+                 INNER JOIN project_memberships pm ON pm.project_id = p.id AND pm.user_id = :project_user_id AND pm.status = 'approved'
+                 WHERE p.id = :project_id AND p.status = 'active'
+                 LIMIT 1 FOR UPDATE"
+            );
+            $access->execute([
+                'team_user_id' => $userId,
+                'project_user_id' => $userId,
+                'project_id' => $projectId,
+            ]);
+            $row = $access->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($row) || !in_array($row['role'], ['owner', 'manager'], true)) {
+                throw new DomainException('Team manager role and approved project access required.');
+            }
+
+            $update = $this->pdo->prepare(
+                'UPDATE projects SET github_repository = :repository WHERE id = :project_id AND status = \'active\''
+            );
+            $update->execute(['repository' => $repository, 'project_id' => $projectId]);
             $this->pdo->commit();
         } catch (Throwable $error) {
             if ($this->pdo->inTransaction()) {

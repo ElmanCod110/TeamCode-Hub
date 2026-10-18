@@ -61,6 +61,11 @@ $assert(str_contains($html, 'data-theme="light"') && str_contains($read('public/
 $assert(str_contains($html, 'id="login-form"') && str_contains($html, 'id="application"'), 'login and authenticated application shells are present');
 $assert(str_contains($html, 'id="nav-moderation-item"') && str_contains($html, 'data-page="moderation"'), 'moderation navigation exists as a permission-gated workspace view');
 $assert(str_contains($html, 'data-page="github"') && str_contains($js, '/api/github/activity'), 'GitHub activity page is connected to its authenticated endpoint');
+$assert(str_contains($bootstrap, "'/api/projects/{projectId}/github'") && str_contains($bootstrap, 'project-github.controller'), 'project GitHub endpoints are registered through a dedicated controller');
+$assert(str_contains($js, 'renderProjectGitHub') && str_contains($js, 'connectProjectRepositoryModal') && str_contains($js, 'unlinkProjectRepository'), 'project workspace connects repository display, linking, and unlinking actions');
+$assert(str_contains($js, 'data-project-tab') && str_contains($js, '"repository", "Repository", "chart"'), 'project repository is available as a dedicated project tab');
+$assert(str_contains($css, '.project-github-summary') && str_contains($css, '.project-github-commit') && str_contains($css, '.project-github-actions'), 'project repository metadata and commit list have responsive styles');
+$assert(str_contains($read('app/Http/WorkspaceController.php'), 'updateMetadataForTeamManager') && str_contains($read('app/Database/ProjectRepository.php'), 'updateGitHubRepositoryForTeamManager'), 'repository link changes are guarded in the project repository layer');
 $assert(str_contains($html, 'id="nav-admin-users-item"') && str_contains($js, '"admin-users"') && str_contains($js, 'renderAdminUsers'), 'site-admin user directory has a dedicated navigation entry and rendered view');
 $assert(str_contains($bootstrap, "'/api/admin/users'") && str_contains($adminUserController, 'searchForSiteAdmin'), 'user directory route connects to the repository-protected admin controller');
 $assert(str_contains($js, '/api/admin/users?') && str_contains($js, 'params.set("page", String(page))') && str_contains($js, 'Go to next user directory page'), 'admin directory connects search filters to bounded previous/next pagination');
