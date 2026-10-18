@@ -1544,6 +1544,7 @@
     let sequence = 0;
     let controller = null;
     let timer = null;
+    let page = 1;
     const load = async () => {
       const current = ++sequence;
       if (controller) controller.abort();
@@ -1563,11 +1564,32 @@
         results.appendChild(heading);
         if (!users.length) {
           results.appendChild(emptyState("No accounts found", "Try a different name, email address, or exact user ID."));
-          return;
+        } else {
+          const list = el("div", "admin-user-list");
+          users.forEach(user => list.appendChild(renderAdminUserRow(user)));
+          results.appendChild(list);
         }
-        const list = el("div", "admin-user-list");
-        users.forEach(user => list.appendChild(renderAdminUserRow(user)));
-        results.appendChild(list);
+
+        // Keep each response bounded while allowing administrators to move through large directories.
+        const pagination = el("div", "admin-users-pagination");
+        const previous = el("button", "btn btn-outline btn-sm", "Previous");
+        previous.type = "button";
+        previous.disabled = page <= 1;
+        previous.setAttribute("aria-label", "Go to previous user directory page");
+        previous.addEventListener("click", () => {
+          if (page > 1) { page -= 1; load(); }
+        });
+        const pageLabel = el("span", "small", "Page " + page);
+        pageLabel.setAttribute("aria-live", "polite");
+        const next = el("button", "btn btn-outline btn-sm", "Next");
+        next.type = "button";
+        next.disabled = !data.has_more;
+        next.setAttribute("aria-label", "Go to next user directory page");
+        next.addEventListener("click", () => {
+          if (data.has_more) { page += 1; load(); }
+        });
+        append(pagination, previous, pageLabel, next);
+        results.appendChild(pagination);
       } catch (error) {
         if (error.name === "AbortError" || current !== sequence) return;
         results.replaceChildren(el("div", "panel-body inline-error", error.message || "The user directory could not be loaded."));
@@ -1575,12 +1597,13 @@
         if (current === sequence) results.setAttribute("aria-busy", "false");
       }
     };
-    toolbar.addEventListener("submit", event => { event.preventDefault(); load(); });
+    toolbar.addEventListener("submit", event => { event.preventDefault(); page = 1; load(); });
     query.addEventListener("input", () => {
       window.clearTimeout(timer);
+      page = 1;
       timer = window.setTimeout(load, 250);
     });
-    status.addEventListener("change", load);
+    status.addEventListener("change", () => { page = 1; load(); });
     await load();
   }
 
