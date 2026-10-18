@@ -46,8 +46,9 @@ Notifications are generated for team invitation acceptance, project access chang
 - `GET /api/teams/{teamId}/archived-projects` — lists up to 100 archived project records for active team owners/managers so they can restore projects. It does not expose archived projects to ordinary team members.
 - `GET /api/teams/{teamId}` — returns a team only to an active team member.
 - `GET /api/teams/{teamId}/invitations` — lists pending invitation metadata for an active team owner/manager. Tokens are not returned by this listing.
-- `POST /api/teams/{teamId}/invitations` — creates a seven-day invitation for an email. Body: `{"email":"person@example.com"}`. Requires CSRF protection and owner/manager access. The raw random token is returned once; only its SHA-256 hash is stored. The baseline does not send email, so the inviter must deliver the token through a trusted channel.
+- `POST /api/teams/{teamId}/invitations` — creates a seven-day invitation for an email. Body: `{"email":"person@example.com"}`. Requires CSRF protection and owner/manager access. The API attempts delivery using the configured HTTPS `APP_URL` and `MAIL_FROM_ADDRESS`. When delivery succeeds, `email_sent` is `true` and the raw token is omitted from the response. When delivery fails, `email_sent` is `false` and the token is returned once as a trusted-channel fallback. Only the SHA-256 token hash is stored.
 - `DELETE /api/teams/{teamId}/invitations/{invitationId}` — revokes a pending invitation; requires CSRF protection and owner/manager access.
+- `GET /accept-invitation` — serves the workspace shell for invitation deep links. The token is placed in the URL fragment and removed from browser history before use.
 - `POST /api/team-invitations/accept` — authenticated user accepts an invitation with body `{"token":"..."}` and CSRF protection. The signed-in email must match. The invitation expires after seven days and cannot be reused.
 
 Invitation creation reserves a team member slot. Active memberships plus unexpired pending invitations cannot exceed `member_limit`. Invitations can grant only the `member` role.
@@ -129,4 +130,4 @@ Only one report per reporter per reported person per UTC day is accepted. A vali
 
 ## Current limits
 
-Automatic invitation email delivery, permanent team/project deletion, private repository access, Git write operations/webhooks, other Git providers, richer administrative pages, and browser-level visual/accessibility tests are not implemented yet. Project chat uses bounded HTTP polling rather than WebSockets or push delivery. Future routes must repeat authorization checks in their data-access path rather than trusting a prior UI check alone.
+Permanent team/project deletion, private repository access, Git write operations/webhooks, other Git providers, richer administrative pages, and browser-level visual/accessibility tests are not implemented yet. Project chat uses bounded HTTP polling rather than WebSockets or push delivery. Future routes must repeat authorization checks in their data-access path rather than trusting a prior UI check alone.
