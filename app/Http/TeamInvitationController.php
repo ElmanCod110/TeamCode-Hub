@@ -12,6 +12,8 @@ use TeamCodeHub\Database\TeamInvitationRepository;
 use TeamCodeHub\Database\TeamRepository;
 use TeamCodeHub\Services\EmailDeliveryService;
 use TeamCodeHub\Security\AuthenticationService;
+use TeamCodeHub\Security\ClientIpResolver;
+use TeamCodeHub\Security\LoginRateLimiter;
 use TeamCodeHub\Security\CsrfToken;
 use TeamCodeHub\Security\SecureSession;
 use TeamCodeHub\Security\TeamAccessService;
@@ -24,6 +26,7 @@ final class TeamInvitationController
         private readonly TeamRepository $teams,
         private readonly TeamInvitationRepository $invitations,
         private readonly EmailDeliveryService $emailDelivery,
+        private readonly LoginRateLimiter $rateLimiter,
     ) {
     }
 
@@ -60,8 +63,13 @@ final class TeamInvitationController
             return Response::json(['error' => 'A valid email address is required.'], 422);
         }
 
+        $email = strtolower(trim($email));
+        if (!$this->rateLimiter->allowsForPurpose('team-invite', $email, $this->clientIp($request))) {
+            return Response::json(['error' => 'Too many invitation requests. Try again later.'], 429);
+        }
+
         try {
-            $invitation = $this->invitations->createForManager($user['id'], $teamId, strtolower(trim($email)));
+            $invitation = $this->invitations->createForManager($user['id'], $teamId, $email);
         } catch (QuotaExceededException) {
             return Response::json(['error' => 'The team has reached its member quota.'], 409);
         } catch (DomainException $error) {
@@ -144,6 +152,16 @@ final class TeamInvitationController
         return $revoked
             ? Response::json(['revoked' => true])
             : Response::json(['error' => 'Pending invitation not found.'], 404);
+    }
+
+    /** Resolve client addresses only through explicitly trusted proxy configuration. */
+    private function clientIp(Request $request): string
+    {
+        return ClientIpResolver::resolve(
+            (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown'),
+            $request->header('X-Forwarded-For'),
+            ClientIpResolver::configuredTrustedProxies(),
+        );
     }
 
     private function currentUser(): ?array
