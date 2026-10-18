@@ -24,7 +24,7 @@ This document distinguishes implemented primitives from controls still required 
 ## Required controls before production
 
 - Add operational monitoring and alerting for chat posting, report submission, project membership changes, account recovery, and other sensitive actions; account recovery already has purpose-specific IP/email and token-attempt rate limits.
-- Implement secure invitation delivery by email. Public registration, email verification, and password recovery require correctly configured HTTPS URLs and mail delivery before production use.
+- Public registration, email verification, password recovery, and team invitation email delivery require correctly configured HTTPS URLs and mail delivery before production use.
 - Define and document final retention durations for report snapshots, notifications, and audit data; schedule the chat cleanup CLI job.
 - Review abuse handling and notification access for reported users, reviewers, and site administrators.
 - Ensure every future file, Git, and admin route checks authorization at the data-access boundary.
