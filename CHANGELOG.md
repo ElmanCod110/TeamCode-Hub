@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add site-admin account status controls for existing active/disabled users, with explicit confirmation and preserved directory filters.
+- Protect status changes with CSRF, repository-level site-admin checks, transactional locking, self-disable prevention, and pending-account restrictions.
+- Add integration and UI contract coverage for account status changes and update the API/UI documentation.
+
 - Implement the already-registered team rename and project metadata routes in `WorkspaceController`.
 - Reuse the existing transactional repository checks: team renaming is owner-only; project settings require an active team owner/manager with approved project access.
 - Extend workspace UI contract tests to fail when a registered settings route has no controller handler.
