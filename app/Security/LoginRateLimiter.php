@@ -32,6 +32,27 @@ final class LoginRateLimiter
         return $ipAttempts <= self::IP_LIMIT && $emailAttempts <= self::EMAIL_LIMIT;
     }
 
+    /**
+     * Apply the same bounded IP/email limits to another public account action
+     * without consuming the login-specific buckets.
+     */
+    public function allowsForPurpose(string $purpose, string $email, string $clientIp): bool
+    {
+        if (preg_match('/^[a-z][a-z0-9_-]{0,31}$/', $purpose) !== 1) {
+            return false;
+        }
+
+        $emailKey = hash('sha256', $purpose . ':email:' . strtolower(trim($email)));
+        $ipKey = hash('sha256', $purpose . ':ip:' . $clientIp);
+        if (random_int(1, 100) === 1) {
+            $this->pdo->exec('DELETE FROM auth_rate_limits WHERE window_started_at < CURRENT_TIMESTAMP - INTERVAL 1 DAY');
+        }
+
+        $ipAttempts = $this->consume($ipKey, self::IP_LIMIT + 1);
+        $emailAttempts = $this->consume($emailKey, self::EMAIL_LIMIT + 1);
+        return $ipAttempts <= self::IP_LIMIT && $emailAttempts <= self::EMAIL_LIMIT;
+    }
+
     private function consume(string $bucketKey, int $cap): int
     {
         $statement = $this->pdo->prepare(
