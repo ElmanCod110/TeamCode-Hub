@@ -113,6 +113,7 @@ try {
     $mailDelivery = new EmailDeliveryService();
     $assert(!$mailDelivery->sendVerificationEmail('recipient@example.test', bin2hex(random_bytes(32))), 'verification email delivery rejects non-HTTPS application URLs');
     $assert(!$mailDelivery->sendPasswordResetEmail('recipient@example.test', bin2hex(random_bytes(32))), 'password reset email delivery rejects non-HTTPS application URLs');
+    $assert(!$mailDelivery->sendTeamInvitationEmail('recipient@example.test', 'Integration Team', 'Test Inviter', bin2hex(random_bytes(32))), 'team invitation email delivery rejects non-HTTPS application URLs');
     $previousAppUrl === false ? putenv('APP_URL') : putenv('APP_URL=' . $previousAppUrl);
     $previousMailFrom === false ? putenv('MAIL_FROM_ADDRESS') : putenv('MAIL_FROM_ADDRESS=' . $previousMailFrom);
 
