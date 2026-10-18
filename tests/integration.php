@@ -791,13 +791,13 @@ try {
     if (!is_int($resetUserId) || $resetUserId < 1) {
         throw new RuntimeException('Password reset fixture could not be created.');
     }
+    $passwordResets = new PasswordResetRepository($pdo);
+    $pendingResetRejected = !$passwordResets->issueToken($resetUserId, hash('sha256', bin2hex(random_bytes(32))));
+    $assert($pendingResetRejected, 'pending unverified accounts cannot request password reset');
+
     $resetEmailToken = bin2hex(random_bytes(32));
     $assert($verificationRepository->issueToken($resetUserId, hash('sha256', $resetEmailToken)), 'password reset fixture can receive email verification');
     $assert($verificationRepository->verifyToken(hash('sha256', $resetEmailToken)), 'password reset fixture becomes verified before recovery is enabled');
-
-    $passwordResets = new PasswordResetRepository($pdo);
-    $pendingResetRejected = !$passwordResets->issueToken($resetUserId + 99999999, hash('sha256', bin2hex(random_bytes(32))));
-    $assert($pendingResetRejected, 'password reset token cannot be issued for a missing account');
 
     SecureSession::start();
     $resetAuthentication = new AuthenticationService($resetUsers);
