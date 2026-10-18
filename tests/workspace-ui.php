@@ -62,6 +62,11 @@ $assert(str_contains($html, 'id="workspace-main"') && str_contains($html, 'class
 $assert(str_contains($js, 'editTeamModal') && str_contains($js, '"/edit"'), 'workspace settings dialogs call the team and project edit endpoints');
 $assert(str_contains($bootstrap, "/api/teams/{teamId}/edit") && str_contains($bootstrap, "/api/projects/{projectId}/edit"), 'team and project settings routes are registered');
 $assert(str_contains($js, 'if (team.role === "owner")') && str_contains($js, 'canManageTeam(project.team_id)'), 'team rename is owner-only while project settings support team managers');
+$assert(str_contains($js, 'actionButton("Edit team", "edit-team"') && str_contains($js, 'actionButton("Edit project", "edit-project"'), 'team and project detail headers expose the settings actions');
+$assert(str_contains($js, 'async function editProjectModal') && str_contains($js, 'Update project details without changing its members'), 'project settings dialog explains the non-destructive metadata-only operation');
+$assert(str_contains($bootstrap, "->updateTeam(\$request, \$params)") && str_contains($bootstrap, "->updateProject(\$request, \$params)"), 'settings routes reuse the existing authorized update handlers');
+$assert(str_contains($read('app/Http/WorkspaceController.php'), 'updateNameForOwner') && str_contains($read('app/Http/WorkspaceController.php'), 'updateMetadataForTeamManager'), 'settings endpoints rely on transactional repository authorization');
+
 $assert(str_contains($js, 'data-action="edit-team"') === false && str_contains($js, 'edit-project'), 'workspace controller wires team and project settings actions');
 $assert(str_contains($html, '/assets/css/workspace.css?v=0.2.0-dev'), 'product stylesheet is loaded as an external versioned asset');
 $assert(str_contains($html, '/assets/js/workspace.js?v=0.2.0-dev'), 'product controller is loaded as an external versioned asset');
