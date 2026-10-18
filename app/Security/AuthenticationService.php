@@ -46,6 +46,32 @@ final class AuthenticationService
         return true;
     }
 
+
+    /**
+     * Change the current account password after verifying the existing credential.
+     * A compare-and-swap update prevents racing password changes from overwriting one another.
+     */
+    public function changePassword(int $userId, string $currentPassword, string $newPassword): bool
+    {
+        if ($currentPassword === '' || strlen($currentPassword) > 4096
+            || strlen($newPassword) < 12 || strlen($newPassword) > 4096) {
+            return false;
+        }
+
+        $user = $this->users->findAuthenticationById($userId);
+        if ($user === null || $user['status'] !== 'active'
+            || !password_verify($currentPassword, $user['password_hash'])) {
+            return false;
+        }
+
+        $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
+        if (!is_string($newHash)) {
+            return false;
+        }
+
+        return $this->users->replacePasswordHash($userId, $user['password_hash'], $newHash);
+    }
+
     /** @return array{id:int,email:string,status:string,display_name:string,roles:list<string>}|null */
     public function currentUser(): ?array
     {
