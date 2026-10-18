@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use TeamCodeHub\Database\ConnectionFactory;
+use TeamCodeHub\Database\AdminAccountRepository;
 use TeamCodeHub\Database\ChatRepository;
 use TeamCodeHub\Database\ChatReportRepository;
 use TeamCodeHub\Database\DashboardRepository;
@@ -45,7 +46,7 @@ try {
     $pdo = ConnectionFactory::connect($config);
     $runner = new MigrationRunner($pdo, dirname(__DIR__) . '/database/migrations');
     $applied = $runner->migrate();
-    $assert(count($applied) >= 9, 'all versioned migrations are applied to MariaDB');
+    $assert(count($applied) >= 10, 'all versioned migrations are applied to MariaDB');
     $assert($runner->migrate() === [], 'migration runner is idempotent on a migrated schema');
 
     // Exercise the daily GitHub cache through an injected transport; tests never call GitHub.
@@ -152,6 +153,55 @@ try {
         $invalidDirectoryPageRejected = true;
     }
     $assert($invalidDirectoryPageRejected, 'admin user directory rejects unsupported page offsets');
+
+    // Account status changes require an active site administrator and a durable reason.
+    $accountManager = new AdminAccountRepository($pdo);
+    $statusTestId = $insertUser('status-test@example.test', 'Status Test Account', 'A-Strong-Test-Password-47');
+    $pdo->prepare("INSERT INTO user_system_roles (user_id, role) VALUES (:user_id, 'site_admin')")
+        ->execute(['user_id' => $statusTestId]);
+    $disabledStatus = $accountManager->changeStatusForSiteAdmin($adminId, $statusTestId, 'disabled', 'Integration disable test');
+    $assert($disabledStatus['changed'] && $disabledStatus['user']['status'] === 'disabled', 'site administrator can disable another account');
+    $assert($disabledStatus['user']['email_verified'], 'account status response exposes only a boolean email-verification state');
+
+    SecureSession::start();
+    $statusAuthentication = new AuthenticationService($userDirectory);
+    $assert(!$statusAuthentication->authenticate('status-test@example.test', 'A-Strong-Test-Password-47'), 'disabled accounts cannot authenticate');
+
+    $reactivatedStatus = $accountManager->changeStatusForSiteAdmin($adminId, $statusTestId, 'active', 'Integration reactivation test');
+    $assert($reactivatedStatus['changed'] && $reactivatedStatus['user']['status'] === 'active', 'verified disabled account can be reactivated');
+    $unchangedStatus = $accountManager->changeStatusForSiteAdmin($adminId, $statusTestId, 'active', 'Integration unchanged status test');
+    $assert(!$unchangedStatus['changed'], 'repeating the current account status is an idempotent no-op');
+    $statusAudit = $accountManager->listRecentAuditForSiteAdmin($adminId, $statusTestId);
+    $assert(count($statusAudit) === 2 && $statusAudit[0]['action'] === 'account_reactivated'
+        && $statusAudit[1]['action'] === 'account_disabled', 'status changes create ordered audit records with action history');
+
+    $selfDisableRejected = false;
+    try {
+        $accountManager->changeStatusForSiteAdmin($adminId, $adminId, 'disabled', 'Attempt self disable');
+    } catch (DomainException) {
+        $selfDisableRejected = true;
+    }
+    $assert($selfDisableRejected, 'site administrators cannot disable their own account');
+    $nonAdminStatusChangeRejected = false;
+    try {
+        $accountManager->changeStatusForSiteAdmin($outsiderId, $statusTestId, 'disabled', 'Attempt unauthorized disable');
+    } catch (DomainException) {
+        $nonAdminStatusChangeRejected = true;
+    }
+    $assert($nonAdminStatusChangeRejected, 'non-admin accounts cannot change account status');
+
+    $unverifiedPending = $pdo->prepare("SELECT id FROM users WHERE email = 'directory-fixture-1@example.test' LIMIT 1");
+    $unverifiedPending->execute();
+    $unverifiedPendingId = (int) $unverifiedPending->fetchColumn();
+    $accountManager->changeStatusForSiteAdmin($adminId, $unverifiedPendingId, 'disabled', 'Disable unverified fixture');
+    $unverifiedReactivationRejected = false;
+    try {
+        $accountManager->changeStatusForSiteAdmin($adminId, $unverifiedPendingId, 'active', 'Attempt unverified reactivation');
+    } catch (DomainException) {
+        $unverifiedReactivationRejected = true;
+    }
+    $assert($unverifiedReactivationRejected, 'unverified accounts cannot be reactivated by the status endpoint');
+
 
 
     $directoryFixture = $pdo->prepare(
