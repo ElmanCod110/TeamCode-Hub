@@ -118,7 +118,7 @@ final class UserRepository
         return $exists->fetchColumn() !== false;
     }
 
-    /** @return array{id:int,email:string,password_hash:string,status:string,display_name:string}|null */
+    /** @return array{id:int,email:string,password_hash:string,status:string,display_name:string,session_version:int}|null */
     public function findAuthenticationById(int $userId): ?array
     {
         $statement = $this->pdo->prepare(
