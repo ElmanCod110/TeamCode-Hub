@@ -1649,10 +1649,10 @@
    * The server rotates the session ID and CSRF token after a successful update.
    */
   function changePasswordModal() {
-    openFormModal("Change password", "Enter your current password, then choose a new password of at least 12 characters.", [
+    openFormModal("Change password", "Enter your current password, then choose a new password between 12 and 72 bytes.", [
       { name: "current_password", label: "Current password", type: "password", required: true, maxLength: 4096, full: true },
-      { name: "new_password", label: "New password", type: "password", required: true, maxLength: 4096, full: true, help: "Use a long, unique password that you do not use elsewhere." },
-      { name: "confirm_password", label: "Confirm new password", type: "password", required: true, maxLength: 4096, full: true }
+      { name: "new_password", label: "New password", type: "password", required: true, maxLength: 72, full: true, help: "Use a long, unique password that you do not use elsewhere." },
+      { name: "confirm_password", label: "Confirm new password", type: "password", required: true, maxLength: 72, full: true }
     ], "Update password", async values => {
       const result = await request("/api/auth/password", {
         method: "POST",
