@@ -66,6 +66,7 @@ $assert(str_contains($js, '/api/admin/users?') && str_contains($js, 'params.set(
 $assert(str_contains($userRepository, 'LIMIT 51 OFFSET :offset') && str_contains($userRepository, 'password_hash') && str_contains($userRepository, 'searchForSiteAdmin'), 'directory query uses a bounded SQL page and isolates authentication secrets from selected fields');
 $assert(str_contains($css, '.admin-users-pagination') && str_contains($css, '.admin-user-row') && str_contains($css, '@media (max-width:420px)'), 'admin user directory and pagination have responsive styles');
 $assert(str_contains($bootstrap, "/api/admin/users/{userId}/status") && str_contains($adminUserController, 'updateStatus'), 'account status route connects to the admin status controller');
+$assert(str_contains($adminUserController, 'CsrfToken::validate') && str_contains($adminUserController, "['active', 'disabled']"), 'account status handler requires CSRF and rejects unsupported state transitions');
 $assert(str_contains($userRepository, 'setStatusForSiteAdmin') && str_contains($userRepository, 'Administrators cannot disable their own account.'), 'account status mutations use repository-level admin and self-disable guards');
 $assert(str_contains($js, 'set-user-status') && str_contains($js, 'changeAdminUserStatus') && str_contains($js, 'window.confirm(warning)'), 'admin user rows provide confirmed activate/disable actions');
 $assert(str_contains($css, '.github-feed') && str_contains($css, '.github-summary'), 'GitHub activity page has dedicated responsive presentation styles');
