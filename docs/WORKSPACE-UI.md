@@ -63,6 +63,12 @@ The client is not an authorization boundary. Hiding a button does not replace se
 
 The UI currently uses a bounded refresh for reconciliation; it is not a durable real-time event stream. If a chat view is left open for an extended period, the server's ID cursor still bounds each incremental response to 50 messages.
 
+## Site administrator account controls
+
+- Site administrators can disable or reactivate existing active/disabled accounts from the bounded user directory.
+- The server rejects self-disable requests, rechecks active site-admin authority in the repository transaction, and preserves account/team/project history.
+- Pending-account activation and system-role assignment are deliberately excluded from this control.
+
 ## Operational limitations
 
 - Accounts must already exist and be active. Public registration, email verification, and password recovery are not implemented.
