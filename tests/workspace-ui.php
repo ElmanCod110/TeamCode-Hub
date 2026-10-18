@@ -51,6 +51,8 @@ $userRepository = $read('app/Database/UserRepository.php');
 $adminAccountRepository = $read('app/Database/AdminAccountRepository.php');
 $authService = $read('app/Security/AuthenticationService.php');
 $workspaceController = $read('app/Http/WorkspaceController.php');
+$teamInvitationController = $read('app/Http/TeamInvitationController.php');
+$teamInvitationRepository = $read('app/Database/TeamInvitationRepository.php');
 $response = $read('app/Core/Response.php');
 $workflow = $read('.github/workflows/ci.yml');
 $htaccess = $read('public/.htaccess');
@@ -137,6 +139,12 @@ $assert(str_contains($adminUserController, 'Site administrator role required.') 
 $assert(str_contains($js, 'formatAdminDate') && str_contains($js, 'user.is_site_admin'), 'admin directory renders account activity and administrator flags');
 
 $assert(str_contains($js, '/api/team-invitations/accept') && str_contains($js, 'revoke-invitation') && str_contains($js, 'renderPendingInvitations'), 'team UI connects invitation acceptance, listing, and revocation');
+$assert(str_contains($teamInvitationController, 'sendTeamInvitationEmail') && str_contains($teamInvitationController, "unset($invitation['token'])") && str_contains($teamInvitationController, 'email_sent'), 'invitation creation sends email and exposes the raw token only as a delivery-failure fallback');
+$assert(str_contains($emailDeliveryService, '/accept-invitation#accept-invitation?token=') && str_contains($emailDeliveryService, 'sendTeamInvitationEmail'), 'invitation emails use HTTPS-only fragment links');
+$assert(str_contains($teamInvitationRepository, "'team_name' => (string) $accessRow['team_name']"), 'invitation repository supplies the team name for the email');
+$assert(str_contains($bootstrap, "get('/accept-invitation'") && str_contains($js, 'acceptInvitationToken') && str_contains($js, 'state.invitationToken'), 'invitation links route into an authenticated auto-accept flow');
+$assert(str_contains($js, 'emailSent ? "Invitation email sent"') && str_contains($js, 'Email delivery failed'), 'invitation UI reports successful email delivery and provides a manual fallback');
+
 $assert(str_contains($bootstrap, '/members/{userId}/access') && str_contains($js, 'change-member-access'), 'project member access-level controls are connected to the backend route');
 $assert(str_contains($js, '!member.is_project_creator') && str_contains($js, 'member.access_level === "member" ? "viewer" : "member"'), 'UI protects the project creator and offers explicit viewer/member transitions');
 $assert(str_contains($bootstrap, '/api/projects/{projectId}/members/candidates') && str_contains($js, '/members/candidates?q='), 'project member search route is connected to the frontend');
