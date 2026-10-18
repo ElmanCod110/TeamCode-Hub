@@ -1608,7 +1608,7 @@
     await load();
   }
 
-  /** Render only the public account fields returned by the admin API. */
+  /** Render public account metadata and site-admin-only account actions. */
   function renderAdminUserRow(user) {
     const row = el("article", "admin-user-row");
     const identity = el("div", "admin-user-identity");
@@ -1616,14 +1616,122 @@
       append(el("div"), el("strong", "", user.display_name || "Unnamed account"),
         el("span", "admin-user-email", user.email),
         el("span", "small", "User #" + user.id)));
-    const state = el("div", "admin-user-state");
-    append(state, badge(user.status), user.is_site_admin ? badge("site admin") : null);
+    const accountState = el("div", "admin-user-state");
+    append(accountState, badge(user.status),
+      user.is_site_admin ? badge("site admin") : null,
+      user.email_verified ? badge("email verified") : badge("email unverified"));
     const activity = el("div", "admin-user-activity");
     append(activity,
       el("span", "small", "Created " + formatAdminDate(user.created_at)),
       el("span", "small", "Last sign-in " + formatAdminDate(user.last_login_at)));
-    append(row, identity, state, activity);
+    const actions = el("div", "admin-user-actions");
+    const isCurrentUser = Number(user.id) === Number(state.user?.id);
+    if (isCurrentUser) {
+      actions.appendChild(el("span", "small", "Current account"));
+    } else if (user.status === "disabled") {
+      if (user.email_verified) {
+        actions.appendChild(actionButton("Reactivate", "admin-user-status", "btn btn-outline btn-sm", {
+          "data-user-id": user.id,
+          "data-next-status": "active",
+          "data-display-name": user.display_name || user.email
+        }));
+      } else {
+        actions.appendChild(el("span", "small", "Unverified accounts cannot be reactivated"));
+      }
+    } else if (user.status === "active" || user.status === "pending") {
+      actions.appendChild(actionButton("Disable", "admin-user-status", "btn btn-danger-outline btn-sm", {
+        "data-user-id": user.id,
+        "data-next-status": "disabled",
+        "data-display-name": user.display_name || user.email
+      }));
+    }
+    actions.appendChild(actionButton("History", "admin-user-audit", "btn btn-ghost btn-sm", {
+      "data-user-id": user.id,
+      "data-display-name": user.display_name || user.email
+    }));
+    append(row, identity, accountState, activity, actions);
     return row;
+  }
+
+  /**
+   * Require an audit reason before changing account access, then refresh the bounded directory.
+   * The server prevents self-disable and reactivation of unverified accounts independently.
+   */
+  function changeAdminUserStatusModal(userId, nextStatus, displayName) {
+    if (!(state.user?.roles || []).includes("site_admin")) {
+      toast("Site administrator access is required.", "warning");
+      return;
+    }
+    if (Number(userId) === Number(state.user?.id) && nextStatus === "disabled") {
+      toast("You cannot disable your own account.", "warning");
+      return;
+    }
+    const reactivating = nextStatus === "active";
+    const actionWord = reactivating ? "Reactivate" : "Disable";
+    openFormModal(actionWord + " account", reactivating
+      ? "Restore sign-in access for " + displayName + ". The reason is retained in the administrator audit history."
+      : "Block sign-in access for " + displayName + ". Existing membership and project history are preserved. The reason is retained in the audit history.", [
+      { name: "reason", label: "Reason for this change", type: "textarea", rows: 4, required: true, minLength: 5, maxLength: 500, placeholder: "Explain the operational reason for this status change.", help: "Use 5–500 UTF-8 bytes. Never include passwords, tokens, or sensitive personal details.", full: true }
+    ], actionWord + " account", async values => {
+      const result = await request("/api/admin/users/" + escapePath(userId) + "/status", {
+        method: "POST",
+        body: { status: nextStatus, reason: values.reason.trim() }
+      });
+      toast(result.changed === false ? "The account already has that status." : "Account status updated and audit event recorded.");
+      await renderAdminUsers();
+    });
+  }
+
+  /** Show the immutable status-change audit history for one account. */
+  async function showAdminUserAuditModal(userId, displayName) {
+    if (!(state.user?.roles || []).includes("site_admin")) {
+      toast("Site administrator access is required.", "warning");
+      return;
+    }
+    modalReturnFocus = document.activeElement;
+    const overlay = el("div", "tch-modal-overlay");
+    const modal = el("section", "tch-modal admin-audit-modal");
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    const titleId = "admin-audit-title";
+    modal.setAttribute("aria-labelledby", titleId);
+    const header = el("div", "tch-modal-header");
+    const heading = el("div");
+    const title = el("h2", "", "Account audit history"); title.id = titleId;
+    append(heading, title, el("p", "", "Recent status changes for " + displayName + "."));
+    append(header, heading, actionButton("×", "close-modal", "btn btn-ghost btn-icon", { "aria-label": "Close audit history" }));
+    const body = el("div", "tch-modal-body admin-audit-list");
+    body.setAttribute("aria-live", "polite");
+    body.appendChild(el("p", "small", "Loading audit history…"));
+    const footer = el("div", "tch-modal-footer");
+    footer.appendChild(actionButton("Close", "close-modal", "btn btn-outline"));
+    append(modal, header, body, footer);
+    overlay.appendChild(modal);
+    $("#modal-root").replaceChildren(overlay);
+    overlay.addEventListener("click", event => { if (event.target === overlay) closeModal(); });
+    overlay.addEventListener("keydown", event => handleDialogKeydown(event, overlay));
+    const close = $("button", modal);
+    if (close) close.focus();
+    try {
+      const data = await request("/api/admin/users/" + escapePath(userId) + "/audit");
+      body.replaceChildren();
+      const events = Array.isArray(data.events) ? data.events : [];
+      if (!events.length) {
+        body.appendChild(emptyState("No account changes recorded", "Future account status changes and their reasons will appear here."));
+      } else {
+        events.forEach(item => {
+          const entry = el("article", "admin-audit-event");
+          const transition = el("div", "admin-audit-transition");
+          append(transition, badge(item.previous_status), el("span", "small", "→"), badge(item.new_status));
+          append(entry, transition,
+            el("p", "admin-audit-reason", item.reason),
+            el("span", "small", (item.actor_name || "Administrator") + " · " + formatAdminDate(item.created_at)));
+          body.appendChild(entry);
+        });
+      }
+    } catch (error) {
+      body.replaceChildren(el("div", "inline-error", error.message || "Audit history could not be loaded."));
+    }
   }
 
   /** Format a timestamp without assuming that every account has signed in. */
@@ -1986,6 +2094,7 @@
       if (field.placeholder) control.placeholder = field.placeholder;
       if (field.required) control.required = true;
       if (field.maxLength) control.maxLength = field.maxLength;
+      if (field.minLength) control.minLength = field.minLength;
       if (field.value !== undefined) control.value = field.value;
       if (field.min) control.min = field.min;
       if (field.step) control.step = field.step;
@@ -2445,6 +2554,8 @@
     try {
       if (name === "create-team") createTeamModal();
       else if (name === "refresh-admin-users") await renderAdminUsers();
+      else if (name === "admin-user-status") changeAdminUserStatusModal(action.dataset.userId, action.dataset.nextStatus, action.dataset.displayName || "this account");
+      else if (name === "admin-user-audit") await showAdminUserAuditModal(action.dataset.userId, action.dataset.displayName || "this account");
       else if (name === "edit-profile") editProfileModal();
       else if (name === "change-password") changePasswordModal();
       else if (name === "edit-team") editTeamModal(action.dataset.teamId);

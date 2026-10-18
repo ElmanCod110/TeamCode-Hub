@@ -603,17 +603,25 @@
 .admin-users-pagination > span { min-width:72px; text-align:center; color:var(--text-muted); }
 .admin-users-pagination button:disabled { opacity:.45; cursor:not-allowed; }
 .admin-user-list { display:flex; flex-direction:column; }
-.admin-user-row { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(120px,.55fr) minmax(170px,.8fr); gap:16px; align-items:center; padding:16px 20px; border-top:1px solid var(--border); }
+.admin-user-row { display:grid; grid-template-columns:minmax(0,1.3fr) minmax(140px,.7fr) minmax(160px,.8fr) auto; gap:16px; align-items:center; padding:16px 20px; border-top:1px solid var(--border); }
 .admin-user-identity { display:flex; align-items:center; gap:12px; min-width:0; }
 .admin-user-identity > div { display:flex; flex-direction:column; gap:4px; min-width:0; }
 .admin-user-identity strong, .admin-user-email { overflow-wrap:anywhere; }
 .admin-user-email { color:var(--text-muted); font-size:.875rem; }
 .admin-user-state { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
 .admin-user-activity { display:flex; flex-direction:column; gap:5px; color:var(--text-muted); }
+.admin-user-actions { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:6px; }
+.admin-audit-modal { width:min(100%,760px); }
+.admin-audit-list { max-height:min(65vh,600px); overflow:auto; }
+.admin-audit-event { display:grid; gap:8px; padding:14px 0; border-bottom:1px solid var(--border); }
+.admin-audit-event:last-child { border-bottom:0; }
+.admin-audit-transition { display:flex; align-items:center; gap:8px; }
+.admin-audit-reason { margin:0; overflow-wrap:anywhere; color:var(--text-primary); }
 @media (max-width:760px) {
   .admin-users-toolbar { grid-template-columns:minmax(0,1fr) minmax(120px,.5fr); }
   .admin-users-toolbar button { grid-column:1 / -1; }
   .admin-user-row { grid-template-columns:minmax(0,1fr) auto; gap:10px; }
+  .admin-user-actions { grid-column:1 / -1; justify-content:flex-start; padding-inline-start:44px; }
   .admin-user-activity { grid-column:1 / -1; padding-inline-start:44px; }
 }
 @media (max-width:420px) {
@@ -623,5 +631,6 @@
   .admin-users-pagination { justify-content:space-between; padding:12px; }
   .admin-user-state { grid-column:1 / -1; padding-inline-start:44px; }
   .admin-user-activity { padding-inline-start:44px; }
+  .admin-user-actions { padding-inline-start:44px; }
 }
 

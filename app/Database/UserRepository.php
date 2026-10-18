@@ -152,6 +152,7 @@ final class UserRepository
         }
         $where = $conditions === [] ? '' : 'WHERE ' . implode(' AND ', $conditions);
         $sql = "SELECT u.id, u.email, u.display_name, u.status, u.created_at, u.last_login_at,
+                       (u.email_verified_at IS NOT NULL) AS email_verified,
                        EXISTS (
                            SELECT 1 FROM user_system_roles sr
                            WHERE sr.user_id = u.id AND sr.role = 'site_admin'
@@ -179,6 +180,7 @@ final class UserRepository
                 'status' => (string) $row['status'],
                 'created_at' => (string) $row['created_at'],
                 'last_login_at' => $row['last_login_at'] === null ? null : (string) $row['last_login_at'],
+                'email_verified' => (bool) $row['email_verified'],
                 'is_site_admin' => (bool) $row['is_site_admin'],
             ], $rows),
             'has_more' => $hasMore,

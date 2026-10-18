@@ -7,6 +7,7 @@ use TeamCodeHub\Core\Request;
 use TeamCodeHub\Core\Response;
 use TeamCodeHub\Core\Router;
 use TeamCodeHub\Database\ConnectionFactory;
+use TeamCodeHub\Database\AdminAccountRepository;
 use TeamCodeHub\Database\ChatRepository;
 use TeamCodeHub\Database\DashboardRepository;
 use TeamCodeHub\Database\GitHubActivityCacheRepository;
@@ -106,7 +107,7 @@ return static function (): void {
     $modules->register('admin-user.controller', static function (): object {
         $pdo = ConnectionFactory::connect(DatabaseConfig::fromEnvironment());
         $users = new UserRepository($pdo);
-        return new AdminUserController(new AuthenticationService($users), $users);
+        return new AdminUserController(new AuthenticationService($users), $users, new AdminAccountRepository($pdo));
     });
 
     $modules->register('github-activity.controller', static function (): object {
@@ -203,6 +204,12 @@ return static function (): void {
     );
     $router->get('/api/admin/users', static fn (Request $request, array $params): Response =>
         $modules->get('admin-user.controller')->index($request)
+    );
+    $router->post('/api/admin/users/{userId}/status', static fn (Request $request, array $params): Response =>
+        $modules->get('admin-user.controller')->changeStatus($request, $params)
+    );
+    $router->get('/api/admin/users/{userId}/audit', static fn (Request $request, array $params): Response =>
+        $modules->get('admin-user.controller')->audit($request, $params)
     );
     $router->post('/api/reports/{reportId}/review', static fn (Request $request, array $params): Response =>
         $modules->get('chat-report.controller')->review($request, $params)
