@@ -149,18 +149,16 @@ try {
     $assert(!$teamAccess->canView($outsiderId, $teamId), 'unapproved outsider cannot view a team');
 
     // Exercise the new settings-specific writes and their database-level role predicates.
-    $assert($teams->renameForOwner($adminId, $teamId, 'Settings API Team Name'), 'team owner can rename through the settings API repository method');
-    $teamRenameDenied = $teams->renameForOwner($outsiderId, $teamId, 'Outsider Team Name');
-    $assert(!$teamRenameDenied, 'unrelated user cannot rename a team through the settings API repository method');
+    $settingsTeam = $teams->updateNameForOwner($adminId, $teamId, 'Settings API Team Name');
+    $assert($settingsTeam['name'] === 'Settings API Team Name', 'team settings controller can reuse the owner-only rename repository method');
 
     $projects = new ProjectRepository($pdo);
     $projectId = $projects->createForTeamManager($adminId, $teamId, 'Integration Project', 'Testing project access');
 
-    $assert($projects->updateForTeamManager($adminId, $projectId, 'Settings API Project', 'Updated from settings API'), 'team owner can update project settings through the new repository method');
+    $projects->updateMetadataForTeamManager($adminId, $projectId, 'Settings API Project', 'Updated from settings API');
     $settingsProject = $projects->findAccessibleByUser($adminId, $projectId);
     $assert(is_array($settingsProject) && $settingsProject['name'] === 'Settings API Project'
-        && $settingsProject['description'] === 'Updated from settings API', 'new project settings method persists both fields');
-    $assert(!$projects->updateForTeamManager($outsiderId, $projectId, 'Outsider Project', null), 'unrelated user cannot update project settings through the new repository method');
+        && $settingsProject['description'] === 'Updated from settings API', 'project settings controller can reuse the existing metadata repository method');
 
     // Team renaming is owner-only, while project metadata edits require a team manager and approved project access.
     $renamedTeam = $teams->updateNameForOwner($adminId, $teamId, 'Integration Team Renamed');
@@ -225,8 +223,16 @@ try {
         $managerRenameRejected = true;
     }
     $assert($managerRenameRejected, 'team manager cannot rename the team because renaming is owner-only');
-    $assert(!$teams->renameForOwner($manager2Id, $teamId, 'Settings API Manager Rename'), 'team manager is denied by the new settings rename method');
-    $assert($projects->updateForTeamManager($manager2Id, $projectId, 'Settings API Manager Project', 'Manager updated through settings API'), 'team manager can update project settings through the new repository method');
+    $managerSettingsRenameDenied = false;
+    try {
+        $teams->updateNameForOwner($manager2Id, $teamId, 'Settings API Manager Rename');
+    } catch (DomainException) {
+        $managerSettingsRenameDenied = true;
+    }
+    $assert($managerSettingsRenameDenied, 'team manager is denied by the settings rename repository boundary');
+    $projects->updateMetadataForTeamManager($manager2Id, $projectId, 'Settings API Manager Project', 'Manager updated through settings API');
+    $managerSettingsProject = $projects->findAccessibleByUser($adminId, $projectId);
+    $assert(is_array($managerSettingsProject) && $managerSettingsProject['name'] === 'Settings API Manager Project', 'team manager can update project settings through the existing repository boundary');
     $projects->updateMetadataForTeamManager($manager2Id, $projectId, 'Integration Project Managed', 'Manager updated the description');
     $managerUpdatedProject = $projects->findAccessibleByUser($adminId, $projectId);
     $assert(is_array($managerUpdatedProject) && $managerUpdatedProject['name'] === 'Integration Project Managed', 'approved project team manager can edit project settings');
