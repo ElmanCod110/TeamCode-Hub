@@ -790,7 +790,8 @@ try {
     $assert(!$auth->changePassword($adminId, 'incorrect-password', 'A-New-Strong-Password-52'), 'password change rejects an incorrect current password');
     $assert(!$auth->changePassword($adminId, 'A-Strong-Test-Password-42', str_repeat('x', 73)), 'password change rejects values beyond the supported byte limit');
     $assert($auth->changePassword($adminId, 'A-Strong-Test-Password-42', 'A-New-Strong-Password-52'), 'password change accepts a verified current password and strong replacement');
-    $assert($auth->currentUser()['id'] === $adminId, 'current session remains valid after its own password change updates the session version');
+    $updatedSessionUser = $auth->currentUser();
+    $assert(is_array($updatedSessionUser) && $updatedSessionUser['id'] === $adminId, 'current session remains valid after its own password change updates the session version');
     $assert(!$auth->changePassword($adminId, 'A-Strong-Test-Password-42', 'Another-New-Strong-Password-53'), 'a replaced password cannot be reused as the current credential');
     $newCredential = (new UserRepository($pdo))->findAuthenticationById($adminId);
     $assert(is_array($newCredential) && password_verify('A-New-Strong-Password-52', $newCredential['password_hash']), 'only the new password hash is persisted after a password change');
