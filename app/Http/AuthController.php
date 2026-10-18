@@ -121,8 +121,8 @@ final class AuthController
             || strlen($confirmation) > 4096) {
             return Response::json(['error' => 'All password fields are required.'], 422);
         }
-        if (strlen($newPassword) < 12) {
-            return Response::json(['error' => 'The new password must be at least 12 characters long.'], 422);
+        if (strlen($newPassword) < 12 || strlen($newPassword) > 72) {
+            return Response::json(['error' => 'The new password must be between 12 and 72 bytes long.'], 422);
         }
         if (!hash_equals($newPassword, $confirmation)) {
             return Response::json(['error' => 'The new password and confirmation do not match.'], 422);
