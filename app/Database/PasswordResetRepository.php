@@ -102,14 +102,12 @@ final class PasswordResetRepository
 
         $this->pdo->beginTransaction();
         try {
+            // Discover the account first, then lock user before token to match issuance lock order.
             $lookup = $this->pdo->prepare(
-                "SELECT t.id AS token_id, u.id AS user_id
-                 FROM account_action_tokens t
-                 INNER JOIN users u ON u.id = t.user_id
-                 WHERE t.purpose = 'password_reset' AND t.token_hash = :token_hash
-                   AND t.used_at IS NULL AND t.expires_at > CURRENT_TIMESTAMP
-                   AND u.status = 'active' AND u.email_verified_at IS NOT NULL
-                 LIMIT 1 FOR UPDATE"
+                "SELECT id, user_id FROM account_action_tokens
+                 WHERE purpose = 'password_reset' AND token_hash = :token_hash
+                   AND used_at IS NULL AND expires_at > CURRENT_TIMESTAMP
+                 LIMIT 1"
             );
             $lookup->execute(['token_hash' => $tokenHash]);
             $row = $lookup->fetch(PDO::FETCH_ASSOC);
@@ -119,6 +117,30 @@ final class PasswordResetRepository
             }
 
             $userId = (int) $row['user_id'];
+            $userLock = $this->pdo->prepare(
+                "SELECT id FROM users
+                 WHERE id = :user_id AND status = 'active' AND email_verified_at IS NOT NULL
+                 LIMIT 1 FOR UPDATE"
+            );
+            $userLock->execute(['user_id' => $userId]);
+            if ($userLock->fetchColumn() === false) {
+                $this->pdo->commit();
+                return false;
+            }
+
+            $tokenLock = $this->pdo->prepare(
+                "SELECT id FROM account_action_tokens
+                 WHERE id = :token_id AND user_id = :user_id AND token_hash = :token_hash
+                   AND purpose = 'password_reset' AND used_at IS NULL AND expires_at > CURRENT_TIMESTAMP
+                 LIMIT 1 FOR UPDATE"
+            );
+            $tokenLock->execute(['token_id' => (int) $row['id'], 'user_id' => $userId, 'token_hash' => $tokenHash]);
+            $tokenId = $tokenLock->fetchColumn();
+            if ($tokenId === false) {
+                $this->pdo->commit();
+                return false;
+            }
+
             $update = $this->pdo->prepare(
                 "UPDATE users SET password_hash = :password_hash
                  WHERE id = :user_id AND status = 'active' AND email_verified_at IS NOT NULL"
