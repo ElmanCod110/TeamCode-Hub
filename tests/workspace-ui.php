@@ -38,6 +38,8 @@ $css = $read('public/assets/css/workspace.css');
 $js = $read('public/assets/js/workspace.js');
 $bootstrap = $read('app/bootstrap.php');
 $authController = $read('app/Http/AuthController.php');
+$adminUserController = $read('app/Http/AdminUserController.php');
+$userRepository = $read('app/Database/UserRepository.php');
 $authService = $read('app/Security/AuthenticationService.php');
 $workspaceController = $read('app/Http/WorkspaceController.php');
 $response = $read('app/Core/Response.php');
@@ -58,6 +60,11 @@ $assert(str_contains($html, 'data-theme="light"') && str_contains($read('public/
 $assert(str_contains($html, 'id="login-form"') && str_contains($html, 'id="application"'), 'login and authenticated application shells are present');
 $assert(str_contains($html, 'id="nav-moderation-item"') && str_contains($html, 'data-page="moderation"'), 'moderation navigation exists as a permission-gated workspace view');
 $assert(str_contains($html, 'data-page="github"') && str_contains($js, '/api/github/activity'), 'GitHub activity page is connected to its authenticated endpoint');
+$assert(str_contains($html, 'id="nav-admin-users-item"') && str_contains($js, '"admin-users"') && str_contains($js, 'renderAdminUsers'), 'site-admin user directory has a dedicated navigation entry and rendered view');
+$assert(str_contains($bootstrap, "'/api/admin/users'") && str_contains($adminUserController, 'searchForSiteAdmin'), 'user directory route connects to the repository-protected admin controller');
+$assert(str_contains($js, '/api/admin/users?') && str_contains($js, 'params.set("page", String(page))') && str_contains($js, 'Go to next user directory page'), 'admin directory connects search filters to bounded previous/next pagination');
+$assert(str_contains($userRepository, 'LIMIT 51 OFFSET :offset') && str_contains($userRepository, 'password_hash') && str_contains($userRepository, 'searchForSiteAdmin'), 'directory query uses a bounded SQL page and isolates authentication secrets from selected fields');
+$assert(str_contains($css, '.admin-users-pagination') && str_contains($css, '.admin-user-row') && str_contains($css, '@media (max-width:420px)'), 'admin user directory and pagination have responsive styles');
 $assert(str_contains($css, '.github-feed') && str_contains($css, '.github-summary'), 'GitHub activity page has dedicated responsive presentation styles');
 $assert(str_contains($html, 'id="workspace-main"') && str_contains($html, 'class="skip-link"'), 'workspace provides a skip link and main landmark');
 $assert(str_contains($html, '/assets/css/workspace.css?v='), 'product stylesheet is loaded as an external versioned asset');
@@ -83,6 +90,13 @@ $assert(str_contains($js, 'editTeamModal') && str_contains($js, 'editProjectModa
 $assert(str_contains($js, 'Dashboard summaries omit descriptions') && str_contains($js, 'Project details could not be loaded.'), 'project editing loads the full authorized record before saving metadata');
 $assert(str_contains($js, 'team.role === "owner"') && str_contains($js, 'canManageTeam(project.team_id)'), 'team rename is owner-only and project editing is manager-gated in the UI');
 $assert(str_contains($js, '/api/admin/reports') && str_contains($js, '/api/reports/') && str_contains($js, 'renderReportCard'), 'moderation UI connects scoped report queues and review actions');
+$assert(str_contains($bootstrap, "/api/admin/users") && str_contains($html, 'id="nav-admin-users-item"'), 'site-admin user directory route and navigation are registered');
+$assert(str_contains($js, 'function renderAdminUsers()') && str_contains($js, '/api/admin/users?') && str_contains($js, 'AbortController'), 'admin user directory connects debounced search with stale-request cancellation');
+$assert(str_contains($js, 'params.set("page", String(page))') && str_contains($js, 'admin-users-pagination'), 'admin user directory sends and renders bounded pagination state');
+
+$assert(str_contains($adminUserController, 'Site administrator role required.') && str_contains($userRepository, 'function searchForSiteAdmin'), 'admin user directory enforces the site-admin boundary at the server and repository layers');
+$assert(str_contains($js, 'formatAdminDate') && str_contains($js, 'user.is_site_admin'), 'admin directory renders account activity and administrator flags');
+
 $assert(str_contains($js, '/api/team-invitations/accept') && str_contains($js, 'revoke-invitation') && str_contains($js, 'renderPendingInvitations'), 'team UI connects invitation acceptance, listing, and revocation');
 $assert(str_contains($bootstrap, '/members/{userId}/access') && str_contains($js, 'change-member-access'), 'project member access-level controls are connected to the backend route');
 $assert(str_contains($js, '!member.is_project_creator') && str_contains($js, 'member.access_level === "member" ? "viewer" : "member"'), 'UI protects the project creator and offers explicit viewer/member transitions');

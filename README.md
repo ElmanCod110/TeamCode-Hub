@@ -18,6 +18,7 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 - Searchable project-member assignment by display name, email, or exact user ID, pending membership approval, member/viewer access changes, and access revocation where the signed-in user has management permission.
 - Text-only project chat with incremental polling, periodic bounded-window reconciliation for edits/deletions, own-message editing/deletion, and message reporting.
 - Notification inbox with user-scoped read-state changes, background refresh, and authoritative unread badges.
+- Site-admin user directory with bounded, paginated search, account-status filtering, and sign-in metadata; password hashes and authentication secrets are never exposed.
 - Personal preferences for light/dark/system theme; an expanded token-driven design system with responsive forms, feedback, navigation, upload controls, pagination, accordions, workflow steps, and reusable content patterns. No external fonts or UI framework are required.
 
 ## Security and backend foundation
@@ -54,6 +55,7 @@ Teams and invitations: `GET|POST /api/teams`, `GET /api/teams/{teamId}`, `GET /a
 Projects and members: project list/detail/create, member assignment/approval/revocation, task list/create/edit/status, searchable assignees, task comments/checklists, and project chat/report workflows.
 
 Dashboard: `GET /api/dashboard`, `GET /api/notifications`, and `POST /api/notifications/{notificationId}/read`.
+Site administration: `GET /api/admin/users` and the existing scoped report-review endpoints.
 
 See [docs/API.md](docs/API.md) for request bodies, status codes, retention, and authorization boundaries. See [docs/WORKSPACE-UI.md](docs/WORKSPACE-UI.md) for UI-to-API mappings and browser behavior.
 

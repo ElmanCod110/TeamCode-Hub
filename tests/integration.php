@@ -102,6 +102,73 @@ try {
     $manager2Id = $insertUser('manager2@example.test', 'Integration Manager Two', 'A-Strong-Test-Password-46');
     $pdo->prepare("INSERT INTO user_system_roles (user_id, role) VALUES (:user_id, 'site_admin')")->execute(['user_id' => $adminId]);
 
+    $userDirectory = new UserRepository($pdo);
+    $adminSearch = $userDirectory->searchForSiteAdmin($adminId, 'admin@example.test', 'active');
+    $assert(count($adminSearch['users']) === 1 && $adminSearch['users'][0]['id'] === $adminId, 'site admin can search the directory by email');
+    $assert(!array_key_exists('password_hash', $adminSearch['users'][0]), 'admin user directory never exposes password hashes');
+    $exactIdSearch = $userDirectory->searchForSiteAdmin($adminId, (string) $adminId, 'all');
+    $assert(count($exactIdSearch['users']) === 1 && $exactIdSearch['users'][0]['email'] === 'admin@example.test', 'admin user directory supports exact user ID lookup');
+    $literalWildcardSearch = $userDirectory->searchForSiteAdmin($adminId, '%', 'all');
+    $assert($literalWildcardSearch['users'] === [], 'user search treats SQL wildcard characters as literal input');
+    $nonAdminDirectoryDenied = false;
+    try {
+        $userDirectory->searchForSiteAdmin($outsiderId);
+    } catch (DomainException) {
+        $nonAdminDirectoryDenied = true;
+    }
+    $assert($nonAdminDirectoryDenied, 'non-admin accounts cannot query the site-wide user directory');
+
+    // Seed enough pending records to exercise bounded pagination without creating memberships.
+    $adminCredential = $userDirectory->findAuthenticationById($adminId);
+    if (!is_array($adminCredential)) {
+        throw new RuntimeException('Integration administrator credential fixture is missing.');
+    }
+    $directoryFixture = $pdo->prepare(
+        "INSERT INTO users (email, password_hash, display_name, status)
+         VALUES (:email, :password_hash, :display_name, 'pending')"
+    );
+    for ($directoryIndex = 1; $directoryIndex <= 51; $directoryIndex++) {
+        $directoryFixture->execute([
+            'email' => 'directory-fixture-' . $directoryIndex . '@example.test',
+            'password_hash' => $adminCredential['password_hash'],
+            'display_name' => 'Directory Fixture ' . $directoryIndex,
+        ]);
+    }
+    $directoryPageOne = $userDirectory->searchForSiteAdmin($adminId, '', 'all', 1);
+    $directoryPageTwo = $userDirectory->searchForSiteAdmin($adminId, '', 'all', 2);
+    $pageOneIds = array_column($directoryPageOne['users'], 'id');
+    $pageTwoIds = array_column($directoryPageTwo['users'], 'id');
+    $assert(count($pageOneIds) === 50 && $directoryPageOne['has_more'], 'admin user directory limits each page to 50 and reports additional matches');
+    $assert(count($pageTwoIds) === 6 && !$directoryPageTwo['has_more'], 'admin user directory returns the remaining records on the next page');
+    $assert(array_intersect($pageOneIds, $pageTwoIds) === [], 'admin user directory pages do not repeat user records');
+    $pendingDirectory = $userDirectory->searchForSiteAdmin($adminId, '', 'pending', 1);
+    $assert(count($pendingDirectory['users']) === 50 && $pendingDirectory['has_more']
+        && count(array_filter($pendingDirectory['users'], static fn (array $row): bool => $row['status'] === 'pending')) === 50,
+        'admin user directory filters pending accounts before applying the page limit');
+    $invalidDirectoryPageRejected = false;
+    try {
+        $userDirectory->searchForSiteAdmin($adminId, '', 'all', 10001);
+    } catch (DomainException) {
+        $invalidDirectoryPageRejected = true;
+    }
+    $assert($invalidDirectoryPageRejected, 'admin user directory rejects unsupported page offsets');
+
+
+    $directoryFixture = $pdo->prepare(
+        "INSERT INTO users (email, password_hash, display_name, status, email_verified_at)
+         VALUES (:email, 'directory-test-only-hash', :display_name, 'active', CURRENT_TIMESTAMP)"
+    );
+    for ($directoryIndex = 1; $directoryIndex <= 52; $directoryIndex++) {
+        $directoryFixture->execute([
+            'email' => 'directory-pagination-' . $directoryIndex . '@example.test',
+            'display_name' => 'Directory Pagination ' . $directoryIndex,
+        ]);
+    }
+    $firstDirectoryPage = $userDirectory->searchForSiteAdmin($adminId, 'directory-pagination', 'active', 1);
+    $secondDirectoryPage = $userDirectory->searchForSiteAdmin($adminId, 'directory-pagination', 'active', 2);
+    $assert(count($firstDirectoryPage['users']) === 50 && $firstDirectoryPage['has_more'], 'admin user directory caps each page at 50 and signals additional results');
+    $assert(count($secondDirectoryPage['users']) === 2 && !$secondDirectoryPage['has_more'], 'admin user directory returns the remaining results on the next page');
+
     $teams = new TeamRepository($pdo);
     $team = $teams->createForOwner($adminId, 'Integration Team');
     $teamId = $team['id'];
