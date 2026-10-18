@@ -14,6 +14,7 @@
   const state = {
     csrf: "",
     verificationToken: "",
+    invitationToken: "",
     passwordResetToken: "",
     user: null,
     dashboard: null,
@@ -268,6 +269,10 @@
 
     // Email tokens live in the fragment, which browsers do not send to the web server.
     const hash = location.hash.replace(/^#/, "");
+    // Invitation tokens are fragment-only and are submitted only to the authenticated acceptance endpoint.
+    if (hash.startsWith("accept-invitation?")) {
+      state.invitationToken = new URLSearchParams(hash.slice("accept-invitation?".length)).get("token") || "";
+    }
     // Reset links keep the bearer token in the fragment, outside HTTP request logs.
     if (hash.startsWith("reset-password?")) {
       state.passwordResetToken = new URLSearchParams(hash.slice("reset-password?".length)).get("token") || "";
@@ -319,7 +324,12 @@
       showApplication();
       await loadCsrf();
       await refreshWorkspace(false);
-      routeFromHash();
+      if (state.invitationToken) {
+        const accepted = await acceptPendingInvitation();
+        if (!accepted) navigate("overview", false);
+      } else {
+        routeFromHash();
+      }
     } catch (error) {
       if (error.status === 401) {
         showAuth();
@@ -355,8 +365,13 @@
       state.user = me.user;
       showApplication();
       await refreshWorkspace(false);
-      navigate("overview", false);
-      toast("Welcome back. Your workspace is ready.");
+      if (state.invitationToken) {
+        const accepted = await acceptPendingInvitation();
+        if (!accepted) navigate("overview", false);
+      } else {
+        navigate("overview", false);
+        toast("Welcome back. Your workspace is ready.");
+      }
       form.reset();
     } catch (error) {
       showLoginError(error.message || "Sign-in failed. Please try again.");
@@ -681,6 +696,10 @@
 
   function routeFromHash() {
     const hash = location.hash.replace(/^#/, "");
+    if (hash.startsWith("accept-invitation?")) {
+      if (state.invitationToken) acceptPendingInvitation();
+      return;
+    }
     if (hash.startsWith("team/")) {\n      const teamId = Number(hash.split("/")[1]);\n      if (teamById(teamId)) openTeam(teamId);\n      else navigate("teams", false);\n      return;\n    }\n    if (hash.startsWith("project/")) {
       const id = Number(hash.split("/")[1]);
       const project = projectById(id);
@@ -1009,39 +1028,77 @@
     container.appendChild(section);
   }
 
+  /** Accept an invitation token only through the authenticated, email-matching endpoint. */
+  async function acceptInvitationToken(token) {
+    if (!/^[a-f0-9]{64}$/.test(token)) throw new Error("Invitation tokens must contain exactly 64 lowercase hexadecimal characters.");
+    const result = await request("/api/team-invitations/accept", { method: "POST", body: { token } });
+    state.invitationToken = "";
+    // Remove the bearer token from browser history after the server confirms acceptance.
+    history.replaceState({}, "", "/#team/" + result.team_id);
+    await refreshWorkspace(false);
+    const team = teamById(result.team_id);
+    toast("Invitation accepted. You have joined the team.");
+    if (team) await openTeam(team.id);
+    else navigate("teams", false);
+    return true;
+  }
+
+  async function acceptPendingInvitation() {
+    if (!state.invitationToken) return false;
+    try {
+      await acceptInvitationToken(state.invitationToken);
+      return true;
+    } catch (failure) {
+      toast(failure.message || "The invitation could not be accepted. Sign in with the invited email address and try again.", "error");
+      return false;
+    }
+  }
+
   function acceptInvitationModal() {
-    openFormModal("Accept a team invitation", "Paste the one-time token you received. Sign in using the email address the invitation was issued to.", [
+    openFormModal("Accept a team invitation", "Paste the one-time token or open the email invitation link. The signed-in email must match the invitation.", [
       { name: "token", label: "Invitation token", type: "text", placeholder: "Paste the 64-character token", required: true, maxLength: 64, full: true }
     ], "Accept invitation", async values => {
-      const token = values.token.trim();
-      if (!/^[a-f0-9]{64}$/.test(token)) throw new Error("Invitation tokens must contain exactly 64 lowercase hexadecimal characters.");
-      const result = await request("/api/team-invitations/accept", { method: "POST", body: { token } });
-      await refreshWorkspace(false);
-      toast("You have joined the team.");
-      const team = teamById(result.team_id);
-      if (team) await openTeam(team.id);
-      else navigate("teams", false);
+      await acceptInvitationToken(values.token.trim());
     });
   }
 
-  function showInvitationToken(token, email) {
+  function showInvitationToken(token, email, emailSent = false) {
     modalReturnFocus = document.activeElement;
     const overlay = el("div", "tch-modal-overlay");
     overlay.dataset.dismissible = "false";
     const modal = el("section", "tch-modal");
-    modal.setAttribute("role", "dialog"); modal.setAttribute("aria-modal", "true"); modal.setAttribute("aria-labelledby", "invitation-modal-title");
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "invitation-modal-title");
     const header = el("div", "tch-modal-header");
-    const invitationTitle = el("h2", "", "Invitation token created"); invitationTitle.id = "invitation-modal-title";\n    append(header, append(el("div"), invitationTitle, el("p", "", "Share this token with " + email + " through a trusted channel. The token is only shown once.")),
+    const invitationTitle = el("h2", "", emailSent ? "Invitation email sent" : "Invitation created"); invitationTitle.id = "invitation-modal-title";
+    const description = emailSent
+      ? "A seven-day invitation link was sent to " + email + "."
+      : "Email delivery failed for " + email + ". Use the one-time token below as a manual fallback.";
+    append(header, append(el("div"), invitationTitle, el("p", "", description)),
       actionButton("×", "close-modal", "btn btn-ghost btn-icon", { "aria-label": "Close dialog" }));
     const body = el("div", "tch-modal-body");
-    const tokenBox = el("textarea", "textarea"); tokenBox.readOnly = true; tokenBox.rows = 3; tokenBox.value = token; tokenBox.setAttribute("aria-label", "One-time invitation token");
-    append(body, el("div", "modal-inline-note", "This baseline does not send invitation email automatically. The recipient must sign in to the matching email account before accepting the invitation."), tokenBox);
+    const note = emailSent
+      ? "The recipient must sign in with the invited email address. If they need to create an account, they should verify it first and then reopen the invitation email."
+      : "Share this token only through a trusted channel. It expires in seven days and can be used once.";
+    body.appendChild(el("div", "modal-inline-note", note));
+    let tokenBox = null;
+    if (!emailSent && token) {
+      tokenBox = el("textarea", "textarea");
+      tokenBox.readOnly = true;
+      tokenBox.rows = 3;
+      tokenBox.value = token;
+      tokenBox.setAttribute("aria-label", "One-time invitation token");
+      body.appendChild(tokenBox);
+    }
     const footer = el("div", "tch-modal-footer");
-    append(footer, actionButton("Close", "close-modal", "btn btn-outline"), actionButton("Copy token", "copy-invitation-token", "btn btn-primary", { "data-token": token }));
+    append(footer, actionButton("Close", "close-modal", "btn btn-outline"));
+    if (!emailSent && token) footer.appendChild(actionButton("Copy token", "copy-invitation-token", "btn btn-primary", { "data-token": token }));
     append(modal, header, body, footer); overlay.appendChild(modal);
     $("#modal-root").replaceChildren(overlay);
     overlay.addEventListener("keydown", event => handleDialogKeydown(event, overlay));
-    tokenBox.focus(); tokenBox.select();
+    if (tokenBox) { tokenBox.focus(); tokenBox.select(); }
+    else footer.querySelector("button")?.focus();
   }
 
   function renderProjects() {
@@ -2941,13 +2998,13 @@
   async function inviteMember(teamId) {
     if (teamId) { await openTeam(teamId); return; }
     const teamOptions = state.teams.map(team => ({ value: String(team.id), label: team.name }));
-    openFormModal("Invite a team member", "Create a time-limited invitation for an existing email address.", [
+    openFormModal("Invite a team member", "Send a seven-day invitation email. If mail delivery is unavailable, a one-time token is provided as a manual fallback.", [
       { name: "team_id", label: "Team", type: "select", options: teamOptions, required: true },
       { name: "email", label: "Email address", type: "email", placeholder: "colleague@example.com", required: true, maxLength: 254, full: true }
     ], "Create invitation", async values => {
       const result = await request("/api/teams/" + escapePath(values.team_id) + "/invitations", { method: "POST", body: { email: values.email.trim() } });
       closeModal();
-      showInvitationToken(result.invitation?.token || "", values.email.trim());
+      showInvitationToken(result.invitation?.token || "", values.email.trim(), result.email_sent === true);
     });
   }
 
