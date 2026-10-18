@@ -11,9 +11,24 @@ use TeamCodeHub\Database\MigrationInterface;
 return new class implements MigrationInterface {
     public function up(PDO $pdo): void
     {
-        $pdo->exec("ALTER TABLE projects
-            ADD COLUMN github_repository VARCHAR(200) NULL AFTER description,
-            ADD KEY idx_projects_github_repository (github_repository)");
+        // DDL can commit implicitly in MariaDB, so guard each ALTER for safe recovery after a partial migration.
+        $columnCheck = $pdo->prepare(
+            'SELECT COUNT(*) FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table_name AND COLUMN_NAME = :column_name'
+        );
+        $columnCheck->execute(['table_name' => 'projects', 'column_name' => 'github_repository']);
+        if ((int) $columnCheck->fetchColumn() === 0) {
+            $pdo->exec('ALTER TABLE projects ADD COLUMN github_repository VARCHAR(200) NULL AFTER description');
+        }
+
+        $indexCheck = $pdo->prepare(
+            'SELECT COUNT(*) FROM information_schema.STATISTICS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table_name AND INDEX_NAME = :index_name'
+        );
+        $indexCheck->execute(['table_name' => 'projects', 'index_name' => 'idx_projects_github_repository']);
+        if ((int) $indexCheck->fetchColumn() === 0) {
+            $pdo->exec('ALTER TABLE projects ADD KEY idx_projects_github_repository (github_repository)');
+        }
 
         $pdo->exec("CREATE TABLE IF NOT EXISTS github_repository_cache (
             repository_full_name VARCHAR(200) NOT NULL,
