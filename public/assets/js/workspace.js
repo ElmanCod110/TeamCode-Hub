@@ -409,6 +409,7 @@
     $("#topbar-notification-dot").hidden = unread === 0;
     const canReview = (state.user?.roles || []).includes("site_admin") || state.teams.some(team => canManageTeam(team.id));
     $("#nav-moderation-item").hidden = !canReview;
+    $("#nav-admin-users-item").hidden = !(state.user?.roles || []).includes("site_admin");
     $("#nav-report-count").textContent = "Open";
   }
 
@@ -421,16 +422,21 @@
       else navigate("projects", false);
       return;
     }
-    const allowed = ["overview", "teams", "projects", "tasks", "notifications", "chat", "github", "moderation", "settings"];
+    const allowed = ["overview", "teams", "projects", "tasks", "notifications", "chat", "github", "moderation", "admin-users", "settings"];
     navigate(allowed.includes(hash) ? hash : "overview", false);
   }
 
   function navigate(page, updateHash = true) {
+    if (page === "admin-users" && !(state.user?.roles || []).includes("site_admin")) {
+      toast("Site administrator role required.", "warning");
+      page = "overview";
+      updateHash = false;
+    }
     state.page = page;
     state.search = "";
     stopChatPolling();
     if (updateHash) history.pushState({ page }, "", page === "overview" ? "#overview" : "#" + page);
-    const titles = { overview: "Overview", teams: "Teams", projects: "Projects", tasks: "My tasks", notifications: "Notifications", chat: "Project chat", github: "GitHub activity", moderation: "Moderation", settings: "Preferences" };
+    const titles = { overview: "Overview", teams: "Teams", projects: "Projects", tasks: "My tasks", notifications: "Notifications", chat: "Project chat", github: "GitHub activity", moderation: "Moderation", "admin-users": "User directory", settings: "Preferences" };
     $("#current-page-label").textContent = titles[page] || "Workspace";
     $$("[data-page]").forEach(node => node.classList.toggle("is-active", node.dataset.page === page));
     closeSidebar();
@@ -442,6 +448,7 @@
     else if (page === "chat") renderChatLanding();
     else if (page === "github") renderGitHubActivity();
     else if (page === "moderation") renderModeration();
+    else if (page === "admin-users") renderAdminUsers();
     else if (page === "settings") renderSettings();
     $("#workspace-main").focus({ preventScroll: true });
   }
@@ -1498,6 +1505,110 @@
     root.appendChild(el("p", "small github-footnote", "Only public events are requested. No GitHub token is stored. The cache allows one outbound fetch attempt per configured username per UTC day and preserves the last successful snapshot if a refresh fails."));
   }
 
+
+  /**
+   * Render the site-admin user directory with bounded server-side search.
+   * The UI is intentionally read-only; user status and roles are not changed here.
+   */
+  async function renderAdminUsers() {
+    const root = pageRoot();
+    root.appendChild(pageHeading("SITE ADMINISTRATION", "User directory",
+      "Search account records and review status, sign-in activity, and administrator flags.",
+      actionGroup(actionButton("Refresh", "refresh-admin-users", "btn btn-outline"))));
+
+    const toolbar = el("form", "admin-users-toolbar surface-panel");
+    const query = el("input", "input");
+    query.type = "search";
+    query.name = "q";
+    query.maxLength = 100;
+    query.placeholder = "Search name, email, or exact user ID";
+    query.setAttribute("aria-label", "Search users by name, email, or exact user ID");
+    const status = el("select", "select");
+    status.setAttribute("aria-label", "Filter users by account status");
+    [["all", "All statuses"], ["active", "Active"], ["pending", "Pending"], ["disabled", "Disabled"]].forEach(([value, label]) => {
+      const option = el("option", "", label);
+      option.value = value;
+      status.appendChild(option);
+    });
+    const submit = el("button", "btn btn-primary", "Search users");
+    submit.type = "submit";
+    append(toolbar, query, status, submit);
+    root.appendChild(toolbar);
+
+    const results = el("section", "admin-users-results surface-panel");
+    results.setAttribute("aria-live", "polite");
+    results.setAttribute("aria-busy", "true");
+    results.appendChild(el("div", "panel-body page-loading", "Loading user directory…"));
+    root.appendChild(results);
+
+    let sequence = 0;
+    let controller = null;
+    let timer = null;
+    const load = async () => {
+      const current = ++sequence;
+      if (controller) controller.abort();
+      controller = new AbortController();
+      results.setAttribute("aria-busy", "true");
+      results.replaceChildren(el("div", "panel-body page-loading", "Loading user directory…"));
+      const params = new URLSearchParams();
+      if (query.value.trim()) params.set("q", query.value.trim());
+      params.set("status", status.value);
+      try {
+        const data = await request("/api/admin/users?" + params.toString(), { signal: controller.signal });
+        if (current !== sequence) return;
+        results.replaceChildren();
+        const users = Array.isArray(data.users) ? data.users : [];
+        const heading = el("div", "panel-heading");
+        append(heading, append(el("div"), el("h2", "", "Accounts"), el("p", "", users.length + " result" + (users.length === 1 ? "" : "s") + (data.has_more ? " · showing the first 50 matches" : ""))), badge(status.value === "all" ? "all statuses" : status.value));
+        results.appendChild(heading);
+        if (!users.length) {
+          results.appendChild(emptyState("No accounts found", "Try a different name, email address, or exact user ID."));
+          return;
+        }
+        const list = el("div", "admin-user-list");
+        users.forEach(user => list.appendChild(renderAdminUserRow(user)));
+        results.appendChild(list);
+      } catch (error) {
+        if (error.name === "AbortError" || current !== sequence) return;
+        results.replaceChildren(el("div", "panel-body inline-error", error.message || "The user directory could not be loaded."));
+      } finally {
+        if (current === sequence) results.setAttribute("aria-busy", "false");
+      }
+    };
+    toolbar.addEventListener("submit", event => { event.preventDefault(); load(); });
+    query.addEventListener("input", () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(load, 250);
+    });
+    status.addEventListener("change", load);
+    await load();
+  }
+
+  /** Render only the public account fields returned by the admin API. */
+  function renderAdminUserRow(user) {
+    const row = el("article", "admin-user-row");
+    const identity = el("div", "admin-user-identity");
+    append(identity, avatar(user.display_name || user.email, "md"),
+      append(el("div"), el("strong", "", user.display_name || "Unnamed account"),
+        el("span", "admin-user-email", user.email),
+        el("span", "small", "User #" + user.id)));
+    const state = el("div", "admin-user-state");
+    append(state, badge(user.status), user.is_site_admin ? badge("site admin") : null);
+    const activity = el("div", "admin-user-activity");
+    append(activity,
+      el("span", "small", "Created " + formatAdminDate(user.created_at)),
+      el("span", "small", "Last sign-in " + formatAdminDate(user.last_login_at)));
+    append(row, identity, state, activity);
+    return row;
+  }
+
+  /** Format a timestamp without assuming that every account has signed in. */
+  function formatAdminDate(value) {
+    if (!value) return "Never";
+    const date = new Date(String(value).replace(" ", "T") + (String(value).endsWith("Z") ? "" : "Z"));
+    return Number.isNaN(date.getTime()) ? "Unknown" : date.toLocaleString();
+  }
+
   async function renderModeration() {
     const root = pageRoot();
     root.appendChild(pageHeading("TRUST & SAFETY", "Moderation queue", "Review reports with their preserved conversation context. A report is an allegation, not proof; review each case on its own merits.",
@@ -2309,6 +2420,7 @@
     const name = action.dataset.action;
     try {
       if (name === "create-team") createTeamModal();
+      else if (name === "refresh-admin-users") await renderAdminUsers();
       else if (name === "edit-profile") editProfileModal();
       else if (name === "change-password") changePasswordModal();
       else if (name === "edit-team") editTeamModal(action.dataset.teamId);
