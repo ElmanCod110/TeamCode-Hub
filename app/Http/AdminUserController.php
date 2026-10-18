@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace TeamCodeHub\\Http;
+namespace TeamCodeHub\Http;
 
 use DomainException;
-use TeamCodeHub\\Core\\Request;
-use TeamCodeHub\\Core\\Response;
-use TeamCodeHub\\Database\\UserRepository;
-use TeamCodeHub\\Security\\AuthenticationService;
-use TeamCodeHub\\Security\\SecureSession;
+use TeamCodeHub\Core\Request;
+use TeamCodeHub\Core\Response;
+use TeamCodeHub\Database\UserRepository;
+use TeamCodeHub\Security\AuthenticationService;
+use TeamCodeHub\Security\SecureSession;
 
 final class AdminUserController
 {
