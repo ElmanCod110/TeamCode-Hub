@@ -9,6 +9,8 @@ use TeamCodeHub\Core\QuotaExceededException;
 use TeamCodeHub\Core\Request;
 use TeamCodeHub\Core\Response;
 use TeamCodeHub\Database\TeamInvitationRepository;
+use TeamCodeHub\Database\TeamRepository;
+use TeamCodeHub\Services\EmailDeliveryService;
 use TeamCodeHub\Security\AuthenticationService;
 use TeamCodeHub\Security\CsrfToken;
 use TeamCodeHub\Security\SecureSession;
@@ -19,7 +21,9 @@ final class TeamInvitationController
     public function __construct(
         private readonly AuthenticationService $authentication,
         private readonly TeamAccessService $teamAccess,
+        private readonly TeamRepository $teams,
         private readonly TeamInvitationRepository $invitations,
+        private readonly EmailDeliveryService $emailDelivery,
     ) {
     }
 
@@ -67,8 +71,29 @@ final class TeamInvitationController
             return Response::json(['error' => 'Team not found or management permission denied.'], 404);
         }
 
-        // The raw token is returned once; only its hash is stored. No email is sent by this baseline.
-        return Response::json(['invitation' => $invitation], 201);
+        // Send the token only to the invited address when the HTTPS mail transport is ready.
+        // If delivery fails, return the raw token once as a trusted-channel fallback.
+        $team = $this->teams->findAccessibleByUser($teamId, $user['id']);
+        $teamName = is_array($team) && is_string($team['name'] ?? null) ? $team['name'] : 'your team';
+        $emailSent = $this->emailDelivery->sendTeamInvitationEmail(
+            $invitation['email'],
+            $teamName,
+            (string) ($user['display_name'] ?? 'A team manager'),
+            $invitation['token'],
+        );
+        if ($emailSent) {
+            unset($invitation['token']);
+        } else {
+            error_log('TeamCode Hub: team invitation email delivery failed; check MAIL_FROM_ADDRESS, APP_URL, and PHP mail transport.');
+        }
+
+        return Response::json([
+            'invitation' => $invitation,
+            'email_sent' => $emailSent,
+            'message' => $emailSent
+                ? 'Invitation email sent. The recipient must sign in using the invited email address.'
+                : 'Invitation created, but email delivery failed. Copy the one-time token and share it through a trusted channel.',
+        ], 201);
     }
 
     public function accept(Request $request): Response
