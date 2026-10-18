@@ -74,9 +74,15 @@ The UI currently uses a bounded refresh for reconciliation; it is not a durable 
 - Configure `APP_URL` with the canonical HTTPS origin and `MAIL_FROM_ADDRESS` with a valid sender. The host must support PHP `mail()` delivery; see the operations guide.
 - Responses are generic for known and unknown email addresses. Pending accounts can request a resend, subject to rate limits and a 60-second cooldown.
 
+## Password recovery and session revocation
+
+- Password recovery uses a generic request response and sends links only to active, verified accounts.
+- Reset links expire after 30 minutes, are single-use, and keep the token in the URL fragment until the user submits the form.
+- A successful reset increments the credential version and invalidates other active sessions. The password-reset request uses the same HTTPS mail configuration as email verification.
+
 ## Operational limitations
 
-- Public registration and email verification are connected; password recovery is not implemented. New accounts stay pending until the recipient verifies the email address.
+- Public registration, email verification, and password recovery are connected. New accounts stay pending until the recipient verifies the email address.
 - Invitation creation returns a one-time token but does not send an email. The token should be shared through a trusted channel.
 - Team invitation UI is available from a team detail view to users whose current team role is owner or manager. The server independently verifies the role.
 - Member assignment searches only active members of the selected project’s team. It does not provide global account discovery or invite an email address that does not already belong to the team.
