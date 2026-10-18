@@ -87,6 +87,8 @@ $assert(str_contains($js, 'team.role === "owner"') && str_contains($js, 'canMana
 $assert(str_contains($js, '/api/admin/reports') && str_contains($js, '/api/reports/') && str_contains($js, 'renderReportCard'), 'moderation UI connects scoped report queues and review actions');
 $assert(str_contains($bootstrap, "/api/admin/users") && str_contains($html, 'id="nav-admin-users-item"'), 'site-admin user directory route and navigation are registered');
 $assert(str_contains($js, 'function renderAdminUsers()') && str_contains($js, '/api/admin/users?') && str_contains($js, 'AbortController'), 'admin user directory connects debounced search with stale-request cancellation');
+$assert(str_contains($js, 'params.set("page", String(page))') && str_contains($js, 'admin-users-pagination'), 'admin user directory sends and renders bounded pagination state');
+
 $assert(str_contains($adminUserController, 'Site administrator role required.') && str_contains($userRepository, 'function searchForSiteAdmin'), 'admin user directory enforces the site-admin boundary at the server and repository layers');
 $assert(str_contains($js, 'formatAdminDate') && str_contains($js, 'user.is_site_admin'), 'admin directory renders account activity and administrator flags');
 
