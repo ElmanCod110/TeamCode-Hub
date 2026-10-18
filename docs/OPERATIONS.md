@@ -24,7 +24,7 @@ Password recovery uses the same HTTPS origin and sender configuration. Reset req
 
 ## Team invitation email delivery
 
-Team invitations use the same `APP_URL`, `MAIL_FROM_ADDRESS`, and PHP mail transport as verification and password recovery. Configure the canonical application URL as HTTPS and verify SPF, DKIM, and DMARC for the sender domain. Successful delivery keeps the bearer token out of the API response; when delivery fails, the owner/manager receives a one-time token fallback to share through a trusted channel. Invitees must use the invited email address and should finish registration/email verification before reopening the link if they do not already have an account.
+Team invitations use the same `APP_URL`, `MAIL_FROM_ADDRESS`, and PHP mail transport as verification and password recovery. Configure the canonical application URL as HTTPS and verify SPF, DKIM, and DMARC for the sender domain. Successful delivery keeps the bearer token out of the API response; when delivery fails, the owner/manager receives a one-time token fallback to share through a trusted channel. Invitees must use the invited email address and should finish registration/email verification before reopening the link if they do not already have an account. Invitation creation also has a 15-minute per-team/email and client-IP rate limit.
 
 ## Database migrations
 
