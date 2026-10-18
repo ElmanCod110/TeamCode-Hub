@@ -14,6 +14,7 @@
   const state = {
     csrf: "",
     verificationToken: "",
+    passwordResetToken: "",
     user: null,
     dashboard: null,
     teams: [],
@@ -232,6 +233,8 @@
       login: $("#login-form"),
       register: $("#register-form"),
       resend: $("#verification-resend-form"),
+      "password-recovery": $("#password-recovery-form"),
+      "password-reset": $("#password-reset-form"),
       verify: $("#verify-screen")
     };
     Object.entries(views).forEach(([name, view]) => { view.hidden = name !== mode; });
@@ -239,6 +242,8 @@
       login: $("#login-email"),
       register: $("#register-name"),
       resend: $("#resend-email"),
+      "password-recovery": $("#password-recovery-email"),
+      "password-reset": $("#password-reset-new"),
       verify: $("#verify-submit")
     };
     if (focusTargets[mode] && !focusTargets[mode].disabled) focusTargets[mode].focus();
@@ -263,6 +268,26 @@
 
     // Email tokens live in the fragment, which browsers do not send to the web server.
     const hash = location.hash.replace(/^#/, "");
+    // Reset links keep the bearer token in the fragment, outside HTTP request logs.
+    if (hash.startsWith("reset-password?")) {
+      state.passwordResetToken = new URLSearchParams(hash.slice("reset-password?".length)).get("token") || "";
+      $("#password-reset-submit").disabled = true;
+      showAuth();
+      showAuthMode("password-reset");
+      const resetStatus = $("#password-reset-status");
+      if (!state.passwordResetToken) {
+        resetStatus.textContent = "This reset link is missing its token. Request a new password reset link.";
+      }
+      try {
+        await loadCsrf();
+        $("#password-reset-submit").disabled = !state.passwordResetToken;
+      } catch (_) {
+        resetStatus.textContent = "The password reset service is unavailable. Check the database setup and reload.";
+        $("#password-reset-submit").disabled = true;
+      }
+      return;
+    }
+
     if (hash.startsWith("verify-email?")) {
       state.verificationToken = new URLSearchParams(hash.slice("verify-email?".length)).get("token") || "";
       $("#verify-submit").disabled = true;
@@ -403,6 +428,95 @@
     } finally {
       submit.disabled = false;
       submit.textContent = "Send verification link";
+    }
+  }
+
+
+  /** Request a password reset without revealing whether the email is registered. */
+  async function requestPasswordReset(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const submit = $("#password-recovery-submit");
+    const error = $("#password-recovery-error");
+    const status = $("#password-recovery-status");
+    error.hidden = true;
+    status.hidden = true;
+    if (!form.reportValidity()) return;
+
+    submit.disabled = true;
+    submit.textContent = "Sending…";
+    try {
+      if (!state.csrf) await loadCsrf();
+      const result = await request("/api/auth/password-reset/request", {
+        method: "POST",
+        body: { email: $("#password-recovery-email").value.trim() }
+      });
+      status.textContent = result.message || "If an active account matches that email address, a reset link will be sent shortly.";
+      status.hidden = false;
+    } catch (failure) {
+      error.textContent = failure.message || "The request could not be processed. Try again later.";
+      error.hidden = false;
+    } finally {
+      submit.disabled = false;
+      submit.textContent = "Send reset link";
+    }
+  }
+
+  /** Redeem the reset token once and remove it from browser history before the request. */
+  async function resetPassword(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const submit = $("#password-reset-submit");
+    const error = $("#password-reset-error");
+    const status = $("#password-reset-status");
+    error.hidden = true;
+    status.hidden = true;
+
+    if (!state.passwordResetToken) {
+      error.textContent = "This reset link is invalid or expired. Request a new link.";
+      error.hidden = false;
+      submit.disabled = true;
+      return;
+    }
+    if (!form.reportValidity()) return;
+
+    const password = $("#password-reset-new").value;
+    const confirmation = $("#password-reset-confirm").value;
+    if (password !== confirmation) {
+      error.textContent = "The new password and confirmation do not match.";
+      error.hidden = false;
+      return;
+    }
+
+    submit.disabled = true;
+    submit.textContent = "Updating…";
+    // Keep the token only in memory if the request fails transiently.
+    history.replaceState({}, "", "/reset-password");
+    try {
+      if (!state.csrf) await loadCsrf();
+      const result = await request("/api/auth/password-reset/confirm", {
+        method: "POST",
+        body: { token: state.passwordResetToken, new_password: password, confirm_password: confirmation }
+      });
+      state.passwordResetToken = "";
+      form.reset();
+      status.className = "alert alert-success auth-status";
+      status.textContent = result.message || "Password updated. You can now sign in with your new password.";
+      status.hidden = false;
+      submit.hidden = true;
+    } catch (failure) {
+      if (failure.status === 400) {
+        state.passwordResetToken = "";
+        submit.hidden = true;
+      }
+      if (failure.status === 419) {
+        try { await loadCsrf(); } catch (_) {}
+      }
+      error.textContent = failure.message || "The password could not be updated. Request a new reset link if it has expired.";
+      error.hidden = false;
+    } finally {
+      submit.disabled = !state.passwordResetToken;
+      if (!submit.hidden) submit.textContent = "Update password";
     }
   }
 
@@ -3055,11 +3169,27 @@
   $("#login-form").addEventListener("submit", login);
   $("#register-form").addEventListener("submit", registerAccount);
   $("#verification-resend-form").addEventListener("submit", resendVerification);
+  $("#password-recovery-form").addEventListener("submit", requestPasswordReset);
+  $("#password-reset-form").addEventListener("submit", resetPassword);
   $("#verify-submit").addEventListener("click", verifyEmail);
   $("#show-register").addEventListener("click", () => showAuthMode("register"));
   $("#show-resend-verification").addEventListener("click", () => showAuthMode("resend"));
   $("#show-login-from-register").addEventListener("click", () => showAuthMode("login"));
   $("#show-login-from-resend").addEventListener("click", () => showAuthMode("login"));
+  $("#show-password-recovery").addEventListener("click", () => {
+    $("#password-recovery-email").value = $("#login-email").value.trim();
+    showAuthMode("password-recovery");
+  });
+  $("#show-login-from-password-recovery").addEventListener("click", () => showAuthMode("login"));
+  $("#show-login-from-password-reset").addEventListener("click", () => {
+    state.passwordResetToken = "";
+    history.replaceState({}, "", "/login");
+    $("#password-reset-submit").hidden = false;
+    $("#password-reset-submit").disabled = false;
+    $("#password-reset-status").hidden = true;
+    $("#password-reset-error").hidden = true;
+    showAuthMode("login");
+  });
   $("#show-login-from-verify").addEventListener("click", () => {
     state.verificationToken = "";
     history.replaceState({}, "", "/login");
