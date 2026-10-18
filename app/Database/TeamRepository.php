@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace TeamCodeHub\Database;
 
+use DomainException;
 use PDO;
 use Throwable;
 
@@ -43,6 +44,45 @@ final class TeamRepository
         return is_array($row) ? self::normalize($row) : null;
     }
 
+    /**
+     * Rename a team only when the caller still has an active owner membership.
+     * The role check and update share a transaction to reduce time-of-check races.
+     *
+     * @return array<string, mixed>
+     */
+    public function updateNameForOwner(int $userId, int $teamId, string $name): array
+    {
+        $this->pdo->beginTransaction();
+        try {
+            $access = $this->pdo->prepare(
+                "SELECT t.id, t.name, t.slug, t.status, t.member_limit, t.project_limit, t.created_by, tm.role
+                 FROM teams t
+                 INNER JOIN team_memberships tm ON tm.team_id = t.id AND tm.user_id = :user_id
+                 WHERE t.id = :team_id AND t.status = 'active' AND tm.status = 'active'
+                 LIMIT 1 FOR UPDATE"
+            );
+            $access->execute(['user_id' => $userId, 'team_id' => $teamId]);
+            $team = $access->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($team) || $team['role'] !== 'owner') {
+                throw new DomainException('Active team owner role required.');
+            }
+
+            $update = $this->pdo->prepare(
+                "UPDATE teams SET name = :name WHERE id = :team_id AND status = 'active'"
+            );
+            $update->execute(['name' => $name, 'team_id' => $teamId]);
+            $this->pdo->commit();
+
+            $team['name'] = $name;
+            return self::normalize($team);
+        } catch (Throwable $error) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $error;
+        }
+    }
+
     /** @return array<string, mixed> */
     public function createForOwner(int $userId, string $name): array
     {
@@ -76,42 +116,6 @@ final class TeamRepository
                 'project_limit' => 10,
                 'role' => 'owner',
             ];
-        } catch (Throwable $error) {
-            if ($this->pdo->inTransaction()) {
-                $this->pdo->rollBack();
-            }
-            throw $error;
-        }
-    }
-
-
-    /**
-     * Rename a team only while the caller's active owner/manager membership is locked.
-     * Locking and rechecking access keeps the authorization decision close to the write.
-     */
-    public function renameForManager(int $userId, int $teamId, string $name): bool
-    {
-        $this->pdo->beginTransaction();
-        try {
-            $access = $this->pdo->prepare(
-                "SELECT t.id
-                 FROM teams t
-                 INNER JOIN team_memberships tm ON tm.team_id = t.id
-                 WHERE t.id = :team_id AND t.status = 'active'
-                   AND tm.user_id = :user_id AND tm.status = 'active'
-                   AND tm.role IN ('owner', 'manager')
-                 LIMIT 1 FOR UPDATE"
-            );
-            $access->execute(['team_id' => $teamId, 'user_id' => $userId]);
-            if ($access->fetchColumn() === false) {
-                $this->pdo->rollBack();
-                return false;
-            }
-
-            $update = $this->pdo->prepare('UPDATE teams SET name = :name WHERE id = :team_id');
-            $update->execute(['name' => $name, 'team_id' => $teamId]);
-            $this->pdo->commit();
-            return true;
         } catch (Throwable $error) {
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
