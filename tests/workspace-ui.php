@@ -107,7 +107,7 @@ $assert(str_contains($bootstrap, '/api/auth/password-reset/request') && str_cont
 $assert(str_contains($js, 'requestPasswordReset') && str_contains($js, 'completePasswordReset') && str_contains($js, 'state.passwordResetToken'), 'password reset UI connects generic request and one-time completion flows');
 $assert(str_contains($passwordResetController, 'allowsForPurpose') && str_contains($passwordResetController, 'CsrfToken::validate'), 'password reset mutations enforce CSRF and purpose-specific rate limits');
 $assert(str_contains($passwordResetRepository, "purpose = 'password_reset'") && str_contains($passwordResetRepository, 'expires_at > CURRENT_TIMESTAMP') && str_contains($passwordResetRepository, 'SET used_at = CURRENT_TIMESTAMP'), 'password reset tokens are expiring, one-time, and stored as hashes');
-$assert(str_contains($passwordResetService, "hash('sha256', $token)") && str_contains($emailDeliveryService, '/reset-password#reset-password?token='), 'password reset hashes bearer tokens and sends fragment-only links over HTTPS');
+$assert(str_contains($passwordResetService, "hash('sha256', \\$token)") && str_contains($emailDeliveryService, '/reset-password#reset-password?token='), 'password reset hashes bearer tokens and sends fragment-only links over HTTPS');
 
 $assert(str_contains($js, 'editProfileModal') && str_contains($js, 'changePasswordModal') && str_contains($js, 'confirm_password'), 'preferences connect profile editing and password confirmation forms');
 $assert(str_contains($authController, 'CsrfToken::rotate()') && str_contains($authController, 'SecureSession::regenerateAfterAuthentication()'), 'successful password changes rotate the session identifier and CSRF token');
