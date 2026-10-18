@@ -13,6 +13,7 @@ use TeamCodeHub\Security\AuthenticationService;
 use TeamCodeHub\Security\CsrfToken;
 use TeamCodeHub\Security\SecureSession;
 use TeamCodeHub\Security\TeamAccessService;
+use TeamCodeHub\Services\EmailDeliveryService;
 
 final class TeamInvitationController
 {
@@ -20,6 +21,7 @@ final class TeamInvitationController
         private readonly AuthenticationService $authentication,
         private readonly TeamAccessService $teamAccess,
         private readonly TeamInvitationRepository $invitations,
+        private readonly EmailDeliveryService $emailDelivery,
     ) {
     }
 
@@ -67,8 +69,26 @@ final class TeamInvitationController
             return Response::json(['error' => 'Team not found or management permission denied.'], 404);
         }
 
-        // The raw token is returned once; only its hash is stored. No email is sent by this baseline.
-        return Response::json(['invitation' => $invitation], 201);
+        $emailSent = $this->emailDelivery->sendTeamInvitationEmail(
+            $invitation['email'],
+            $invitation['token'],
+            $invitation['team_name'],
+        );
+        if ($emailSent) {
+            // Once mail delivery succeeds, do not also expose the bearer token to the browser.
+            unset($invitation['token'], $invitation['team_name']);
+        } else {
+            // Keep the one-time manual fallback only when configured email delivery is unavailable.
+            unset($invitation['team_name']);
+        }
+
+        return Response::json([
+            'invitation' => $invitation,
+            'email_sent' => $emailSent,
+            'message' => $emailSent
+                ? 'Invitation email sent. The recipient must use the invited email address.'
+                : 'Email delivery failed. Copy the one-time token and share it through a trusted channel.',
+        ], 201);
     }
 
     public function accept(Request $request): Response
