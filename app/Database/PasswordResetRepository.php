@@ -142,7 +142,7 @@ final class PasswordResetRepository
             }
 
             $update = $this->pdo->prepare(
-                "UPDATE users SET password_hash = :password_hash
+                "UPDATE users SET password_hash = :password_hash, auth_version = auth_version + 1
                  WHERE id = :user_id AND status = 'active' AND email_verified_at IS NOT NULL"
             );
             $update->execute(['password_hash' => $passwordHash, 'user_id' => $userId]);
