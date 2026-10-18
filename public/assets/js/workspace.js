@@ -33,7 +33,8 @@
     chatBusy: false,
     refreshing: false,
     search: "",
-    taskFilter: "all"
+    taskFilter: "all",
+    adminDirectory: { query: "", status: "all", page: 1 }
   };
 
   const iconPaths = {
@@ -1521,6 +1522,7 @@
     query.type = "search";
     query.name = "q";
     query.maxLength = 100;
+    query.value = state.adminDirectory.query;
     query.placeholder = "Search name, email, or exact user ID";
     query.setAttribute("aria-label", "Search users by name, email, or exact user ID");
     const status = el("select", "select");
@@ -1530,6 +1532,7 @@
       option.value = value;
       status.appendChild(option);
     });
+    status.value = state.adminDirectory.status;
     const submit = el("button", "btn btn-primary", "Search users");
     submit.type = "submit";
     append(toolbar, query, status, submit);
@@ -1544,8 +1547,9 @@
     let sequence = 0;
     let controller = null;
     let timer = null;
-    let page = 1;
+    let page = Math.max(1, state.adminDirectory.page || 1);
     const load = async () => {
+      state.adminDirectory = { query: query.value.trim(), status: status.value, page };
       const current = ++sequence;
       if (controller) controller.abort();
       controller = new AbortController();
@@ -1598,13 +1602,20 @@
         if (current === sequence) results.setAttribute("aria-busy", "false");
       }
     };
-    toolbar.addEventListener("submit", event => { event.preventDefault(); page = 1; load(); });
+    toolbar.addEventListener("submit", event => { event.preventDefault(); page = 1; state.adminDirectory.page = 1; load(); });
     query.addEventListener("input", () => {
       window.clearTimeout(timer);
       page = 1;
+      state.adminDirectory.query = query.value.trim();
+      state.adminDirectory.page = 1;
       timer = window.setTimeout(load, 250);
     });
-    status.addEventListener("change", () => { page = 1; load(); });
+    status.addEventListener("change", () => {
+      page = 1;
+      state.adminDirectory.status = status.value;
+      state.adminDirectory.page = 1;
+      load();
+    });
     await load();
   }
 
@@ -1623,7 +1634,52 @@
       el("span", "small", "Created " + formatAdminDate(user.created_at)),
       el("span", "small", "Last sign-in " + formatAdminDate(user.last_login_at)));
     append(row, identity, state, activity);
+
+    // Only active/disabled accounts can be toggled here; pending onboarding stays separate.
+    const canChangeStatus = ["active", "disabled"].includes(String(user.status))
+      && Number(user.id) !== Number(state.user?.id);
+    if (canChangeStatus) {
+      const nextStatus = user.status === "active" ? "disabled" : "active";
+      const action = actionButton(
+        nextStatus === "disabled" ? "Disable account" : "Reactivate account",
+        "set-user-status",
+        nextStatus === "disabled" ? "btn btn-outline btn-sm btn-danger-outline" : "btn btn-outline btn-sm",
+        { "data-user-id": user.id, "data-status": nextStatus }
+      );
+      action.setAttribute("aria-label", (nextStatus === "disabled" ? "Disable" : "Reactivate") + " account " + (user.display_name || user.email));
+      row.appendChild(action);
+    } else if (Number(user.id) === Number(state.user?.id)) {
+      row.appendChild(el("span", "small", "Your account"));
+    } else {
+      row.appendChild(el("span", "small", "Pending accounts cannot be changed here."));
+    }
     return row;
+  }
+
+  /**
+   * Change account status only after explicit confirmation and refresh the same directory view.
+   * The server remains responsible for authorization, self-disable prevention, and admin safety.
+   */
+  async function changeAdminUserStatus(userId, nextStatus) {
+    const targetId = Number(userId);
+    if (!Number.isSafeInteger(targetId) || targetId < 1 || !["active", "disabled"].includes(nextStatus)) {
+      throw new Error("Invalid account status action.");
+    }
+    if (targetId === Number(state.user?.id)) {
+      throw new Error("You cannot disable your own account from this directory.");
+    }
+    const verb = nextStatus === "disabled" ? "disable" : "reactivate";
+    const warning = nextStatus === "disabled"
+      ? "Disable this account? The user will lose sign-in access, but their project and team history will be preserved."
+      : "Reactivate this account? The user will regain sign-in access to resources they are still authorized to use.";
+    if (!window.confirm(warning)) return;
+
+    const result = await request("/api/admin/users/" + escapePath(targetId) + "/status", {
+      method: "POST",
+      body: { status: nextStatus }
+    });
+    toast(result.user?.status === "disabled" ? "Account disabled." : "Account reactivated.");
+    await renderAdminUsers();
   }
 
   /** Format a timestamp without assuming that every account has signed in. */
@@ -2445,6 +2501,7 @@
     try {
       if (name === "create-team") createTeamModal();
       else if (name === "refresh-admin-users") await renderAdminUsers();
+      else if (name === "set-user-status") await changeAdminUserStatus(action.dataset.userId, action.dataset.status);
       else if (name === "edit-profile") editProfileModal();
       else if (name === "change-password") changePasswordModal();
       else if (name === "edit-team") editTeamModal(action.dataset.teamId);
