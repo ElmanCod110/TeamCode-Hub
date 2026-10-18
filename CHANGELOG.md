@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add public account registration that creates pending users and avoids email-existence disclosure.
+- Add hashed, single-use 24-hour email verification tokens, transactional activation, resend cooldowns, and purpose-specific rate limits.
+- Add HTTPS-only verification email delivery configuration and an explicit browser confirmation step that keeps tokens out of HTTP request logs.
+- Add MariaDB integration and UI contract coverage for duplicate registration, verification, expiry/use semantics, and replay prevention.
+
 - Implement the already-registered team rename and project metadata routes in `WorkspaceController`.
 - Reuse the existing transactional repository checks: team renaming is owner-only; project settings require an active team owner/manager with approved project access.
 - Extend workspace UI contract tests to fail when a registered settings route has no controller handler.
