@@ -249,6 +249,10 @@ try {
     $resetAuthentication = new AuthenticationService(new UserRepository($pdo));
     $assert($resetAuthentication->authenticate('password-reset@example.test', $newResetPassword), 'new password works after a successful reset');
     $assert(!$resetAuthentication->authenticate('password-reset@example.test', 'Old-Password-For-Reset-41'), 'old password stops working after a successful reset');
+    $_SESSION['user_id'] = $resetUserId;
+    $_SESSION['auth_version'] = $initialAuthVersion;
+    $assert($resetAuthentication->currentUser() === null, 'session with a pre-reset authentication version is rejected');
+    SecureSession::start();
     $pdo->prepare('DELETE FROM users WHERE id = :id')->execute(['id' => $resetUserId]);
 
     $pdo->prepare("INSERT INTO user_system_roles (user_id, role) VALUES (:user_id, 'site_admin')")->execute(['user_id' => $adminId]);
