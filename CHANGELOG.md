@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Add generic password-reset requests and a responsive reset form connected to the application shell.
+- Store only SHA-256 token hashes, enforce a 30-minute expiry and 60-second resend cooldown, rate-limit public requests, and consume reset tokens transactionally.
+- Increment account session versions after credential changes so password reset invalidates existing sessions.
+- Add MariaDB integration and workspace contract checks for token expiry, replay prevention, password replacement, and session invalidation.
+
+
 - Add public account registration that creates pending users and avoids email-existence disclosure.
 - Add hashed, single-use 24-hour email verification tokens, transactional activation, resend cooldowns, and purpose-specific rate limits.
 - Add HTTPS-only verification email delivery configuration and an explicit browser confirmation step that keeps tokens out of HTTP request logs.
