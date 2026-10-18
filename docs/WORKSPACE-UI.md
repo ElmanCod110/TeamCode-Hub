@@ -59,7 +59,7 @@ The UI currently uses a bounded refresh for reconciliation; it is not a durable 
 - Invitation creation returns a one-time token but does not send an email. The token should be shared through a trusted channel.
 - Team invitation UI is available from a team detail view to users whose current team role is owner or manager. The server independently verifies the role.
 - Member assignment currently asks for an existing user ID; directory search and email-based user discovery are not yet implemented.
-- Task editing and reassignment after creation, comments, subtasks, project/team editing, Git provider integration, and the full site-administration interface remain planned.
+- Git provider synchronization, public registration, email verification, password recovery, invitation email delivery, team/project deletion, and the full site-administration interface remain planned. Task editing, comments, checklists, and project/team settings are connected to the existing APIs.
 - Theme preference is stored locally in the current browser; it does not change account-wide settings or access permissions.
 
 ## Verification
