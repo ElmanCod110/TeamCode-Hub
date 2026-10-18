@@ -102,7 +102,10 @@ return static function (): void {
         return new TeamInvitationController(
             new AuthenticationService($users),
             new TeamAccessService($memberships),
+            new TeamRepository($pdo),
             new TeamInvitationRepository($pdo),
+            new EmailDeliveryService(),
+            new LoginRateLimiter($pdo),
         );
     });
 
@@ -228,6 +231,7 @@ return static function (): void {
     $router->get('/login', static fn (Request $request, array $params): Response => $appPage());
     $router->get('/verify-email', static fn (Request $request, array $params): Response => $appPage());
     $router->get('/reset-password', static fn (Request $request, array $params): Response => $appPage());
+    $router->get('/accept-invitation', static fn (Request $request, array $params): Response => $appPage());
 
     $router->get('/health', static fn (Request $request, array $params): Response => Response::json([
         'status' => 'ok',
