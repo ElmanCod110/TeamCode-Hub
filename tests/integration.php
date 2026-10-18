@@ -409,7 +409,9 @@ try {
 
     $assert($auth->updateDisplayName($adminId, 'Integration Admin Updated'), 'active user can update their display name');
     $assert($auth->currentUser()['display_name'] === 'Integration Admin Updated', 'updated display name is reflected in the authenticated user record');
+    $assert($auth->updateDisplayName($adminId, 'Integration Admin Updated'), 'saving an unchanged display name remains successful');
     $assert(!$auth->changePassword($adminId, 'incorrect-password', 'A-New-Strong-Password-52'), 'password change rejects an incorrect current password');
+    $assert(!$auth->changePassword($adminId, 'A-Strong-Test-Password-42', str_repeat('x', 73)), 'password change rejects values beyond the supported byte limit');
     $assert($auth->changePassword($adminId, 'A-Strong-Test-Password-42', 'A-New-Strong-Password-52'), 'password change accepts a verified current password and strong replacement');
     $assert(!$auth->changePassword($adminId, 'A-Strong-Test-Password-42', 'Another-New-Strong-Password-53'), 'a replaced password cannot be reused as the current credential');
     $newCredential = (new UserRepository($pdo))->findAuthenticationById($adminId);
