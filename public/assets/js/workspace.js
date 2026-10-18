@@ -270,8 +270,7 @@
     const hash = location.hash.replace(/^#/, "");
     if (hash.startsWith("reset-password?")) {
       state.passwordResetToken = new URLSearchParams(hash.slice("reset-password?".length)).get("token") || "";
-      // Keep the one-time bearer token out of browser history after retaining it in memory.
-      history.replaceState({}, "", "/reset-password");
+      // Retain the link until submission so a temporary CSRF/network failure can be retried after reload.
       showAuth();
       showAuthMode("password-reset");
       if (!state.passwordResetToken) {
@@ -492,6 +491,8 @@
     submit.disabled = true;
     submit.textContent = "Updating password…";
     try {
+      // Remove the bearer token from browser history before sending it to the API.
+      history.replaceState({}, "", "/reset-password");
       if (!state.csrf) await loadCsrf();
       const result = await request("/api/auth/password-reset/complete", {
         method: "POST",
