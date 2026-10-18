@@ -18,7 +18,7 @@ Public registration is enabled after the account-token migration has been applie
 - `MAIL_FROM_ADDRESS` — a valid sender mailbox controlled by your domain.
 - Ensure PHP's `mail()` transport is configured and monitored by the hosting provider. Configure SPF, DKIM, and DMARC for reliable delivery.
 
-The application deliberately returns a generic response for both existing and unknown email addresses. New accounts stay pending until the recipient confirms a one-time link that expires after 24 hours. Resend requests have IP/email rate limits and a per-account cooldown. The verification token is placed in the URL fragment, not the HTTP request line, and the browser requires an explicit confirmation action. If mail delivery is unavailable, the account remains pending; server logs contain a generic configuration warning, not the recipient address or token. Test delivery and verification end-to-end before enabling public traffic.
+The application deliberately returns a generic response for both existing and unknown email addresses. New accounts stay pending until the recipient confirms a one-time link that expires after 24 hours. Password reset uses the same mail configuration and sends 30-minute one-time links only to active, verified accounts. Resend and reset requests have IP/email rate limits and per-account cooldowns. The verification token is placed in the URL fragment, not the HTTP request line, and the browser requires an explicit confirmation action. If mail delivery is unavailable, the account remains pending; server logs contain a generic configuration warning, not the recipient address or token. Test delivery and verification end-to-end before enabling public traffic.
 
 ## Database migrations
 
