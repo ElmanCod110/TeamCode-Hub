@@ -52,6 +52,7 @@ $adminAccountRepository = $read('app/Database/AdminAccountRepository.php');
 $authService = $read('app/Security/AuthenticationService.php');
 $workspaceController = $read('app/Http/WorkspaceController.php');
 $projectFileRepository = $read('app/Database/ProjectFileRepository.php');
+$projectFileMigration = $read('database/migrations/20261018000400_create_project_code_files.php');
 $response = $read('app/Core/Response.php');
 $workflow = $read('.github/workflows/ci.yml');
 $htaccess = $read('public/.htaccess');
@@ -78,7 +79,8 @@ $assert(str_contains($accountLifecycleService, 'hash(\'sha256\', $token)') && st
 $assert(str_contains($html, 'id="nav-moderation-item"') && str_contains($html, 'data-page="moderation"'), 'moderation navigation exists as a permission-gated workspace view');
 $assert(str_contains($html, 'data-page="github"') && str_contains($js, '/api/github/activity'), 'GitHub activity page is connected to its authenticated endpoint');
 $assert(str_contains($bootstrap, "'/api/projects/{projectId}/github'") && str_contains($bootstrap, 'project-github.controller'), 'project GitHub endpoints are registered through a dedicated controller');
-$assert(str_contains($bootstrap, "'/api/projects/{projectId}/files'") && str_contains($bootstrap, "'/api/projects/{projectId}/files/{fileId}/edit'") && str_contains($bootstrap, "'/api/projects/{projectId}/files/{fileId}/restore'"), 'project file listing, editing, and restore routes are registered');
+$assert(str_contains($bootstrap, "'/api/projects/{projectId}/files'") && str_contains($bootstrap, "'/api/projects/{projectId}/files/{fileId}'") && str_contains($bootstrap, "'/api/projects/{projectId}/files/{fileId}/edit'") && str_contains($bootstrap, "'/api/projects/{projectId}/files/{fileId}/history'") && str_contains($bootstrap, "'/api/projects/{projectId}/files/{fileId}/restore'"), 'project file listing, detail, edit, history, and restore routes are registered');
+$assert(str_contains($bootstrap, "'/api/projects/{projectId}/files'") && str_contains($bootstrap, 'project-file.controller') && str_contains($projectFileMigration, 'CREATE TABLE project_files') && str_contains($projectFileMigration, 'CREATE TABLE project_file_versions'), 'project file endpoints and both private storage tables are wired into the application');
 $assert(str_contains($js, 'renderProjectFiles') && str_contains($js, 'createProjectFileModal') && str_contains($js, 'saveProjectFile') && str_contains($js, 'showProjectFileHistory'), 'project workspace connects file browsing, editing, saving, and history');
 $assert(str_contains($js, 'confirmDiscardProjectFileChanges') && str_contains($js, 'expected_version: Number(expectedVersion)'), 'file editor warns before discarding unsaved content and uses optimistic concurrency');
 $assert(str_contains($projectFileRepository, 'MAX_FILE_BYTES = 262144') && str_contains($projectFileRepository, 'MAX_PROJECT_BYTES = 10485760') && str_contains($projectFileRepository, 'MAX_PROJECT_HISTORY_BYTES = 20971520'), 'project file storage enforces per-file, project, and revision quotas');
