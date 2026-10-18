@@ -10,6 +10,16 @@
 - Confirm private storage, configuration, backup, and log paths cannot be downloaded over HTTP.
 - Back up the database and files before applying schema changes.
 
+## Registration and email verification
+
+Public registration is enabled after the account-token migration has been applied. Configure these environment variables outside the web root:
+
+- `APP_BASE_URL` — the canonical HTTPS origin of the workspace, for example `https://hub.example.com`.
+- `MAIL_FROM_ADDRESS` — a valid sender mailbox controlled by your domain.
+- Ensure PHP's `mail()` transport is configured and monitored by the hosting provider. Configure SPF, DKIM, and DMARC for reliable delivery.
+
+The application deliberately returns a generic response for both existing and unknown email addresses. New accounts stay pending until the recipient confirms a one-time link that expires after 24 hours. Resend requests have IP/email rate limits and a per-account cooldown. The verification token is placed in the URL fragment, not the HTTP request line, and the browser requires an explicit confirmation action. If mail delivery is unavailable, the account remains pending; server logs contain a generic configuration warning, not the recipient address or token. Test delivery and verification end-to-end before enabling public traffic.
+
 ## Database migrations
 
 After configuring `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, and `DB_PASSWORD`, run `php bin/migrate.php` from a trusted CLI environment. Never run migrations automatically in response to normal web requests or arbitrary SQL errors. The runner records completed versions and uses a MySQL advisory lock to avoid concurrent runs.
