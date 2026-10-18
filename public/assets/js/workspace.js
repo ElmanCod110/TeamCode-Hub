@@ -920,7 +920,7 @@
 
       content.replaceChildren();
       const notice = el("div", "alert project-files-notice");
-      append(notice, icon("shield"), el("span", "", "Files are stored privately in the database. Source text is never executed by TeamCode Hub."));
+      append(notice, icon("shield"), el("span", "", "Files are stored privately in the database. Source text is never executed by TeamCode Hub. Never store real credentials, tokens, or private keys."));
       const layout = el("div", "project-files-layout");
       const sidebar = el("aside", "project-files-sidebar surface-panel");
       const sideHead = el("div", "project-files-side-head");
@@ -1014,6 +1014,7 @@
       source.autocapitalize = "off";
       source.readOnly = !directory.can_edit;
       source.setAttribute("aria-label", "Source text for " + file.path);
+      source.setAttribute("aria-keyshortcuts", "Control+S Meta+S");
       const footer = el("div", "project-files-editor-footer");
       const status = el("span", "small");
       const stats = el("span", "small");
@@ -1023,6 +1024,18 @@
         status.textContent = !directory.can_edit ? "Read-only access." : (source.value === source.defaultValue ? "Saved version loaded." : "Unsaved changes — save before leaving.");
       };
       source.addEventListener("input", updateStats);
+      source.addEventListener("keydown", event => {
+        if (event.key === "Tab" && directory.can_edit) {
+          event.preventDefault();
+          source.setRangeText("    ", source.selectionStart, source.selectionEnd, "end");
+          source.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s" && directory.can_edit) {
+          event.preventDefault();
+          const saveButton = $('[data-action="save-project-file"]', editor);
+          if (saveButton) saveButton.click();
+        }
+      });
       updateStats();
       append(footer, status, stats);
       append(editor, header, source, footer);
@@ -3170,6 +3183,11 @@
   $("#login-form").addEventListener("submit", login);
   document.addEventListener("click", event => {
     if (event.target.closest("[data-sidebar-close]")) closeSidebar();
+  });
+  window.addEventListener("beforeunload", event => {
+    if (!hasUnsavedProjectFileChanges()) return;
+    event.preventDefault();
+    event.returnValue = "";
   });
   window.addEventListener("hashchange", routeFromHash);
   window.addEventListener("popstate", routeFromHash);
