@@ -14,7 +14,7 @@
 
 Public registration is enabled after the account-token migration has been applied. Configure these environment variables outside the web root:
 
-- `APP_BASE_URL` — the canonical HTTPS origin of the workspace, for example `https://hub.example.com`.
+- `APP_URL` — the canonical HTTPS origin of the workspace, for example `https://hub.example.com`.
 - `MAIL_FROM_ADDRESS` — a valid sender mailbox controlled by your domain.
 - Ensure PHP's `mail()` transport is configured and monitored by the hosting provider. Configure SPF, DKIM, and DMARC for reliable delivery.
 
