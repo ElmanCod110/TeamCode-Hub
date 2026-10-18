@@ -20,6 +20,7 @@ final class ChatRepository
         $base = "SELECT m.id, m.project_id, m.user_id, u.display_name, m.body, m.edited_at, m.deleted_at, m.created_at
                  FROM project_messages m
                  INNER JOIN projects p ON p.id = m.project_id AND p.status = 'active'
+                  INNER JOIN teams active_team ON active_team.id = p.team_id AND active_team.status = 'active'
                  INNER JOIN project_memberships pm ON pm.project_id = p.id AND pm.user_id = :user_id AND pm.status = 'approved'
                  INNER JOIN team_memberships tm ON tm.team_id = p.team_id AND tm.user_id = pm.user_id AND tm.status = 'active'
                  INNER JOIN users u ON u.id = m.user_id
