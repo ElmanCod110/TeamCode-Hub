@@ -225,6 +225,8 @@ try {
         $managerRenameRejected = true;
     }
     $assert($managerRenameRejected, 'team manager cannot rename the team because renaming is owner-only');
+    $assert(!$teams->renameForOwner($manager2Id, $teamId, 'Settings API Manager Rename'), 'team manager is denied by the new settings rename method');
+    $assert($projects->updateForTeamManager($manager2Id, $projectId, 'Settings API Manager Project', 'Manager updated through settings API'), 'team manager can update project settings through the new repository method');
     $projects->updateMetadataForTeamManager($manager2Id, $projectId, 'Integration Project Managed', 'Manager updated the description');
     $managerUpdatedProject = $projects->findAccessibleByUser($adminId, $projectId);
     $assert(is_array($managerUpdatedProject) && $managerUpdatedProject['name'] === 'Integration Project Managed', 'approved project team manager can edit project settings');
