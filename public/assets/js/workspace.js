@@ -1073,7 +1073,7 @@
   function createProjectFileModal(projectId) {
     if (!confirmDiscardProjectFileChanges()) return;
     const project = projectById(projectId) || state.selectedProject;
-    if (!project || project.access_level === "viewer" || !canManageTeam(project.team_id) && project.access_level !== "member") {
+    if (!project || project.access_level !== "member") {
       toast("Approved member-level project access is required to create files.", "warning");
       return;
     }
