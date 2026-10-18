@@ -29,7 +29,7 @@ The HTML has no inline style or script blocks. The front controller returns HTML
 | Notifications | `GET /api/notifications`, `POST /api/notifications/{id}/read` | Receive background updates to recent notifications/unread counts while visible; mark individual or visible notifications as read |
 | Account preferences | `POST /api/auth/profile`, `POST /api/auth/password` | Update the signed-in display name or change the password after verifying the current credential; email and system roles remain read-only |
 | Moderation | `GET /api/admin/reports`, `GET /api/teams/{teamId}/reports`, `POST /api/reports/{reportId}/review` | Review scoped report queues, inspect preserved message context, mark reports valid/rejected, or resolve valid cases |
-| User directory | `GET /api/admin/users?q=&status=all&page=1` | Search by name, email, or exact ID; filter by account status; page through 50 records at a time; inspect sign-in activity and admin flags; read-only for site administrators |
+| User directory | `GET /api/admin/users?q=&status=all&page=1`, `POST /api/admin/users/{userId}/status`, `GET /api/admin/users/{userId}/audit` | Search/filter/page through 50 records at a time, inspect sign-in activity, disable/reactivate eligible accounts with a required reason, and review recent status-change history |
 | GitHub activity | `GET /api/github/activity` | View up to 30 cached public events; the service makes at most one refresh attempt per configured username per UTC day and preserves the last good snapshot on failure |
 | Preferences | Browser storage and system color preference | Choose light, dark, or system theme; sign out |
 
@@ -42,7 +42,7 @@ The HTML has no inline style or script blocks. The front controller returns HTML
 5. Every state-changing request uses same-origin credentials and the current CSRF token. The server remains authoritative for authentication, team membership, project membership, and access level.
 6. API responses are rendered through DOM construction and `textContent`. User-provided message bodies, names, descriptions, and notifications are not treated as HTML.
 
-The client is not an authorization boundary. Hiding a button does not replace server-side permission checks. A request can fail legitimately when a user has viewer access, pending membership, revoked access, or no team-management role.
+The client is not an authorization boundary. Hiding a button does not replace server-side permission checks. Site-admin account status changes require a reason and are recorded transactionally; self-disable and reactivation of unverified accounts are blocked. A request can fail legitimately when a user has viewer access, pending membership, revoked access, or no team-management role.
 
 ## Notification synchronization
 
@@ -69,7 +69,7 @@ The UI currently uses a bounded refresh for reconciliation; it is not a durable 
 - Invitation creation returns a one-time token but does not send an email. The token should be shared through a trusted channel.
 - Team invitation UI is available from a team detail view to users whose current team role is owner or manager. The server independently verifies the role.
 - Member assignment searches only active members of the selected project’s team. It does not provide global account discovery or invite an email address that does not already belong to the team.
-- Permanent team/project deletion, Git provider integration, user-account mutation workflows, richer site-administration pages, and browser-level visual/accessibility regression tests remain planned. Project archiving is reversible; restoration checks the active project quota and preserves historical records. Team renaming is owner-only; project metadata edits require an active team owner/manager and approved project membership.
+- Permanent team/project deletion, Git provider integration, system-role editing, richer site-administration pages, and browser-level visual/accessibility regression tests remain planned. Project archiving is reversible; restoration checks the active project quota and preserves historical records. Team renaming is owner-only; project metadata edits require an active team owner/manager and approved project membership.
 - Theme preference is stored locally in the current browser; it does not change account-wide settings or access permissions.
 
 ## Verification
