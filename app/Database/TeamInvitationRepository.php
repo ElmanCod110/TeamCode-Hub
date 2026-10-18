@@ -18,7 +18,7 @@ final class TeamInvitationRepository
         $this->notifications = new NotificationRepository($pdo);
     }
 
-    /** @return array{id:int,team_id:int,email:string,token:string,expires_at:string} */
+    /** @return array{id:int,team_id:int,team_name:string,email:string,token:string,expires_at:string} */
     public function createForManager(int $actorId, int $teamId, string $email): array
     {
         $token = bin2hex(random_bytes(32));
@@ -26,7 +26,7 @@ final class TeamInvitationRepository
         $this->pdo->beginTransaction();
         try {
             $access = $this->pdo->prepare(
-                "SELECT tm.role, t.member_limit
+                "SELECT tm.role, t.member_limit, t.name AS team_name
                  FROM team_memberships tm INNER JOIN teams t ON t.id = tm.team_id
                  WHERE tm.user_id = :user_id AND tm.team_id = :team_id
                    AND tm.status = 'active' AND t.status = 'active'
@@ -87,7 +87,7 @@ final class TeamInvitationRepository
             $expiresAt = (string) $expiry->fetchColumn();
             $this->pdo->commit();
 
-            return ['id' => $id, 'team_id' => $teamId, 'email' => $email, 'token' => $token, 'expires_at' => $expiresAt];
+            return ['id' => $id, 'team_id' => $teamId, 'team_name' => (string) $accessRow['team_name'], 'email' => $email, 'token' => $token, 'expires_at' => $expiresAt];
         } catch (Throwable $error) {
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
