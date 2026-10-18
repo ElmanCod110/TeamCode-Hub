@@ -52,6 +52,16 @@ Notifications are generated for team invitation acceptance, project access chang
 
 Invitation creation reserves a team member slot. Active memberships plus unexpired pending invitations cannot exceed `member_limit`. Invitations can grant only the `member` role.
 
+## Project source files
+
+- `GET /api/projects/{projectId}/files` — lists at most 200 source-file records for approved project members and viewers. The response includes `can_edit` and the current file, project, and revision-history limits.
+- `POST /api/projects/{projectId}/files` — body: `{"path":"src/main.php","content":"<?php\\necho 'Hello';"}`. Requires CSRF protection and approved member-level access. Paths are relative, ASCII-only, and reject traversal segments, `.git`, and environment-secret filenames. Content must be valid UTF-8 text without NUL bytes.
+- `GET /api/projects/{projectId}/files/{fileId}` — returns source text to approved project members/viewers.
+- `POST /api/projects/{projectId}/files/{fileId}/edit` — body: `{"content":"updated source text","expected_version":1}`. Requires CSRF protection, member-level access, and a matching optimistic-concurrency version. Conflicting saves return `409`.
+- `GET /api/projects/{projectId}/files/{fileId}/history` — returns metadata for up to 20 retained versions, not the old source bodies.
+- `POST /api/projects/{projectId}/files/{fileId}/restore` — body: `{"version":1,"expected_version":2}`. Restores a retained snapshot as a new version; it never rewrites an existing revision.
+- Storage limits are 200 files per project, 256 KiB per file, 10 MiB of current source text per project, 20 revisions per file, and 20 MiB of total revision text per project. Files are stored in MariaDB outside the public web root and are never executed by the platform.
+
 ## Project GitHub repositories
 
 - `GET /api/projects/{projectId}/github` — returns the linked public GitHub repository summary and up to five recent commits to approved project members. If no repository is linked, the response reports `linked: false` and whether the current user can manage the setting.
