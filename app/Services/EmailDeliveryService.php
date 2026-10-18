@@ -35,7 +35,7 @@ final class EmailDeliveryService
         }
 
         // Keep the bearer token in the URL fragment so it is not sent in HTTP request logs.
-        $verificationUrl = rtrim($baseUrl, '/') . '/#verify-email?token=' . rawurlencode($token);
+        $verificationUrl = rtrim($baseUrl, '/') . '/verify-email#verify-email?token=' . rawurlencode($token);
         $subject = 'Verify your TeamCode Hub email address';
         $message = "Welcome to TeamCode Hub.\n\n"
             . "Confirm that you own this email address by opening the link below and selecting Verify email.\n\n"
