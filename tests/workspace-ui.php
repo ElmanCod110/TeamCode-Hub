@@ -45,7 +45,7 @@ $assert(str_contains($html, '<html lang="en" dir="ltr"'), 'workspace declares En
 
 $assert(str_contains($html, '/assets/css/app.css?v=0.2.0-dev') && str_contains($html, '/assets/css/workspace.css?v=0.2.0-dev'), 'workspace loads shared design tokens and workspace-specific stylesheets');
 $assert(str_contains($html, '/assets/js/ui.js?v=0.2.0-dev') && str_contains($html, '/assets/js/workspace.js?v=0.2.0-dev'), 'workspace loads the shared UI controller and product controller');
-preg_match_all('/(?:href|src)=["\\'](\\/assets\\/[^"\\']+)["\\']/', $html, $workspaceAssetMatches);
+preg_match_all('/(?:href|src)="(\/assets\/[^"]+)"/', $html, $workspaceAssetMatches);
 foreach ($workspaceAssetMatches[1] as $assetUrl) {
     $relativePath = 'public' . strtok($assetUrl, '?');
     $assert(is_file($root . '/' . $relativePath), 'workspace asset URL resolves: ' . $relativePath);
