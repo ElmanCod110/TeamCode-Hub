@@ -40,6 +40,7 @@ final class AuthenticationService
         $this->users->updateLastLogin($user['id']);
         SecureSession::regenerateAfterAuthentication();
         $_SESSION['user_id'] = $user['id'];
+        $_SESSION['auth_version'] = $user['auth_version'];
         $_SESSION['authenticated_at'] = time();
         CsrfToken::rotate();
 
@@ -75,7 +76,16 @@ final class AuthenticationService
             return false;
         }
 
-        return $this->users->replacePasswordHash($userId, $user['password_hash'], $newHash);
+        if (!$this->users->replacePasswordHash($userId, $user['password_hash'], $newHash)) {
+            return false;
+        }
+
+        // The password update increments the generation and revokes older sessions.
+        $version = $this->users->findAuthVersionById($userId);
+        if ($version !== null) {
+            $_SESSION['auth_version'] = $version;
+        }
+        return true;
     }
 
     /** @return array{id:int,email:string,status:string,display_name:string,roles:list<string>}|null */
@@ -90,8 +100,12 @@ final class AuthenticationService
             return null;
         }
 
+        $sessionVersion = $_SESSION['auth_version'] ?? null;
+        $currentVersion = $this->users->findAuthVersionById($id);
         $user = $this->users->findPublicById($id);
-        if ($user === null || $user['status'] !== 'active') {
+        if ($user === null || $user['status'] !== 'active'
+            || !is_int($sessionVersion) || $currentVersion === null || $sessionVersion !== $currentVersion) {
+            // Missing or stale generations invalidate pre-upgrade and password-revoked sessions.
             SecureSession::destroy();
             return null;
         }
