@@ -38,6 +38,8 @@ $css = $read('public/assets/css/workspace.css');
 $js = $read('public/assets/js/workspace.js');
 $bootstrap = $read('app/bootstrap.php');
 $authController = $read('app/Http/AuthController.php');
+$adminUserController = $read('app/Http/AdminUserController.php');
+$userRepository = $read('app/Database/UserRepository.php');
 $authService = $read('app/Security/AuthenticationService.php');
 $workspaceController = $read('app/Http/WorkspaceController.php');
 $response = $read('app/Core/Response.php');
@@ -83,6 +85,11 @@ $assert(str_contains($js, 'editTeamModal') && str_contains($js, 'editProjectModa
 $assert(str_contains($js, 'Dashboard summaries omit descriptions') && str_contains($js, 'Project details could not be loaded.'), 'project editing loads the full authorized record before saving metadata');
 $assert(str_contains($js, 'team.role === "owner"') && str_contains($js, 'canManageTeam(project.team_id)'), 'team rename is owner-only and project editing is manager-gated in the UI');
 $assert(str_contains($js, '/api/admin/reports') && str_contains($js, '/api/reports/') && str_contains($js, 'renderReportCard'), 'moderation UI connects scoped report queues and review actions');
+$assert(str_contains($bootstrap, "/api/admin/users") && str_contains($html, 'id="nav-admin-users-item"'), 'site-admin user directory route and navigation are registered');
+$assert(str_contains($js, 'function renderAdminUsers()') && str_contains($js, '/api/admin/users?') && str_contains($js, 'AbortController'), 'admin user directory connects debounced search with stale-request cancellation');
+$assert(str_contains($adminUserController, 'Site administrator role required.') && str_contains($userRepository, 'function searchForSiteAdmin'), 'admin user directory enforces the site-admin boundary at the server and repository layers');
+$assert(str_contains($js, 'formatAdminDate') && str_contains($js, 'user.is_site_admin'), 'admin directory renders account activity and administrator flags');
+
 $assert(str_contains($js, '/api/team-invitations/accept') && str_contains($js, 'revoke-invitation') && str_contains($js, 'renderPendingInvitations'), 'team UI connects invitation acceptance, listing, and revocation');
 $assert(str_contains($bootstrap, '/members/{userId}/access') && str_contains($js, 'change-member-access'), 'project member access-level controls are connected to the backend route');
 $assert(str_contains($js, '!member.is_project_creator') && str_contains($js, 'member.access_level === "member" ? "viewer" : "member"'), 'UI protects the project creator and offers explicit viewer/member transitions');
