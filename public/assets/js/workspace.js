@@ -265,13 +265,16 @@
     const hash = location.hash.replace(/^#/, "");
     if (hash.startsWith("verify-email?")) {
       state.verificationToken = new URLSearchParams(hash.slice("verify-email?".length)).get("token") || "";
+      $("#verify-submit").disabled = true;
       showAuth();
       showAuthMode("verify");
       if (!state.verificationToken) {
         $("#verify-status").textContent = "This verification link is missing its token. Request a new link and try again.";
-        $("#verify-submit").disabled = true;
       }
-      try { await loadCsrf(); } catch (_) {
+      try {
+        await loadCsrf();
+        $("#verify-submit").disabled = !state.verificationToken;
+      } catch (_) {
         $("#verify-status").textContent = "The verification service is unavailable. Check the database setup and reload.";
         $("#verify-submit").disabled = true;
       }
