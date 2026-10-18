@@ -26,6 +26,7 @@ final class DashboardRepository
         $projects = $this->pdo->prepare(
             "SELECT p.id, p.team_id, p.name, p.slug, p.status, pm.access_level, p.updated_at
              FROM projects p
+             INNER JOIN teams active_team ON active_team.id = p.team_id AND active_team.status = 'active'
              INNER JOIN project_memberships pm ON pm.project_id = p.id AND pm.user_id = :user_id AND pm.status = 'approved'
              INNER JOIN team_memberships tm ON tm.team_id = p.team_id AND tm.user_id = pm.user_id AND tm.status = 'active'
              WHERE p.status = 'active'
@@ -63,6 +64,7 @@ final class DashboardRepository
         $sql = "SELECT t.id, t.project_id, p.name AS project_name, t.title, t.status, t.priority, t.assigned_to, t.due_at
                 FROM tasks t
                 INNER JOIN projects p ON p.id = t.project_id AND p.status = 'active'
+                INNER JOIN teams active_team ON active_team.id = p.team_id AND active_team.status = 'active'
                 INNER JOIN project_memberships pm ON pm.project_id = p.id AND pm.user_id = :member_user_id AND pm.status = 'approved'
                 INNER JOIN team_memberships tm ON tm.team_id = p.team_id AND tm.user_id = pm.user_id AND tm.status = 'active'
                 WHERE (t.assigned_to = :assigned_user_id OR t.created_by = :created_user_id)
