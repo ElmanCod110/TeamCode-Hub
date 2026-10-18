@@ -9,7 +9,7 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 
 ## Product interface
 
-- English workspace shell at `/` and `/login`, with an accessible sign-in form.
+- English workspace shell at `/` and `/login`, with accessible sign-in, public registration, verification resend, and explicit email verification flows.
 - Responsive application navigation, mobile sidebar, light/dark/system theme preference, loading states, and safe toast notifications.
 - Overview dashboard connected to personalized teams, projects, due-today tasks, overdue tasks, and recent notifications.
 - Team list and detail views, owner-only team renaming, project creation, metadata editing, reversible archive/restore controls for authorized team managers, and one-time team invitation creation for owners/managers.
@@ -26,7 +26,7 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 - Public front controller, request/response objects, pretty-route dispatcher, and lazy module registry.
 - Project GitHub repository links with cached public metadata and five recent commits, strict HTTPS host validation, one refresh per repository per UTC day, and a 20-repository daily refresh budget.
 - Validated MySQL/MariaDB configuration, PDO repositories, and explicit CLI migration runner.
-- Hardened sessions, CSRF-protected authentication, login throttling, and trusted-proxy-aware IP resolution.
+- Hardened sessions, CSRF-protected authentication, login and registration throttling, one-time email verification tokens, and trusted-proxy-aware IP resolution.
 - CLI-only one-time administrator bootstrap.
 - Team/project APIs with active/approved membership checks and transactional quota enforcement.
 - Seven-day team invitations with hashed tokens, acceptance, and revocation.
@@ -78,7 +78,7 @@ node --check public/assets/js/workspace.js
 
 ## Remaining product work
 
-Public registration, email verification, password recovery, automatic invitation email delivery, team/project deletion, private GitHub repositories, Git write operations/webhooks, other Git providers, system-role editing, richer administrative pages, and automated browser-level visual/accessibility tests are not implemented yet. There is no automatic admin bypass of team/project access checks. Every protected route must continue to enforce authorization on the server.
+Password recovery, automatic invitation email delivery, team/project deletion, private GitHub repositories, Git write operations/webhooks, other Git providers, system-role editing, richer administrative pages, and automated browser-level visual/accessibility tests are not implemented yet. There is no automatic admin bypass of team/project access checks. Public registration requires the documented HTTPS application URL and configured PHP mail transport. Every protected route must continue to enforce authorization on the server.
 
 ## Repository layout
 

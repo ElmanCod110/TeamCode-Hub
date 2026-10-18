@@ -6,6 +6,7 @@ This document distinguishes implemented primitives from controls still required 
 
 - Session startup enables strict mode, cookie-only session IDs, HttpOnly cookies, SameSite=Lax, and Secure cookies when direct HTTPS is detected or `APP_HTTPS=true` is configured.
 - Session IDs are rotated after successful authentication; logout clears session data and expires the session cookie.
+- Public registration creates pending accounts only. Email verification uses 256-bit random bearer tokens stored as SHA-256 hashes, a 24-hour expiry, single-use consumption, a resend cooldown, and purpose-specific IP/email rate limits. Verification links keep tokens in the URL fragment and require an explicit confirmation POST.
 - State-changing authentication, workspace, invitation, task, chat, report, and notification routes require session-bound CSRF tokens.
 - Authentication accepts only active accounts and uses generic failure responses. Login attempts are throttled with database-backed per-IP and per-email-hash buckets.
 - Forwarded client IP data is ignored unless `REMOTE_ADDR` matches an exact IP in `TRUSTED_PROXIES`.
@@ -23,7 +24,7 @@ This document distinguishes implemented primitives from controls still required 
 ## Required controls before production
 
 - Add rate limiting and monitoring for chat posting, report submission, project membership changes, account recovery, and other sensitive actions.
-- Implement public registration, email verification, password reset, and secure invitation delivery by email.
+- Implement password reset and secure invitation delivery by email. Public registration and email verification are implemented but require correctly configured mail delivery before production use.
 - Define and document final retention durations for report snapshots, notifications, and audit data; schedule the chat cleanup CLI job.
 - Review abuse handling and notification access for reported users, reviewers, and site administrators.
 - Ensure every future file, Git, and admin route checks authorization at the data-access boundary.

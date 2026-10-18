@@ -7,6 +7,8 @@ use TeamCodeHub\Database\AdminAccountRepository;
 use TeamCodeHub\Database\ChatRepository;
 use TeamCodeHub\Database\ChatReportRepository;
 use TeamCodeHub\Database\DashboardRepository;
+use TeamCodeHub\Database\EmailVerificationRepository;
+use TeamCodeHub\Services\EmailDeliveryService;
 use TeamCodeHub\Database\GitHubActivityCacheRepository;
 use TeamCodeHub\Database\GitHubRepositoryCacheRepository;
 use TeamCodeHub\Database\NotificationRepository;
@@ -48,8 +50,68 @@ try {
     $pdo = ConnectionFactory::connect($config);
     $runner = new MigrationRunner($pdo, dirname(__DIR__) . '/database/migrations');
     $applied = $runner->migrate();
-    $assert(count($applied) >= 11, 'all versioned migrations are applied to MariaDB');
+    $assert(count($applied) >= 12, 'all versioned migrations are applied to MariaDB');
     $assert($runner->migrate() === [], 'migration runner is idempotent on a migrated schema');
+
+    // Exercise email verification directly without invoking the server's real mail transport.
+    $verificationUserId = (new UserRepository($pdo))->createPendingAccount(
+        'email-verification@example.test',
+        password_hash('A-Strong-Verification-Password-48', PASSWORD_DEFAULT),
+        'Verification Fixture'
+    );
+    $assert(is_int($verificationUserId) && $verificationUserId > 0, 'registration creates a pending account before email verification');
+    SecureSession::start();
+    $pendingAuthentication = new AuthenticationService(new UserRepository($pdo));
+    $assert(!$pendingAuthentication->authenticate('email-verification@example.test', 'A-Strong-Verification-Password-48'), 'pending accounts cannot sign in before email verification');
+    $duplicateVerificationUser = (new UserRepository($pdo))->createPendingAccount(
+        'email-verification@example.test',
+        password_hash('A-Strong-Verification-Password-49', PASSWORD_DEFAULT),
+        'Duplicate Fixture'
+    );
+    $assert($duplicateVerificationUser === null, 'duplicate registration emails do not create a second account');
+
+    $verificationRepository = new EmailVerificationRepository($pdo);
+    $verificationToken = bin2hex(random_bytes(32));
+    $verificationHash = hash('sha256', $verificationToken);
+    $assert($verificationRepository->issueToken($verificationUserId, $verificationHash), 'pending account receives a hashed verification token');
+    $storedVerificationHash = $pdo->prepare("SELECT token_hash FROM account_action_tokens WHERE user_id = :id AND purpose = 'email_verification' LIMIT 1");
+    $storedVerificationHash->execute(['id' => $verificationUserId]);
+    $assert($storedVerificationHash->fetchColumn() === $verificationHash && $verificationHash !== $verificationToken, 'database stores only the SHA-256 token hash');
+    $secondVerificationHash = hash('sha256', bin2hex(random_bytes(32)));
+    $assert(!$verificationRepository->issueToken($verificationUserId, $secondVerificationHash), 'verification resend cooldown blocks repeated token issuance');
+    $assert($verificationRepository->verifyToken($verificationHash), 'valid one-time token activates the pending account');
+    $verifiedAccount = $pdo->prepare('SELECT status, email_verified_at FROM users WHERE id = :id');
+    $verifiedAccount->execute(['id' => $verificationUserId]);
+    $verifiedRow = $verifiedAccount->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($verifiedRow) && $verifiedRow['status'] === 'active' && $verifiedRow['email_verified_at'] !== null, 'verification commits active status and email timestamp together');
+    $assert(!$verificationRepository->verifyToken($verificationHash), 'email verification tokens cannot be replayed');
+    $pdo->prepare('DELETE FROM users WHERE id = :id')->execute(['id' => $verificationUserId]);
+
+    $expiredUserId = (new UserRepository($pdo))->createPendingAccount(
+        'expired-verification@example.test',
+        password_hash('A-Strong-Expired-Password-50', PASSWORD_DEFAULT),
+        'Expired Verification Fixture'
+    );
+    if (!is_int($expiredUserId) || $expiredUserId < 1) {
+        throw new RuntimeException('Expired verification fixture could not be created.');
+    }
+    $expiredToken = bin2hex(random_bytes(32));
+    $expiredHash = hash('sha256', $expiredToken);
+    $assert($verificationRepository->issueToken($expiredUserId, $expiredHash), 'second pending account can receive a separate token');
+    $pdo->prepare("UPDATE account_action_tokens SET expires_at = DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 1 MINUTE) WHERE token_hash = :hash")
+        ->execute(['hash' => $expiredHash]);
+    $assert(!$verificationRepository->verifyToken($expiredHash), 'expired email verification tokens cannot activate accounts');
+    $pdo->prepare('DELETE FROM users WHERE id = :id')->execute(['id' => $expiredUserId]);
+
+    // A non-HTTPS base URL must be rejected before PHP's mail transport is invoked.
+    $previousAppUrl = getenv('APP_URL');
+    $previousMailFrom = getenv('MAIL_FROM_ADDRESS');
+    putenv('APP_URL=http://example.test');
+    putenv('MAIL_FROM_ADDRESS=notifications@example.test');
+    $mailDelivery = new EmailDeliveryService();
+    $assert(!$mailDelivery->sendVerificationEmail('recipient@example.test', bin2hex(random_bytes(32))), 'verification email delivery rejects non-HTTPS application URLs');
+    $previousAppUrl === false ? putenv('APP_URL') : putenv('APP_URL=' . $previousAppUrl);
+    $previousMailFrom === false ? putenv('MAIL_FROM_ADDRESS') : putenv('MAIL_FROM_ADDRESS=' . $previousMailFrom);
 
     // Exercise the daily GitHub cache through an injected transport; tests never call GitHub.
     $githubCache = new GitHubActivityCacheRepository($pdo);
