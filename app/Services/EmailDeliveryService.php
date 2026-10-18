@@ -25,7 +25,8 @@ final class EmailDeliveryService
         if (!is_array($parts) || ($parts['scheme'] ?? '') !== 'https'
             || !isset($parts['host']) || $parts['host'] === ''
             || isset($parts['user']) || isset($parts['pass'])
-            || isset($parts['query']) || isset($parts['fragment'])) {
+            || isset($parts['query']) || isset($parts['fragment'])
+            || (isset($parts['path']) && !in_array($parts['path'], ['', '/'], true))) {
             return false;
         }
         if (filter_var($recipient, FILTER_VALIDATE_EMAIL) === false
