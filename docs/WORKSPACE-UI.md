@@ -71,7 +71,7 @@ The UI currently uses a bounded refresh for reconciliation; it is not a durable 
 
 - Registration creates a pending account; it does not grant team/project access or bypass existing membership rules.
 - The browser displays a confirmation step before submitting the token, so link scanners that only fetch URLs do not consume it.
-- Configure `APP_BASE_URL` with the canonical HTTPS origin and `MAIL_FROM_ADDRESS` with a valid sender. The host must support PHP `mail()` delivery; see the operations guide.
+- Configure `APP_URL` with the canonical HTTPS origin and `MAIL_FROM_ADDRESS` with a valid sender. The host must support PHP `mail()` delivery; see the operations guide.
 - Responses are generic for known and unknown email addresses. Pending accounts can request a resend, subject to rate limits and a 60-second cooldown.
 
 ## Operational limitations
