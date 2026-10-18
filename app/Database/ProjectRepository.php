@@ -262,9 +262,12 @@ final class ProjectRepository
      */
     public function updateGitHubRepositoryForTeamManager(int $userId, int $projectId, ?string $repository): void
     {
-        if ($repository !== null
-            && preg_match('~^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?/[A-Za-z0-9_.-]{1,100}$~', $repository) !== 1) {
-            throw new DomainException('GitHub repository reference is invalid.');
+        if ($repository !== null) {
+            $repository = strtolower($repository);
+            if (preg_match('~^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?/[A-Za-z0-9_.-]{1,100}$~', $repository) !== 1
+                || str_ends_with($repository, '.git')) {
+                throw new DomainException('GitHub repository reference is invalid.');
+            }
         }
 
         $this->pdo->beginTransaction();
