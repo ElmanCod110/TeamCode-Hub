@@ -4,6 +4,7 @@
 
 - Send team invitations through the configured HTTPS mail transport, using a seven-day fragment-only link and no raw token in successful API responses.
 - Return a one-time manual token fallback only when mail delivery fails; keep invitation token hashes as the only database representation.
+- Apply purpose-specific 15-minute rate limits to invitation creation by team/email and client IP.
 - Add an authenticated email-link acceptance flow and preserve the invitation through sign-in in the same browser session.
 - Add integration/UI contract coverage for delivery metadata, HTTPS-only links, token fallback behavior, and automatic acceptance routing.
 
