@@ -18,6 +18,8 @@ Project repository links accept only public HTTPS GitHub URLs. The server shares
 
 The HTML has no inline style or script blocks. The front controller returns HTML with a restrictive same-origin Content Security Policy. CSS and JavaScript are external, versioned files; update their query-string version when releasing a changed asset set.
 
+Project source files are stored privately in MariaDB and are never executed. The Files tab limits each file to 256 KiB, each project's current source text to 10 MiB, revision history to 20 MiB, and retained history to 20 versions per file. Approved viewers can read source files and revision metadata but cannot create, edit, or restore files.
+
 ## Connected views
 
 | View | Data source | Available interactions |
@@ -26,6 +28,7 @@ The HTML has no inline style or script blocks. The front controller returns HTML
 | Teams | `GET /api/teams`, `POST /api/teams`, team project/invitation endpoints | Create teams, rename a team as owner, view a team's projects, archive and restore projects as a team manager, email/revoke pending invitations, accept a token from a matching account |
 | Projects | Dashboard projection and `GET /api/projects/{projectId}` | Search projects, edit name/description as an authorized team manager, archive a project without deleting its history, and open a project workspace |
 | Project overview | Project detail and task endpoints | View task metrics and navigate to task/member/chat/repository panels |
+| Project files | `GET|POST /api/projects/{projectId}/files` plus file detail/edit/history/restore endpoints | Browse/search up to 200 private source files, edit text with optimistic concurrency, and restore a retained revision; viewers are read-only |
 | Tasks | Task list/create/edit/status, assignee search, and task detail/comment/checklist endpoints | Search/filter, find approved member-level assignees by name/email/ID, edit/reassign, view task details, discuss work, and manage a bounded checklist; viewer access remains read-only |
 | Members | Project member listing/candidate search/assignment/approval/revocation endpoints | Search active team members by name, email, or exact user ID; request member/viewer access; approve pending access; change approved access; and revoke access when permitted |
 | Project chat | `GET|POST /api/projects/{projectId}/chat` and message edit/delete/report endpoints | Send text, edit/delete own messages, report another member's message |
