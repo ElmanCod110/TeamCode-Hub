@@ -410,6 +410,7 @@ try {
     $notifications = new NotificationRepository($pdo);
     $memberInvitation = $invitations->createForManager($adminId, $teamId, 'member@example.test');
     $assert(strlen($memberInvitation['token']) === 64, 'team invitation token has 256 bits of entropy');
+    $assert($memberInvitation['team_name'] === 'Integration Team', 'team invitation metadata includes the authorized team name for email delivery');
     $storedHash = $pdo->prepare('SELECT token_hash FROM team_invitations WHERE id = :id');
     $storedHash->execute(['id' => $memberInvitation['id']]);
     $assert(hash_equals((string) $storedHash->fetchColumn(), hash('sha256', $memberInvitation['token'])), 'only the invitation token hash is stored');
