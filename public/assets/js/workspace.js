@@ -701,6 +701,7 @@
   }
 
   function navigate(page, updateHash = true) {
+    if (state.page === "project" && state.projectTab === "files" && page !== "project" && !confirmDiscardProjectFileChanges()) return;
     if (page === "admin-users" && !(state.user?.roles || []).includes("site_admin")) {
       toast("Site administrator role required.", "warning");
       page = "overview";
@@ -911,6 +912,7 @@
   }
 
   async function openTeam(teamId) {
+    if (state.page === "project" && state.projectTab === "files" && !confirmDiscardProjectFileChanges()) return;
     const team = teamById(teamId);
     if (!team) return;
     state.page = "teams";
@@ -1101,6 +1103,9 @@
   }
 
   async function openProject(project, updateHash = true, tab = "overview") {
+    const leavingDirtyEditor = state.page === "project" && state.projectTab === "files"
+      && (Number(state.selectedProject?.id) !== Number(project?.id) || tab !== "files");
+    if (leavingDirtyEditor && !confirmDiscardProjectFileChanges()) return;
     state.selectedProject = project;
     state.page = "project";
     state.projectTab = tab;
@@ -1140,7 +1145,7 @@
     headActions.appendChild(actionButton("Back to projects", "navigate-projects", "btn btn-outline"));
     append(root, heading, headActions);
     const tabs = el("div", "project-tabs");
-    [["overview", "Overview", "grid"], ["tasks", "Tasks", "check-square"], ["members", "Members", "users"], ["chat", "Chat", "message"], ["repository", "Repository", "chart"]].forEach(([key, label, iconName]) => {
+    [["overview", "Overview", "grid"], ["tasks", "Tasks", "check-square"], ["files", "Files", "folder"], ["members", "Members", "users"], ["chat", "Chat", "message"], ["repository", "Repository", "chart"]].forEach(([key, label, iconName]) => {
       const button = el("button", "project-tab" + (tab === key ? " is-active" : ""));
       button.type = "button"; button.dataset.projectTab = key;
       append(button, icon(iconName), label);
@@ -1175,6 +1180,8 @@
       if (!tasks.length) list.appendChild(emptyState("No tasks in this project", "Create a task to make the next step clear.", "Create task", "create-task"));
       tasks.forEach(task => list.appendChild(taskTableRow(task)));
       content.appendChild(list);
+    } else if (tab === "files") {
+      await renderProjectFiles(content, project);
     } else if (tab === "members") {
       await renderProjectMembers(content, project);
     } else if (tab === "chat") {
@@ -1184,6 +1191,266 @@
     }
   }
 
+
+  /** Render the bounded source-file directory and a lightweight, non-executing text editor. */
+  async function renderProjectFiles(content, project, selectedFileId = null) {
+    content.replaceChildren(el("p", "small page-loading", "Loading project files…"));
+    try {
+      const directory = await request("/api/projects/" + escapePath(project.id) + "/files");
+      const files = Array.isArray(directory.files) ? directory.files : [];
+      if (selectedFileId === null && files.length) selectedFileId = files[0].id;
+      if (selectedFileId !== null && !files.some(file => Number(file.id) === Number(selectedFileId))) selectedFileId = null;
+
+      content.replaceChildren();
+      const notice = el("div", "alert project-files-notice");
+      append(notice, icon("shield"), el("span", "", "Files are stored privately in the database. Source text is never executed by TeamCode Hub. Never store real credentials, tokens, or private keys."));
+      const layout = el("div", "project-files-layout");
+      const sidebar = el("aside", "project-files-sidebar surface-panel");
+      const sideHead = el("div", "project-files-side-head");
+      const sideTitle = el("div");
+      append(sideTitle, el("h2", "", "Project files"),
+        el("p", "small", files.length + " / " + directory.limits.max_files + " files"));
+      append(sideHead, sideTitle);
+      if (directory.can_edit) {
+        sideHead.appendChild(actionButton("＋ New file", "create-project-file", "btn btn-primary btn-sm", { "data-project-id": project.id }));
+      }
+      const searchWrap = el("label", "project-files-search");
+      const search = el("input", "input");
+      search.type = "search"; search.maxLength = 120; search.placeholder = "Filter file paths…";
+      search.setAttribute("aria-label", "Filter project file paths");
+      searchWrap.appendChild(search);
+      const fileList = el("div", "project-files-list");
+      fileList.setAttribute("role", "list");
+      files.forEach(file => {
+        const row = actionButton("", "select-project-file", "project-file-row" + (Number(file.id) === Number(selectedFileId) ? " is-active" : ""), {
+          "data-project-id": project.id,
+          "data-file-id": file.id,
+          "data-file-path": file.path
+        });
+          const path = el("span", "project-file-path", file.path);
+        const metadata = el("span", "project-file-meta", "v" + file.version + " · " + formatFileBytes(file.size_bytes));
+        append(row, path, metadata);
+        const item = el("div", "project-file-list-item");
+        item.setAttribute("role", "listitem");
+        item.appendChild(row);
+        fileList.appendChild(item);
+      });
+      if (!files.length) fileList.appendChild(el("p", "small project-files-empty", "No source files yet."));
+      search.addEventListener("input", () => {
+        const query = search.value.trim().toLowerCase();
+        $(".project-file-row", fileList).forEach(row => {
+          row.hidden = !row.dataset.filePath.toLowerCase().includes(query);
+        });
+      });
+      append(sidebar, sideHead, searchWrap, fileList);
+
+      const editorSlot = el("div", "project-files-editor-slot");
+      if (selectedFileId === null) {
+        editorSlot.appendChild(emptyState("Choose or create a file", directory.can_edit
+          ? "Create a source file or select a path from the directory to start editing."
+          : "Select a file from the directory to read its source text."));
+      } else {
+        editorSlot.appendChild(el("p", "small page-loading", "Loading selected file…"));
+      }
+      append(layout, sidebar, editorSlot);
+      append(content, notice, layout);
+
+      if (selectedFileId === null) return;
+      const result = await request("/api/projects/" + escapePath(project.id) + "/files/" + escapePath(selectedFileId));
+      const file = result.file;
+      editorSlot.replaceChildren();
+      const editor = el("section", "project-files-editor surface-panel");
+      editor.id = "project-files-editor";
+      const header = el("div", "project-files-editor-head");
+      const fileHeading = el("div", "project-files-editor-title");
+      append(fileHeading, el("span", "eyebrow", extensionForPath(file.path)),
+        el("h2", "", file.path),
+        el("p", "small", "Version " + file.version + " · Updated by " + (file.updated_by_name || "a team member")));
+      const controls = el("div", "project-files-editor-actions");
+      controls.appendChild(actionButton("History", "project-file-history", "btn btn-outline btn-sm", {
+        "data-project-id": project.id,
+        "data-file-id": file.id,
+        "data-file-path": file.path,
+        "data-file-version": file.version,
+        "data-can-edit": directory.can_edit ? "true" : "false"
+      }));
+      controls.appendChild(actionButton("Reload", "reload-project-file", "btn btn-ghost btn-sm", {
+        "data-project-id": project.id,
+        "data-file-id": file.id
+      }));
+      if (directory.can_edit) {
+        controls.appendChild(actionButton("Save changes", "save-project-file", "btn btn-primary btn-sm", {
+          "data-project-id": project.id,
+          "data-file-id": file.id,
+          "data-file-version": file.version
+        }));
+      }
+      append(header, fileHeading, controls);
+      const source = el("textarea", "project-file-source");
+      source.id = "project-file-source";
+      source.value = file.content || "";
+      source.defaultValue = source.value;
+      editor.dataset.fileId = String(file.id);
+      source.spellcheck = false;
+      source.wrap = "off";
+      source.autocomplete = "off";
+      source.autocapitalize = "off";
+      source.readOnly = !directory.can_edit;
+      source.setAttribute("aria-label", "Source text for " + file.path);
+      source.setAttribute("aria-keyshortcuts", "Control+S Meta+S");
+      const footer = el("div", "project-files-editor-footer");
+      const status = el("span", "small");
+      const stats = el("span", "small");
+      const updateStats = () => {
+        const bytes = new TextEncoder().encode(source.value).length;
+        stats.textContent = formatFileBytes(bytes) + " / " + formatFileBytes(directory.limits.max_file_bytes);
+        status.textContent = !directory.can_edit ? "Read-only access." : (source.value === source.defaultValue ? "Saved. Ctrl/Cmd+S saves; Tab inserts four spaces." : "Unsaved changes — Ctrl/Cmd+S to save before leaving.");
+      };
+      source.addEventListener("input", updateStats);
+      source.addEventListener("keydown", event => {
+        if (event.key === "Tab" && directory.can_edit) {
+          event.preventDefault();
+          source.setRangeText("    ", source.selectionStart, source.selectionEnd, "end");
+          source.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s" && directory.can_edit) {
+          event.preventDefault();
+          const saveButton = $('[data-action="save-project-file"]', editor);
+          if (saveButton) saveButton.click();
+        }
+      });
+      updateStats();
+      append(footer, status, stats);
+      append(editor, header, source, footer);
+      editorSlot.appendChild(editor);
+    } catch (error) {
+      content.replaceChildren(el("div", "alert alert-danger", error.message || "Project files could not be loaded."));
+    }
+  }
+
+
+  function hasUnsavedProjectFileChanges() {
+    const source = $("#project-file-source");
+    return !!source && source.value !== source.defaultValue;
+  }
+
+  function confirmDiscardProjectFileChanges() {
+    return !hasUnsavedProjectFileChanges()
+      || window.confirm("Discard unsaved source changes? Save them first if you need to keep them.");
+  }
+
+  function formatFileBytes(value) {
+    const bytes = Math.max(0, Number(value) || 0);
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0) + " KiB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MiB";
+  }
+
+  function extensionForPath(path) {
+    const name = String(path || "").split("/").pop() || "";
+    const index = name.lastIndexOf(".");
+    return index > 0 ? name.slice(index + 1, index + 13).toUpperCase() : "TEXT";
+  }
+
+  /** Require a valid path and keep new source content within the server-enforced project quotas. */
+  function createProjectFileModal(projectId) {
+    if (!confirmDiscardProjectFileChanges()) return;
+    const project = projectById(projectId) || state.selectedProject;
+    if (!project || project.access_level !== "member") {
+      toast("Approved member-level project access is required to create files.", "warning");
+      return;
+    }
+    openFormModal("Create source file", "Create a relative text-file path in this project. Files are stored privately and are never executed by the platform.", [
+      { name: "path", label: "Relative file path", type: "text", required: true, maxLength: 240, placeholder: "src/main.php", help: "Use forward slashes for folders. Traversal paths, .git, and environment-secret files are blocked. Never store real credentials or private keys.", full: true },
+      { name: "content", label: "Initial source text", type: "textarea", rows: 9, maxLength: 262144, value: "", help: "Maximum 256 KiB per file, 10 MiB of current source text, and 20 MiB of revision history per project.", full: true }
+    ], "Create file", async values => {
+      const result = await request("/api/projects/" + escapePath(project.id) + "/files", {
+        method: "POST",
+        body: { path: values.path.trim(), content: values.content }
+      });
+      toast("Source file created with version history enabled.");
+      await renderProjectFiles($(".project-tab-panel"), projectById(project.id) || project, result.file.id);
+    });
+  }
+
+  /** Save the selected source file using its last-read version as an optimistic concurrency token. */
+  async function saveProjectFile(projectId, fileId, expectedVersion) {
+    const source = $("#project-file-source");
+    if (!source) return;
+    const result = await request("/api/projects/" + escapePath(projectId) + "/files/" + escapePath(fileId) + "/edit", {
+      method: "POST",
+      body: { content: source.value, expected_version: Number(expectedVersion) }
+    });
+    toast(result.changed === false ? "No changes to save." : "File saved as version " + result.file.version + ".");
+    await renderProjectFiles($(".project-tab-panel"), projectById(projectId) || state.selectedProject, fileId);
+  }
+
+  /** Show revision metadata and expose restore actions only to editable project members. */
+  async function showProjectFileHistory(projectId, fileId, filePath, currentVersion, canEdit) {
+    modalReturnFocus = document.activeElement;
+    const overlay = el("div", "tch-modal-overlay");
+    const modal = el("section", "tch-modal project-file-history-modal");
+    modal.setAttribute("role", "dialog"); modal.setAttribute("aria-modal", "true");
+    const titleId = "project-file-history-title";
+    modal.setAttribute("aria-labelledby", titleId);
+    const header = el("div", "tch-modal-header");
+    const titleBlock = el("div");
+    const title = el("h2", "", "Revision history"); title.id = titleId;
+    append(titleBlock, title, el("p", "", filePath + " · Current version " + currentVersion));
+    append(header, titleBlock, actionButton("×", "close-modal", "btn btn-ghost btn-icon", { "aria-label": "Close revision history" }));
+    const body = el("div", "tch-modal-body project-file-history-list");
+    body.appendChild(el("p", "small", "Loading revisions…"));
+    const footer = el("div", "tch-modal-footer");
+    footer.appendChild(actionButton("Close", "close-modal", "btn btn-outline"));
+    append(modal, header, body, footer);
+    overlay.appendChild(modal);
+    $("#modal-root").replaceChildren(overlay);
+    overlay.addEventListener("click", event => { if (event.target === overlay) closeModal(); });
+    overlay.addEventListener("keydown", event => handleDialogKeydown(event, overlay));
+    const close = $("button", modal); if (close) close.focus();
+
+    try {
+      const result = await request("/api/projects/" + escapePath(projectId) + "/files/" + escapePath(fileId) + "/history");
+      const versions = Array.isArray(result.versions) ? result.versions : [];
+      body.replaceChildren();
+      if (!versions.length) {
+        body.appendChild(emptyState("No revision history", "This file has no retained versions."));
+        return;
+      }
+      versions.forEach(version => {
+        const row = el("article", "project-file-history-row");
+        const info = el("div", "project-file-history-info");
+        append(info, el("strong", "", "Version " + version.version + " · " + version.action),
+          el("span", "small", (version.editor_name || "A team member") + " · " + formatAdminDate(version.created_at)),
+          el("span", "small", formatFileBytes(version.size_bytes)));
+        append(row, info);
+        if (canEdit && Number(version.version) !== Number(currentVersion)) {
+          row.appendChild(actionButton("Restore", "restore-project-file-version", "btn btn-outline btn-sm", {
+            "data-project-id": projectId,
+            "data-file-id": fileId,
+            "data-file-path": filePath,
+            "data-version": version.version,
+            "data-expected-version": currentVersion
+          }));
+        }
+        body.appendChild(row);
+      });
+    } catch (error) {
+      body.replaceChildren(el("div", "inline-error", error.message || "Revision history could not be loaded."));
+    }
+  }
+
+  async function restoreProjectFileVersion(projectId, fileId, filePath, version, expectedVersion) {
+    if (!confirmDiscardProjectFileChanges()) return;
+    if (!window.confirm("Restore version " + version + " of " + filePath + "? The current content will be preserved as an earlier revision.")) return;
+    const result = await request("/api/projects/" + escapePath(projectId) + "/files/" + escapePath(fileId) + "/restore", {
+      method: "POST",
+      body: { version: Number(version), expected_version: Number(expectedVersion) }
+    });
+    closeModal();
+    toast(result.changed === false ? "The file already matches that revision." : "Revision restored as version " + result.file.version + ".");
+    await renderProjectFiles($(".project-tab-panel"), projectById(projectId) || state.selectedProject, fileId);
+  }
 
   /**
    * Render a project-scoped public GitHub repository view using the server's shared daily cache.
@@ -2992,6 +3259,18 @@
     const name = action.dataset.action;
     try {
       if (name === "create-team") createTeamModal();
+      else if (name === "create-project-file") createProjectFileModal(action.dataset.projectId);
+      else if (name === "select-project-file") {
+        if (Number(action.dataset.fileId) !== Number($("#project-files-editor")?.dataset.fileId) && !confirmDiscardProjectFileChanges()) return;
+        await renderProjectFiles($(".project-tab-panel"), projectById(action.dataset.projectId) || state.selectedProject, action.dataset.fileId);
+      }
+      else if (name === "save-project-file") await saveProjectFile(action.dataset.projectId, action.dataset.fileId, action.dataset.fileVersion);
+      else if (name === "reload-project-file") {
+        if (!confirmDiscardProjectFileChanges()) return;
+        await renderProjectFiles($(".project-tab-panel"), projectById(action.dataset.projectId) || state.selectedProject, action.dataset.fileId);
+      }
+      else if (name === "project-file-history") await showProjectFileHistory(action.dataset.projectId, action.dataset.fileId, action.dataset.filePath || "Source file", action.dataset.fileVersion, action.dataset.canEdit === "true");
+      else if (name === "restore-project-file-version") await restoreProjectFileVersion(action.dataset.projectId, action.dataset.fileId, action.dataset.filePath || "Source file", action.dataset.version, action.dataset.expectedVersion);
       else if (name === "refresh-admin-users") await renderAdminUsers();
       else if (name === "connect-project-github") connectProjectRepositoryModal(action.dataset.projectId, action.dataset.repository || "");
       else if (name === "unlink-project-github") await unlinkProjectRepository(action.dataset.projectId);
@@ -3223,6 +3502,11 @@
   });
   document.addEventListener("click", event => {
     if (event.target.closest("[data-sidebar-close]")) closeSidebar();
+  });
+  window.addEventListener("beforeunload", event => {
+    if (!hasUnsavedProjectFileChanges()) return;
+    event.preventDefault();
+    event.returnValue = "";
   });
   window.addEventListener("hashchange", routeFromHash);
   window.addEventListener("popstate", routeFromHash);
