@@ -13,7 +13,7 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 - Responsive application navigation, mobile sidebar, light/dark/system theme preference, loading states, and safe toast notifications.
 - Overview dashboard connected to personalized teams, projects, due-today tasks, overdue tasks, and recent notifications.
 - Team list and detail views, owner-only team renaming, project creation, metadata editing, reversible archive/restore controls for authorized team managers, and one-time team invitation creation for owners/managers.
-- Project directory and project detail views with overview, task, member-access, chat, and public GitHub repository tabs.
+- Project directory and project detail views with overview, task, member-access, chat, private source files, and public GitHub repository tabs.
 - Task creation, editing/reassignment, status changes, priorities, UTC due-date conversion, threaded comments, checklist items, and task filtering/search.
 - Searchable project-member assignment by display name, email, or exact user ID, pending membership approval, member/viewer access changes, and access revocation where the signed-in user has management permission.
 - Text-only project chat with incremental polling, periodic bounded-window reconciliation for edits/deletions, own-message editing/deletion, and message reporting.
@@ -25,7 +25,6 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 
 - Public front controller, request/response objects, pretty-route dispatcher, and lazy module registry.
 - Project GitHub repository links with cached public metadata and five recent commits, strict HTTPS host validation, one refresh per repository per UTC day, and a 20-repository daily refresh budget.
-- Private project source-file workspace with bounded UTF-8 text editing, optimistic concurrency, revision restore, and per-project storage/history quotas; source files are never executed.
 - Validated MySQL/MariaDB configuration, PDO repositories, and explicit CLI migration runner.
 - Hardened sessions, CSRF-protected authentication, login and registration throttling, one-time email verification and password reset tokens, credential-versioned session revocation, and trusted-proxy-aware IP resolution.
 - CLI-only one-time administrator bootstrap.
