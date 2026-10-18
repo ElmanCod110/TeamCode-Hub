@@ -98,6 +98,9 @@ final class AccountLifecycleController
         if (!is_string($token) || preg_match('/^[a-f0-9]{64}$/', $token) !== 1) {
             return Response::json(['error' => 'This verification link is invalid, expired, or already used.'], 400);
         }
+        if (!$this->rateLimiter->allowsForPurpose('verify-email', $token, $this->clientIp($request))) {
+            return Response::json(['error' => 'Too many verification attempts. Try again later.'], 429);
+        }
         if (!$this->accounts->verifyEmail($token)) {
             return Response::json(['error' => 'This verification link is invalid, expired, or already used.'], 400);
         }
