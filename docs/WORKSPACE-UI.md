@@ -13,7 +13,7 @@ This document maps the English browser application to the existing server APIs. 
 - `public/assets/js/workspace.js` — same-origin API client, navigation, rendering, forms, and chat polling.
 - `public/assets/js/ui.js` — shared design-system interactions.
 
-Project repository links accept only public HTTPS GitHub URLs. The server shares one daily cached snapshot per repository and caps refresh attempts to 20 distinct repositories per UTC day.
+Project source files are stored in the database and are never executed. Each file is capped at 256 KiB, each project at 10 MiB of current source text and 20 MiB of revision text, with 20 revisions retained per file.\n\nProject repository links accept only public HTTPS GitHub URLs. The server shares one daily cached snapshot per repository and caps refresh attempts to 20 distinct repositories per UTC day.
 
 The HTML has no inline style or script blocks. The front controller returns HTML with a restrictive same-origin Content Security Policy. CSS and JavaScript are external, versioned files; update their query-string version when releasing a changed asset set.
 
@@ -29,6 +29,7 @@ The HTML has no inline style or script blocks. The front controller returns HTML
 | Members | Project member listing/candidate search/assignment/approval/revocation endpoints | Search active team members by name, email, or exact user ID; request member/viewer access; approve pending access; change approved access; and revoke access when permitted |
 | Project chat | `GET|POST /api/projects/{projectId}/chat` and message edit/delete/report endpoints | Send text, edit/delete own messages, report another member's message |
 | Project repository | `GET|POST /api/projects/{projectId}/github` | View cached public repository metadata and recent commits; team owners/managers can link or unlink a public GitHub URL |
+| Project files | `GET|POST /api/projects/{projectId}/files` plus file detail/edit/history/restore endpoints | Browse and search up to 200 private source files, edit text with optimistic concurrency, and restore one of the retained revisions; viewers are read-only |
 | Notifications | `GET /api/notifications`, `POST /api/notifications/{id}/read` | Receive background updates to recent notifications/unread counts while visible; mark individual or visible notifications as read |
 | Account preferences | `POST /api/auth/profile`, `POST /api/auth/password` | Update the signed-in display name or change the password after verifying the current credential; email and system roles remain read-only |
 | Moderation | `GET /api/admin/reports`, `GET /api/teams/{teamId}/reports`, `POST /api/reports/{reportId}/review` | Review scoped report queues, inspect preserved message context, mark reports valid/rejected, or resolve valid cases |
