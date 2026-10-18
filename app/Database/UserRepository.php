@@ -65,7 +65,14 @@ final class UserRepository
              WHERE id = :id AND status = 'active'"
         );
         $statement->execute(['display_name' => $displayName, 'id' => $userId]);
-        return $statement->rowCount() > 0;
+        if ($statement->rowCount() > 0) {
+            return true;
+        }
+
+        // MySQL may report zero changed rows when the requested name is already current.
+        $exists = $this->pdo->prepare("SELECT 1 FROM users WHERE id = :id AND status = 'active' LIMIT 1");
+        $exists->execute(['id' => $userId]);
+        return $exists->fetchColumn() !== false;
     }
 
     /** @return array{id:int,email:string,password_hash:string,status:string,display_name:string}|null */
