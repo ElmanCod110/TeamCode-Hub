@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace TeamCodeHub\Database;
 
+use DomainException;
 use PDO;
 
 final class UserRepository
@@ -112,6 +113,67 @@ final class UserRepository
             'expected_hash' => $expectedHash,
         ]);
         return $statement->rowCount() > 0;
+    }
+
+
+    /**
+     * Search a bounded user directory for site administrators only.
+     * Password hashes and other authentication secrets are never selected.
+     *
+     * @return array{users:list<array<string, mixed>>,has_more:bool}
+     */
+    public function searchForSiteAdmin(int $actorId, string $query = '', string $status = 'all'): array
+    {
+        $access = $this->pdo->prepare(
+            "SELECT 1 FROM user_system_roles
+             WHERE user_id = :user_id AND role = 'site_admin' LIMIT 1"
+        );
+        $access->execute(['user_id' => $actorId]);
+        if ($access->fetchColumn() === false) {
+            throw new DomainException('Site administrator role required.');
+        }
+
+        $conditions = [];
+        $parameters = [];
+        if ($status !== 'all') {
+            $conditions[] = 'u.status = :status';
+            $parameters['status'] = $status;
+        }
+        if ($query !== '') {
+            $escaped = strtr($query, ['!' => '!!', '%' => '!%', '_' => '!_']);
+            $conditions[] = "(u.email LIKE :term ESCAPE '!' OR u.display_name LIKE :term ESCAPE '!' OR CAST(u.id AS CHAR) = :exact_id)";
+            $parameters['term'] = '%' . $escaped . '%';
+            $parameters['exact_id'] = ctype_digit($query) ? $query : '-1';
+        }
+        $where = $conditions === [] ? '' : 'WHERE ' . implode(' AND ', $conditions);
+        $sql = "SELECT u.id, u.email, u.display_name, u.status, u.created_at, u.last_login_at,
+                       EXISTS (
+                           SELECT 1 FROM user_system_roles sr
+                           WHERE sr.user_id = u.id AND sr.role = 'site_admin'
+                       ) AS is_site_admin
+                FROM users u {$where}
+                ORDER BY u.created_at DESC, u.id DESC
+                LIMIT 51";
+        $statement = $this->pdo->prepare($sql);
+        $statement->execute($parameters);
+        $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+        $hasMore = count($rows) > 50;
+        if ($hasMore) {
+            array_pop($rows);
+        }
+
+        return [
+            'users' => array_map(static fn (array $row): array => [
+                'id' => (int) $row['id'],
+                'email' => (string) $row['email'],
+                'display_name' => (string) $row['display_name'],
+                'status' => (string) $row['status'],
+                'created_at' => (string) $row['created_at'],
+                'last_login_at' => $row['last_login_at'] === null ? null : (string) $row['last_login_at'],
+                'is_site_admin' => (bool) $row['is_site_admin'],
+            ], $rows),
+            'has_more' => $hasMore,
+        ];
     }
 
     /** @return list<string> */
