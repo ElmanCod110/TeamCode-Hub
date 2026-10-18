@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Add authenticated display-name editing without exposing email or system-role mutation.
+- Add password changes requiring the current password, matching confirmation, and a 12–72 byte limit.
+- Persist password updates with a compare-and-swap hash check to avoid overwriting concurrent changes.
+- Rotate the current session identifier and CSRF token after successful password changes.
+- Connect account dialogs to Preferences and add integration/UI contract coverage.
+
 Notable changes to TeamCode Hub are recorded here.
 
 ## [0.2.0-dev] - Unreleased

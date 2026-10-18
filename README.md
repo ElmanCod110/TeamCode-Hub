@@ -47,7 +47,7 @@ The project uses plain PHP, browser-native JavaScript, CSS, and PDO. It does not
 
 ## API and frontend contracts
 
-Authentication: `GET /api/auth/csrf`, `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`.
+Authentication: `GET /api/auth/csrf`, `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`, `POST /api/auth/profile`, and `POST /api/auth/password`.
 
 Teams and invitations: `GET|POST /api/teams`, `GET /api/teams/{teamId}`, `GET /api/teams/{teamId}/projects`, invitation creation/listing/acceptance/revocation.
 

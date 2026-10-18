@@ -1603,15 +1603,68 @@
     append(themeRow, copy, themeSelect);
     const accountRow = el("div", "settings-row");
     const accountCopy = el("div");
-    append(accountCopy, el("strong", "", "Signed-in account"), el("p", "", state.user?.email || "No email available"));
-    append(accountRow, accountCopy, badge("active"));
+    append(accountCopy, el("strong", "", "Account profile"),
+      el("p", "", (state.user?.display_name || "Workspace member") + " · " + (state.user?.email || "No email available")),
+      el("span", "small", "Your email address and system roles cannot be changed from this page."));
+    append(accountRow, accountCopy, actionButton("Edit profile", "edit-profile", "btn btn-outline"));
+    const passwordRow = el("div", "settings-row");
+    const passwordCopy = el("div");
+    append(passwordCopy, el("strong", "", "Password and sign-in"),
+      el("p", "", "Change your password after verifying your current credential. Use 12–72 bytes."));
+    append(passwordRow, passwordCopy, actionButton("Change password", "change-password", "btn btn-outline"));
     const securityRow = el("div", "settings-row");
     const securityCopy = el("div");
     append(securityCopy, el("strong", "", "Session and access"), el("p", "", "Every workspace API request checks your current account and resource permissions on the server."));
     append(securityRow, securityCopy, append(el("span", "activity-dot"), icon("shield")));
-    append(panelBox, themeRow, accountRow, securityRow);
+    append(panelBox, themeRow, accountRow, passwordRow, securityRow);
     root.appendChild(panelBox);
-    root.appendChild(el("p", "small settings-note", "TeamCode Hub does not require a downloaded font or third-party UI framework. Account recovery and invitation email delivery are not part of this development baseline."));
+    root.appendChild(el("p", "small settings-note", "Password changes rotate the current session identifier and security token. Account recovery and invitation email delivery are not part of this development baseline."));
+  }
+
+
+  /**
+   * Let a signed-in user update only their display name.
+   * The API never accepts client-supplied user IDs or role changes.
+   */
+  function editProfileModal() {
+    openFormModal("Edit account profile", "Choose the name your teammates see across the workspace.", [
+      { name: "display_name", label: "Display name", type: "text", value: state.user?.display_name || "", required: true, maxLength: 80, full: true }
+    ], "Save profile", async values => {
+      const result = await request("/api/auth/profile", {
+        method: "POST",
+        body: { display_name: values.display_name.trim() }
+      });
+      if (result.user) state.user = result.user;
+      const sidebarName = $("#sidebar-user-name");
+      if (sidebarName) sidebarName.textContent = state.user?.display_name || "Your account";
+      const sidebarRole = $("#sidebar-user-role");
+      if (sidebarRole) sidebarRole.textContent = state.user?.email || "Workspace member";
+      renderSettings();
+      toast("Account profile updated.");
+    });
+  }
+
+  /**
+   * Require the current password and matching confirmation before changing credentials.
+   * The server rotates the session ID and CSRF token after a successful update.
+   */
+  function changePasswordModal() {
+    openFormModal("Change password", "Enter your current password, then choose a new password between 12 and 72 bytes.", [
+      { name: "current_password", label: "Current password", type: "password", required: true, maxLength: 4096, full: true },
+      { name: "new_password", label: "New password", type: "password", required: true, maxLength: 72, full: true, help: "Use a long, unique password that you do not use elsewhere." },
+      { name: "confirm_password", label: "Confirm new password", type: "password", required: true, maxLength: 72, full: true }
+    ], "Update password", async values => {
+      const result = await request("/api/auth/password", {
+        method: "POST",
+        body: {
+          current_password: values.current_password,
+          new_password: values.new_password,
+          confirm_password: values.confirm_password
+        }
+      });
+      if (result.csrf_token) state.csrf = result.csrf_token;
+      toast("Password changed. Your current session has been secured.");
+    });
   }
 
   /* All mutation forms share one accessible modal builder and the same CSRF path. */
@@ -2256,6 +2309,8 @@
     const name = action.dataset.action;
     try {
       if (name === "create-team") createTeamModal();
+      else if (name === "edit-profile") editProfileModal();
+      else if (name === "change-password") changePasswordModal();
       else if (name === "edit-team") editTeamModal(action.dataset.teamId);
       else if (name === "edit-project") await editProjectModal(action.dataset.projectId);
       else if (name === "archive-project") {
