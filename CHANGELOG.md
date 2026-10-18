@@ -13,6 +13,8 @@ Notable changes to TeamCode Hub are recorded here.
 ## Unreleased
 
 - Add a site-admin-only user directory with search by name, email, or exact user ID, status filters, and bounded pagination.
+- Add administrator-only account disable/reactivate actions with required reasons, transactional audit records, self-disable prevention, and email-verification safeguards.
+- Add a bounded account audit-history endpoint and responsive history dialog.
 - Return at most 50 public account records and never select or serialize password hashes.
 - Enforce the administrator role in both controller and repository layers; cancel stale browser search requests.
 
