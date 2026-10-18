@@ -149,8 +149,8 @@ try {
     $assert(!$teamAccess->canView($outsiderId, $teamId), 'unapproved outsider cannot view a team');
 
     // Exercise the new settings-specific writes and their database-level role predicates.
-    $assert($teams->renameForManager($adminId, $teamId, 'Settings API Team Name'), 'team owner can rename through the settings API repository method');
-    $teamRenameDenied = $teams->renameForManager($outsiderId, $teamId, 'Outsider Team Name');
+    $assert($teams->renameForOwner($adminId, $teamId, 'Settings API Team Name'), 'team owner can rename through the settings API repository method');
+    $teamRenameDenied = $teams->renameForOwner($outsiderId, $teamId, 'Outsider Team Name');
     $assert(!$teamRenameDenied, 'unrelated user cannot rename a team through the settings API repository method');
 
     $projects = new ProjectRepository($pdo);
