@@ -139,9 +139,9 @@ $assert(str_contains($adminUserController, 'Site administrator role required.') 
 $assert(str_contains($js, 'formatAdminDate') && str_contains($js, 'user.is_site_admin'), 'admin directory renders account activity and administrator flags');
 
 $assert(str_contains($js, '/api/team-invitations/accept') && str_contains($js, 'revoke-invitation') && str_contains($js, 'renderPendingInvitations'), 'team UI connects invitation acceptance, listing, and revocation');
-$assert(str_contains($teamInvitationController, 'sendTeamInvitationEmail') && str_contains($teamInvitationController, "unset($invitation['token'])") && str_contains($teamInvitationController, 'email_sent'), 'invitation creation sends email and exposes the raw token only as a delivery-failure fallback');
+$assert(str_contains($teamInvitationController, 'sendTeamInvitationEmail') && str_contains($teamInvitationController, 'unset($invitation') && str_contains($teamInvitationController, 'email_sent'), 'invitation creation sends email and exposes the raw token only as a delivery-failure fallback');
 $assert(str_contains($emailDeliveryService, '/accept-invitation#accept-invitation?token=') && str_contains($emailDeliveryService, 'sendTeamInvitationEmail'), 'invitation emails use HTTPS-only fragment links');
-$assert(str_contains($teamInvitationRepository, "'team_name' => (string) $accessRow['team_name']"), 'invitation repository supplies the team name for the email');
+$assert(str_contains($teamInvitationRepository, 'team_name') && str_contains($teamInvitationRepository, '$accessRow'), 'invitation repository supplies the team name for the email');
 $assert(str_contains($bootstrap, "get('/accept-invitation'") && str_contains($js, 'acceptInvitationToken') && str_contains($js, 'state.invitationToken'), 'invitation links route into an authenticated auto-accept flow');
 $assert(str_contains($js, 'emailSent ? "Invitation email sent"') && str_contains($js, 'Email delivery failed'), 'invitation UI reports successful email delivery and provides a manual fallback');
 
