@@ -603,7 +603,9 @@
 .admin-users-pagination > span { min-width:72px; text-align:center; color:var(--text-muted); }
 .admin-users-pagination button:disabled { opacity:.45; cursor:not-allowed; }
 .admin-user-list { display:flex; flex-direction:column; }
-.admin-user-row { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(120px,.55fr) minmax(170px,.8fr); gap:16px; align-items:center; padding:16px 20px; border-top:1px solid var(--border); }
+.admin-user-row { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(120px,.55fr) minmax(170px,.8fr) auto; gap:16px; align-items:center; padding:16px 20px; border-top:1px solid var(--border); }
+.admin-user-row > .btn { justify-self:start; white-space:nowrap; }
+.admin-user-row > .small { color:var(--text-muted); font-size:.8rem; }
 .admin-user-identity { display:flex; align-items:center; gap:12px; min-width:0; }
 .admin-user-identity > div { display:flex; flex-direction:column; gap:4px; min-width:0; }
 .admin-user-identity strong, .admin-user-email { overflow-wrap:anywhere; }
