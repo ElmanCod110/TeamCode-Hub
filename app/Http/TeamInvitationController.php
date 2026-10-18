@@ -95,7 +95,7 @@ final class TeamInvitationController
             'invitation' => $invitation,
             'email_sent' => $emailSent,
             'message' => $emailSent
-                ? 'Invitation email sent. The recipient must use the invited email address.'
+                ? 'Invitation email submitted to the mail transport. The recipient must use the invited email address.'
                 : 'Email delivery failed. Copy the one-time token and share it through a trusted channel.',
         ], 201);
     }
