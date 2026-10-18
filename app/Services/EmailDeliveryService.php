@@ -10,12 +10,12 @@ final class EmailDeliveryService
 {
     /**
      * Send a verification message through PHP's configured mail transport.
-     * A production deployment must set MAIL_FROM_ADDRESS and an HTTPS APP_BASE_URL.
+     * A production deployment must set MAIL_FROM_ADDRESS and an HTTPS APP_URL.
      */
     public function sendVerificationEmail(string $recipient, string $token): bool
     {
         $sender = getenv('MAIL_FROM_ADDRESS');
-        $baseUrl = getenv('APP_BASE_URL');
+        $baseUrl = getenv('APP_URL');
         if (!is_string($sender) || filter_var($sender, FILTER_VALIDATE_EMAIL) === false
             || !is_string($baseUrl) || $baseUrl === '' || preg_match('/[\r\n]/', $baseUrl) === 1) {
             return false;
