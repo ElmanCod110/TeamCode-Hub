@@ -47,6 +47,13 @@ final class AuthenticationService
     }
 
 
+
+    /** Update the signed-in user's display name without exposing password fields. */
+    public function updateDisplayName(int $userId, string $displayName): bool
+    {
+        return $this->users->updateDisplayName($userId, $displayName);
+    }
+
     /**
      * Change the current account password after verifying the existing credential.
      * A compare-and-swap update prevents racing password changes from overwriting one another.
