@@ -14,11 +14,11 @@ final class UserRepository
     {
     }
 
-    /** @return array{id:int,email:string,password_hash:string,status:string,display_name:string}|null */
+    /** @return array{id:int,email:string,password_hash:string,status:string,display_name:string,auth_version:int}|null */
     public function findForAuthentication(string $email): ?array
     {
         $statement = $this->pdo->prepare(
-            'SELECT id, email, password_hash, status, display_name FROM users WHERE email = :email LIMIT 1'
+            'SELECT id, email, password_hash, status, display_name, auth_version FROM users WHERE email = :email LIMIT 1'
         );
         $statement->execute(['email' => strtolower(trim($email))]);
         $row = $statement->fetch();
@@ -32,6 +32,7 @@ final class UserRepository
             'password_hash' => (string) $row['password_hash'],
             'status' => (string) $row['status'],
             'display_name' => (string) $row['display_name'],
+            'auth_version' => (int) $row['auth_version'],
         ];
     }
 
@@ -55,6 +56,44 @@ final class UserRepository
         ];
     }
 
+
+    /**
+     * Fetch only the session-facing fields plus the credential version used for revocation.
+     * AuthenticationService removes auth_version before serializing the user to the browser.
+     *
+     * @return array{id:int,email:string,status:string,display_name:string,auth_version:int}|null
+     */
+    public function findSessionUserById(int $userId): ?array
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT id, email, status, display_name, auth_version FROM users WHERE id = :id LIMIT 1'
+        );
+        $statement->execute(['id' => $userId]);
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($row)) {
+            return null;
+        }
+        return [
+            'id' => (int) $row['id'],
+            'email' => (string) $row['email'],
+            'status' => (string) $row['status'],
+            'display_name' => (string) $row['display_name'],
+            'auth_version' => (int) $row['auth_version'],
+        ];
+    }
+
+    /** Return a minimal target only when a verified active account may request password recovery. */
+    public function findActiveVerifiedByEmail(string $email): ?array
+    {
+        $statement = $this->pdo->prepare(
+            "SELECT id, email FROM users
+             WHERE email = :email AND status = 'active' AND email_verified_at IS NOT NULL
+             LIMIT 1"
+        );
+        $statement->execute(['email' => strtolower(trim($email))]);
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+        return is_array($row) ? ['id' => (int) $row['id'], 'email' => (string) $row['email']] : null;
+    }
 
     /**
      * Create a pending account without granting access before email ownership is verified.
@@ -117,11 +156,11 @@ final class UserRepository
         return $exists->fetchColumn() !== false;
     }
 
-    /** @return array{id:int,email:string,password_hash:string,status:string,display_name:string}|null */
+    /** @return array{id:int,email:string,password_hash:string,status:string,display_name:string,auth_version:int}|null */
     public function findAuthenticationById(int $userId): ?array
     {
         $statement = $this->pdo->prepare(
-            'SELECT id, email, password_hash, status, display_name FROM users WHERE id = :id LIMIT 1'
+            'SELECT id, email, password_hash, status, display_name, auth_version FROM users WHERE id = :id LIMIT 1'
         );
         $statement->execute(['id' => $userId]);
         $row = $statement->fetch();
@@ -135,6 +174,7 @@ final class UserRepository
             'password_hash' => (string) $row['password_hash'],
             'status' => (string) $row['status'],
             'display_name' => (string) $row['display_name'],
+            'auth_version' => (int) $row['auth_version'],
         ];
     }
 
@@ -145,7 +185,7 @@ final class UserRepository
     public function replacePasswordHash(int $userId, string $expectedHash, string $newHash): bool
     {
         $statement = $this->pdo->prepare(
-            "UPDATE users SET password_hash = :new_hash
+            "UPDATE users SET password_hash = :new_hash, auth_version = auth_version + 1
              WHERE id = :id AND status = 'active' AND password_hash = :expected_hash"
         );
         $statement->execute([
