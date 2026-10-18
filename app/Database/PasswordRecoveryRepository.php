@@ -87,17 +87,43 @@ final class PasswordRecoveryRepository
     {
         $this->pdo->beginTransaction();
         try {
+            // Discover the token first without locking; then lock the user before the token.
+            // Token issuance uses the same user-then-token order, reducing deadlock risk.
             $lookup = $this->pdo->prepare(
-                "SELECT t.id AS token_id, u.id AS user_id, u.status
-                 FROM account_action_tokens t
-                 INNER JOIN users u ON u.id = t.user_id
-                 WHERE t.purpose = 'password_reset' AND t.token_hash = :token_hash
-                   AND t.used_at IS NULL AND t.expires_at > CURRENT_TIMESTAMP
-                 LIMIT 1 FOR UPDATE"
+                "SELECT id, user_id FROM account_action_tokens
+                 WHERE purpose = 'password_reset' AND token_hash = :token_hash
+                   AND used_at IS NULL AND expires_at > CURRENT_TIMESTAMP
+                 LIMIT 1"
             );
             $lookup->execute(['token_hash' => $tokenHash]);
             $row = $lookup->fetch(PDO::FETCH_ASSOC);
-            if (!is_array($row) || $row['status'] !== 'active') {
+            if (!is_array($row)) {
+                $this->pdo->commit();
+                return false;
+            }
+
+            $userId = (int) $row['user_id'];
+            $userLock = $this->pdo->prepare(
+                "SELECT id FROM users WHERE id = :user_id AND status = 'active' LIMIT 1 FOR UPDATE"
+            );
+            $userLock->execute(['user_id' => $userId]);
+            if ($userLock->fetchColumn() === false) {
+                $this->pdo->commit();
+                return false;
+            }
+
+            $tokenLock = $this->pdo->prepare(
+                "SELECT id FROM account_action_tokens
+                 WHERE id = :token_id AND user_id = :user_id AND token_hash = :token_hash
+                   AND purpose = 'password_reset' AND used_at IS NULL AND expires_at > CURRENT_TIMESTAMP
+                 LIMIT 1 FOR UPDATE"
+            );
+            $tokenLock->execute([
+                'token_id' => (int) $row['id'],
+                'user_id' => $userId,
+                'token_hash' => $tokenHash,
+            ]);
+            if ($tokenLock->fetchColumn() === false) {
                 $this->pdo->commit();
                 return false;
             }
@@ -109,7 +135,7 @@ final class PasswordRecoveryRepository
             );
             $update->execute([
                 'password_hash' => $newPasswordHash,
-                'user_id' => (int) $row['user_id'],
+                'user_id' => $userId,
             ]);
             if ($update->rowCount() !== 1) {
                 $this->pdo->rollBack();
@@ -120,7 +146,7 @@ final class PasswordRecoveryRepository
                 "UPDATE account_action_tokens SET used_at = CURRENT_TIMESTAMP
                  WHERE user_id = :user_id AND purpose = 'password_reset' AND used_at IS NULL"
             );
-            $consume->execute(['user_id' => (int) $row['user_id']]);
+            $consume->execute(['user_id' => $userId]);
             $this->pdo->commit();
             return true;
         } catch (Throwable $error) {
