@@ -1087,7 +1087,9 @@
   }
 
   async function openProject(project, updateHash = true, tab = "overview") {
-    if (state.page === "project" && state.projectTab === "files" && !confirmDiscardProjectFileChanges()) return;
+    const leavingDirtyEditor = state.page === "project" && state.projectTab === "files"
+      && (Number(state.selectedProject?.id) !== Number(project?.id) || tab !== "files");
+    if (leavingDirtyEditor && !confirmDiscardProjectFileChanges()) return;
     state.selectedProject = project;
     state.page = "project";
     state.projectTab = tab;
