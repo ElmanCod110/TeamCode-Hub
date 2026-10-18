@@ -8,8 +8,8 @@
 - Rotated the current session identifier and CSRF token after successful password changes.
 - Connected account dialogs to Preferences and added integration/UI contract coverage.
 
-- Added owner/manager-only team renaming with CSRF validation and repository-level authorization.
-- Added owner/manager-only project name and description editing without changing membership or access levels.
+- Added owner-only team renaming with CSRF validation, locked repository-level authorization, and explicit manager/outsider denial tests.
+- Added owner/manager-only project name and description editing without changing membership or access levels, with transactional authorization checks.
 - Added workspace dialogs for team and project settings and expanded authorization/integration checks.
 
 Notable changes to TeamCode Hub are recorded here.
