@@ -61,7 +61,7 @@ final class AuthenticationService
     public function changePassword(int $userId, string $currentPassword, string $newPassword): bool
     {
         if ($currentPassword === '' || strlen($currentPassword) > 4096
-            || strlen($newPassword) < 12 || strlen($newPassword) > 4096) {
+            || strlen($newPassword) < 12 || strlen($newPassword) > 72) {
             return false;
         }
 
