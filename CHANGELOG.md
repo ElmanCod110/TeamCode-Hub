@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add owner-only reversible team archiving and a dedicated archived-team recovery dialog.
+- Preserve team projects, tasks, private source files, chat, and reports while archived; revoke pending invitations transactionally and keep them revoked after restoration.
+- Add repository, controller, UI, and MariaDB integration coverage for owner-only archive/restore and data preservation.
+
 - Add a project Files tab with a searchable private source-file directory, lightweight text editor, save/reload controls, and revision-history restore.
 - Add optimistic version checks, a 200-file project limit, a 256 KiB file limit, a 10 MiB current-source quota, and a 20 MiB revision-history quota with 20 retained versions per file.
 - Keep project file reads available to approved viewers while restricting creation, editing, and restoration to approved member-level access.
