@@ -314,7 +314,7 @@ final class ProjectFileRepository
         $path = trim($path);
         if ($path === '' || strlen($path) > 240 || preg_match('//u', $path) !== 1
             || preg_match('~^[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$~D', $path) !== 1) {
-            throw new DomainException('File path must be a relative UTF-8 path of at most 240 bytes using letters, digits, dots, hyphens, underscores, and forward slashes.');
+            throw new DomainException('File path must be a relative ASCII path of at most 240 bytes using letters, digits, dots, hyphens, underscores, and forward slashes.');
         }
 
         $segments = explode('/', $path);
