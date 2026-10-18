@@ -107,6 +107,7 @@ try {
     $adminSearch = $userDirectory->searchForSiteAdmin($adminId, 'admin@example.test', 'active');
     $assert(count($adminSearch['users']) === 1 && $adminSearch['users'][0]['id'] === $adminId, 'site admin can search the directory by email');
     $assert(!array_key_exists('password_hash', $adminSearch['users'][0]), 'admin user directory never exposes password hashes');
+    $assert($adminSearch['users'][0]['email_verified'] === true && !array_key_exists('email_verified_at', $adminSearch['users'][0]), 'admin directory exposes only a boolean email-verification state');
     $exactIdSearch = $userDirectory->searchForSiteAdmin($adminId, (string) $adminId, 'all');
     $assert(count($exactIdSearch['users']) === 1 && $exactIdSearch['users'][0]['email'] === 'admin@example.test', 'admin user directory supports exact user ID lookup');
     $literalWildcardSearch = $userDirectory->searchForSiteAdmin($adminId, '%', 'all');
@@ -173,7 +174,8 @@ try {
     $assert(!$unchangedStatus['changed'], 'repeating the current account status is an idempotent no-op');
     $statusAudit = $accountManager->listRecentAuditForSiteAdmin($adminId, $statusTestId);
     $assert(count($statusAudit) === 2 && $statusAudit[0]['action'] === 'account_reactivated'
-        && $statusAudit[1]['action'] === 'account_disabled', 'status changes create ordered audit records with action history');
+        && $statusAudit[1]['action'] === 'account_disabled'
+        && $statusAudit[0]['reason'] === 'Integration reactivation test', 'status changes create ordered audit records with reasons');
     $auditPermissionRejected = false;
     try {
         $accountManager->listRecentAuditForSiteAdmin($outsiderId, $statusTestId);
