@@ -858,7 +858,7 @@
     headActions.appendChild(actionButton("Back to projects", "navigate-projects", "btn btn-outline"));
     append(root, heading, headActions);
     const tabs = el("div", "project-tabs");
-    [["overview", "Overview", "grid"], ["tasks", "Tasks", "check-square"], ["members", "Members", "users"], ["chat", "Chat", "message"]].forEach(([key, label, iconName]) => {
+    [["overview", "Overview", "grid"], ["tasks", "Tasks", "check-square"], ["members", "Members", "users"], ["chat", "Chat", "message"], ["repository", "Repository", "chart"]].forEach(([key, label, iconName]) => {
       const button = el("button", "project-tab" + (tab === key ? " is-active" : ""));
       button.type = "button"; button.dataset.projectTab = key;
       append(button, icon(iconName), label);
@@ -897,7 +897,156 @@
       await renderProjectMembers(content, project);
     } else if (tab === "chat") {
       await renderProjectChat(content, project);
+    } else if (tab === "repository") {
+      await renderProjectGitHub(content, project);
     }
+  }
+
+
+  /**
+   * Render a project-scoped public GitHub repository view using the server's shared daily cache.
+   * Only canonical GitHub links and validated short commit hashes are used to build external links.
+   */
+  async function renderProjectGitHub(content, project) {
+    content.appendChild(el("div", "panel-body page-loading", "Loading linked repository…"));
+    try {
+      const response = await request("/api/projects/" + escapePath(project.id) + "/github");
+      content.replaceChildren();
+      const header = el("div", "project-github-header surface-panel");
+      const copy = el("div", "project-github-copy");
+      append(copy, el("span", "eyebrow", "SOURCE CONTROL"), el("h2", "", "GitHub repository"),
+        el("p", "", "Public repository metadata and the five most recent commits are shared from a bounded server cache."));
+      const actions = el("div", "project-github-actions");
+      if (response.can_manage) {
+        actions.appendChild(actionButton(response.linked ? "Change repository" : "Connect repository", "connect-project-github", "btn btn-primary btn-sm", {
+          "data-project-id": project.id,
+          "data-repository": response.linked ? response.repository.repository : ""
+        }));
+        if (response.linked) actions.appendChild(actionButton("Unlink", "unlink-project-github", "btn btn-outline btn-sm", {
+          "data-project-id": project.id,
+          "data-repository": response.repository.repository
+        }));
+      }
+      append(header, copy, actions);
+      content.appendChild(header);
+
+      if (!response.linked) {
+        const empty = emptyState("No repository linked", response.can_manage
+          ? "Connect this project to a public GitHub repository to show its summary and recent commits."
+          : "A team owner or manager can connect a public GitHub repository to this project.");
+        if (response.can_manage) empty.appendChild(actionButton("Connect GitHub repository", "connect-project-github", "btn btn-primary", {
+          "data-project-id": project.id,
+          "data-repository": ""
+        }));
+        content.appendChild(empty);
+        return;
+      }
+
+      const snapshot = response.repository || {};
+      const data = snapshot.data;
+      const status = el("div", "alert project-github-status");
+      append(status, icon("info"), el("span", "", snapshot.message || "Repository cache status is unavailable."));
+      content.appendChild(status);
+      if (!snapshot.available || !data) {
+        content.appendChild(emptyState("Repository snapshot unavailable", "The server preserves the last successful snapshot and limits refresh attempts to protect the public GitHub API."));
+        return;
+      }
+
+      const repositoryName = /^[A-Za-z0-9-]+\/[A-Za-z0-9_.-]+$/.test(snapshot.repository || "") ? snapshot.repository : "";
+      const repositoryLink = el("a", "project-github-external", "Open repository");
+      repositoryLink.href = "https://github.com/" + repositoryName;
+      repositoryLink.target = "_blank";
+      repositoryLink.rel = "noopener noreferrer";
+      const summary = el("div", "project-github-summary surface-panel");
+      const summaryCopy = el("div", "project-github-summary-copy");
+      append(summaryCopy, el("span", "eyebrow", "PUBLIC REPOSITORY"),
+        el("h3", "", data.full_name || snapshot.repository),
+        el("p", "", data.description || "This repository has no public description."));
+      const branch = el("span", "badge-status", "Default branch · " + (data.default_branch || "main"));
+      append(summaryCopy, branch, repositoryLink);
+      const language = el("div", "project-github-language");
+      append(language, el("span", "small", "Primary language"), el("strong", "", data.language || "Not specified"));
+      append(summary, summaryCopy, language);
+      content.appendChild(summary);
+
+      const stats = el("div", "grid grid-3 project-github-metrics");
+      append(stats,
+        metricCard("Stars", Number(data.stars || 0).toLocaleString(), "Public repository stars", "chart"),
+        metricCard("Forks", Number(data.forks || 0).toLocaleString(), "Repository forks", "users"),
+        metricCard("Open issues", Number(data.open_issues || 0).toLocaleString(), "Issues reported by GitHub", "message"));
+      content.appendChild(stats);
+      const activity = el("div", "project-github-activity surface-panel");
+      const activityHead = el("div", "panel-heading");
+      append(activityHead, append(el("div"), el("h2", "", "Recent commits"), el("p", "", "Latest five public commits available from GitHub.")));
+      activity.appendChild(activityHead);
+      const commits = Array.isArray(data.commits) ? data.commits : [];
+      if (!commits.length) {
+        activity.appendChild(emptyState("No recent commits returned", "GitHub did not provide commits for this repository."));
+      } else {
+        const list = el("div", "project-github-commit-list");
+        commits.forEach(commit => {
+          const row = el("article", "project-github-commit");
+          const main = el("div", "project-github-commit-copy");
+          append(main, el("strong", "", commit.message || "Commit message unavailable"),
+            el("span", "small", (commit.author || "Unknown contributor") + " · " + formatAdminDate(commit.committed_at)));
+          const commitLink = el("a", "btn btn-ghost btn-sm", "View commit");
+          if (repositoryName && /^[a-f0-9]{7}$/i.test(commit.sha || "")) {
+            commitLink.href = "https://github.com/" + repositoryName + "/commit/" + commit.sha;
+            commitLink.target = "_blank";
+            commitLink.rel = "noopener noreferrer";
+          } else {
+            commitLink.removeAttribute("href");
+            commitLink.setAttribute("aria-disabled", "true");
+          }
+          append(row, main, commitLink);
+          list.appendChild(row);
+        });
+        activity.appendChild(list);
+      }
+      content.appendChild(activity);
+      content.appendChild(el("p", "small project-github-footnote", "Last successful fetch: " + formatAdminDate(snapshot.fetched_at) + ". Public data only; no GitHub token is stored."));
+    } catch (error) {
+      content.replaceChildren(el("div", "alert alert-danger", error.message || "The repository details could not be loaded."));
+    }
+  }
+
+  /** Link a project to a public GitHub URL through the manager-authorized endpoint. */
+  function connectProjectRepositoryModal(projectId, currentRepository) {
+    const project = projectById(projectId) || state.selectedProject;
+    if (!project || !canManageTeam(project.team_id)) {
+      toast("Only an authorized team owner or manager can change this repository link.", "warning");
+      return;
+    }
+    const currentUrl = currentRepository ? "https://github.com/" + currentRepository : "";
+    openFormModal("Connect GitHub repository", "Use a direct HTTPS URL to a public github.com repository. Private repositories and other hosts are not supported.", [
+      { name: "repository_url", label: "Public repository URL", type: "url", required: true, maxLength: 255, value: currentUrl, placeholder: "https://github.com/owner/repository", help: "The server validates the host and stores only owner/repository. No token or webhook is required.", full: true }
+    ], "Save repository link", async values => {
+      const result = await request("/api/projects/" + escapePath(project.id) + "/github", {
+        method: "POST",
+        body: { repository_url: values.repository_url.trim() }
+      });
+      await refreshWorkspace(false);
+      const updated = projectById(project.id) || result.project || project;
+      toast("GitHub repository linked. Public metadata is cached and shared for this repository.");
+      await openProject(updated, true, "repository");
+    });
+  }
+
+  async function unlinkProjectRepository(projectId) {
+    const project = projectById(projectId) || state.selectedProject;
+    if (!project || !canManageTeam(project.team_id)) {
+      toast("Only an authorized team owner or manager can change this repository link.", "warning");
+      return;
+    }
+    if (!window.confirm("Unlink this repository from the project? The cached public snapshot remains available for other projects that use the same repository.")) return;
+    await request("/api/projects/" + escapePath(project.id) + "/github", {
+      method: "POST",
+      body: { repository_url: null }
+    });
+    await refreshWorkspace(false);
+    const updated = projectById(project.id) || project;
+    toast("GitHub repository unlinked from this project.");
+    await openProject(updated, true, "repository");
   }
 
   function taskTableRow(task) {
@@ -2554,6 +2703,8 @@
     try {
       if (name === "create-team") createTeamModal();
       else if (name === "refresh-admin-users") await renderAdminUsers();
+      else if (name === "connect-project-github") connectProjectRepositoryModal(action.dataset.projectId, action.dataset.repository || "");
+      else if (name === "unlink-project-github") await unlinkProjectRepository(action.dataset.projectId);
       else if (name === "admin-user-status") changeAdminUserStatusModal(action.dataset.userId, action.dataset.nextStatus, action.dataset.displayName || "this account");
       else if (name === "admin-user-audit") await showAdminUserAuditModal(action.dataset.userId, action.dataset.displayName || "this account");
       else if (name === "edit-profile") editProfileModal();
