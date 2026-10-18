@@ -13,7 +13,7 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 - Responsive application navigation, mobile sidebar, light/dark/system theme preference, loading states, and safe toast notifications.
 - Overview dashboard connected to personalized teams, projects, due-today tasks, overdue tasks, and recent notifications.
 - Team list and detail views, owner-only team renaming, project creation, metadata editing, reversible archive/restore controls for authorized team managers, and email-backed team invitations with a secure token fallback.
-- Project directory and project detail views with overview, task, member-access, chat, and public GitHub repository tabs.
+- Project directory and project detail views with overview, task, member-access, chat, private source files, and public GitHub repository tabs.
 - Task creation, editing/reassignment, status changes, priorities, UTC due-date conversion, threaded comments, checklist items, and task filtering/search.
 - Searchable project-member assignment by display name, email, or exact user ID, pending membership approval, member/viewer access changes, and access revocation where the signed-in user has management permission.
 - Text-only project chat with incremental polling, periodic bounded-window reconciliation for edits/deletions, own-message editing/deletion, and message reporting.
@@ -54,7 +54,7 @@ Authentication: `GET /api/auth/csrf`, `POST /api/auth/login`, `GET /api/auth/me`
 
 Teams and invitations: `GET|POST /api/teams`, `GET /api/teams/{teamId}`, `GET /api/teams/{teamId}/projects`, invitation creation/listing/acceptance/revocation.
 
-Projects and members: project list/detail/create, member assignment/approval/revocation, task list/create/edit/status, searchable assignees, task comments/checklists, and project chat/report workflows.
+Projects and members: project list/detail/create, member assignment/approval/revocation, task list/create/edit/status, searchable assignees, task comments/checklists, private source-file listing/edit/history/restore, and project chat/report workflows.
 
 Dashboard: `GET /api/dashboard`, `GET /api/notifications`, and `POST /api/notifications/{notificationId}/read`.
 Site administration: `GET /api/admin/users`, `POST /api/admin/users/{userId}/status`, `GET /api/admin/users/{userId}/audit`, and the existing scoped report-review endpoints.

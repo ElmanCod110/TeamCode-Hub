@@ -673,3 +673,49 @@
   .admin-user-actions { padding-inline-start:44px; }
 }
 
+/* --------------------------------------------------------------------------
+   Project source-file workspace
+   -------------------------------------------------------------------------- */
+.project-files-notice { display:flex; align-items:flex-start; gap:10px; margin-bottom:15px; }
+.project-files-layout { display:grid; grid-template-columns:minmax(220px,290px) minmax(0,1fr); gap:15px; align-items:start; }
+.project-files-sidebar { overflow:hidden; min-width:0; }
+.project-files-side-head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:16px; border-bottom:1px solid var(--border); }
+.project-files-side-head h2 { font-size:14px; font-weight:750; }
+.project-files-side-head p { margin-top:4px; color:var(--text-muted); }
+.project-files-search { display:block; padding:12px; border-bottom:1px solid var(--border); }
+.project-files-search .input { width:100%; }
+.project-files-list { display:flex; flex-direction:column; max-height:65vh; overflow:auto; }
+.project-file-row { display:flex; flex-direction:column; align-items:flex-start; gap:5px; padding:12px 14px; border:0; border-bottom:1px solid var(--border); border-radius:0; background:transparent; color:var(--text-primary); text-align:left; cursor:pointer; }
+.project-file-row:hover { background:var(--surface-hover); }
+.project-file-row.is-active { background:var(--surface-subtle); box-shadow:inset 3px 0 0 var(--text-primary); }
+.project-file-path { max-width:100%; overflow-wrap:anywhere; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:11px; font-weight:650; }
+.project-file-meta { color:var(--text-muted); font-size:10px; }
+.project-files-empty { padding:18px; color:var(--text-muted); }
+.project-files-editor-slot { min-width:0; }
+.project-files-editor { overflow:hidden; }
+.project-files-editor-head { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; padding:16px 18px; border-bottom:1px solid var(--border); }
+.project-files-editor-title { min-width:0; }
+.project-files-editor-title h2 { margin-top:4px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:14px; overflow-wrap:anywhere; }
+.project-files-editor-title p { margin-top:5px; color:var(--text-muted); }
+.project-files-editor-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:6px; }
+.project-file-source { display:block; width:100%; min-height:440px; max-height:70vh; resize:vertical; padding:18px; border:0; border-radius:0; outline-offset:-3px; background:var(--surface-code, var(--surface)); color:var(--text-primary); font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px; line-height:1.7; tab-size:4; white-space:pre; overflow:auto; }
+.project-file-source:read-only { opacity:.88; cursor:text; }
+.project-files-editor-footer { display:flex; justify-content:space-between; gap:10px; padding:10px 16px; border-top:1px solid var(--border); color:var(--text-muted); }
+.project-file-history-modal { width:min(100%,720px); }
+.project-file-history-list { max-height:min(65vh,600px); overflow:auto; }
+.project-file-history-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 0; border-bottom:1px solid var(--border); }
+.project-file-history-row:last-child { border-bottom:0; }
+.project-file-history-info { display:flex; flex-direction:column; gap:5px; min-width:0; }
+.project-file-history-info strong { font-size:12px; }
+.project-file-history-info .small { color:var(--text-muted); overflow-wrap:anywhere; }
+@media (max-width:760px) {
+  .project-files-layout { grid-template-columns:minmax(0,1fr); }
+  .project-files-list { max-height:240px; }
+  .project-files-editor-head { flex-direction:column; }
+  .project-files-editor-actions { justify-content:flex-start; width:100%; }
+  .project-file-source { min-height:360px; }
+}
+@media (max-width:420px) {
+  .project-files-editor-footer { flex-direction:column; }
+  .project-file-history-row { align-items:flex-start; flex-direction:column; }
+}
