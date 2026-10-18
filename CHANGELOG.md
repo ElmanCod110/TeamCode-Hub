@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Add password-reset requests with generic responses to prevent account enumeration and separate IP/email rate limits.
+- Store only SHA-256 password-reset token hashes in the existing account-action table; links expire after 30 minutes and are single-use.
+- Update credentials and consume all outstanding reset tokens in one transaction; restrict recovery to active, email-verified accounts.
+- Send reset links only through a configured HTTPS origin and keep bearer tokens in URL fragments.
+- Add an English password recovery request and completion flow, including token removal from browser history and explicit password confirmation.
+- Add MariaDB integration tests and UI contract checks for reset expiry, cooldown, replay prevention, and old-password rejection.
+
 - Add public account registration that creates pending users and avoids email-existence disclosure.
 - Add hashed, single-use 24-hour email verification tokens, transactional activation, resend cooldowns, and purpose-specific rate limits.
 - Add HTTPS-only verification email delivery configuration and an explicit browser confirmation step that keeps tokens out of HTTP request logs.
