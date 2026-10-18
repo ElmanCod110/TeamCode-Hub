@@ -144,7 +144,7 @@ $assert(str_contains($teamInvitationController, 'team-invite-create') && str_con
 $assert(str_contains($emailDeliveryService, '/accept-invitation#accept-invitation?token=') && str_contains($emailDeliveryService, 'sendTeamInvitationEmail'), 'invitation emails use HTTPS-only fragment links');
 $assert(str_contains($teamInvitationRepository, 'team_name') && str_contains($teamInvitationRepository, '$accessRow'), 'invitation repository supplies the team name for the email');
 $assert(str_contains($bootstrap, "get('/accept-invitation'") && str_contains($js, 'acceptInvitationToken') && str_contains($js, 'state.invitationToken'), 'invitation links route into an authenticated auto-accept flow');
-$assert(str_contains($js, 'emailSent ? "Invitation email sent"') && str_contains($js, 'Email delivery failed'), 'invitation UI reports successful email delivery and provides a manual fallback');
+$assert(str_contains($js, 'emailSent ? "Invitation email submitted"') && str_contains($js, 'Email delivery failed'), 'invitation UI reports successful email delivery and provides a manual fallback');
 
 $assert(str_contains($bootstrap, '/members/{userId}/access') && str_contains($js, 'change-member-access'), 'project member access-level controls are connected to the backend route');
 $assert(str_contains($js, '!member.is_project_creator') && str_contains($js, 'member.access_level === "member" ? "viewer" : "member"'), 'UI protects the project creator and offers explicit viewer/member transitions');
