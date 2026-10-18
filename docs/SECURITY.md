@@ -6,6 +6,7 @@ This document distinguishes implemented primitives from controls still required 
 
 - Session startup enables strict mode, cookie-only session IDs, HttpOnly cookies, SameSite=Lax, and Secure cookies when direct HTTPS is detected or `APP_HTTPS=true` is configured.
 - Session IDs are rotated after successful authentication; logout clears session data and expires the session cookie.
+- Public registration creates pending accounts only. Email verification uses 256-bit random bearer tokens stored as SHA-256 hashes, a 24-hour expiry, single-use consumption, a resend cooldown, and purpose-specific IP/email rate limits. Verification links keep tokens in the URL fragment and require an explicit confirmation POST.
 - State-changing authentication, workspace, invitation, task, chat, report, and notification routes require session-bound CSRF tokens.
 - Authentication accepts only active accounts and uses generic failure responses. Login attempts are throttled with database-backed per-IP and per-email-hash buckets.
 - Forwarded client IP data is ignored unless `REMOTE_ADDR` matches an exact IP in `TRUSTED_PROXIES`.
