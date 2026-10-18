@@ -141,8 +141,9 @@ final class UserRepository
         }
         if ($query !== '') {
             $escaped = strtr($query, ['!' => '!!', '%' => '!%', '_' => '!_']);
-            $conditions[] = "(u.email LIKE :term ESCAPE '!' OR u.display_name LIKE :term ESCAPE '!' OR CAST(u.id AS CHAR) = :exact_id)";
-            $parameters['term'] = '%' . $escaped . '%';
+            $conditions[] = "(u.email LIKE :email_term ESCAPE '!' OR u.display_name LIKE :name_term ESCAPE '!' OR CAST(u.id AS CHAR) = :exact_id)";
+            $parameters['email_term'] = '%' . $escaped . '%';
+            $parameters['name_term'] = '%' . $escaped . '%';
             $parameters['exact_id'] = ctype_digit($query) ? $query : '-1';
         }
         $where = $conditions === [] ? '' : 'WHERE ' . implode(' AND ', $conditions);
