@@ -24,6 +24,13 @@ Notable changes to TeamCode Hub are recorded here.
 
 ## [0.2.0-dev] - Unreleased
 
+### Project source-file workspace
+
+- Add a project Files tab with a searchable source-file directory, lightweight text editor, save/reload controls, and revision-history restore.
+- Store source text in MariaDB outside the public web root; validate relative paths, reject traversal and environment-secret filenames, and never execute source text.
+- Add optimistic version checks, a 200-file project limit, a 256 KiB file limit, a 10 MiB current-source quota, and a 20 MiB revision-history quota with 20 retained versions per file.
+- Keep project file reads available to approved viewers while restricting creation, editing, and restoration to member-level access.
+
 ### Project repository integration
 
 - Add project-scoped public GitHub repository linking for team owners/managers and read-only summaries for approved project members.
