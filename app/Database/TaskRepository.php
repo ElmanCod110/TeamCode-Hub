@@ -26,6 +26,7 @@ final class TaskRepository
                     creator.display_name AS created_by_name, assignee.display_name AS assigned_to_name
              FROM tasks t
              INNER JOIN projects p ON p.id = t.project_id AND p.status = 'active'
+              INNER JOIN teams active_team ON active_team.id = p.team_id AND active_team.status = 'active'
              INNER JOIN project_memberships pm ON pm.project_id = p.id AND pm.user_id = :user_id AND pm.status = 'approved'
              INNER JOIN team_memberships tm ON tm.team_id = p.team_id AND tm.user_id = pm.user_id AND tm.status = 'active'
              INNER JOIN users creator ON creator.id = t.created_by
@@ -49,6 +50,7 @@ final class TaskRepository
                     "SELECT pm.user_id
                      FROM project_memberships pm
                      INNER JOIN projects p ON p.id = pm.project_id
+                      INNER JOIN teams active_team ON active_team.id = p.team_id AND active_team.status = 'active'
                      INNER JOIN team_memberships tm ON tm.team_id = p.team_id AND tm.user_id = pm.user_id
                      INNER JOIN users u ON u.id = pm.user_id AND u.status = 'active'
                      WHERE pm.project_id = :project_id AND pm.user_id = :user_id
@@ -122,6 +124,7 @@ final class TaskRepository
                     "SELECT pm.user_id
                      FROM project_memberships pm
                      INNER JOIN projects p ON p.id = pm.project_id
+                      INNER JOIN teams active_team ON active_team.id = p.team_id AND active_team.status = 'active'
                      INNER JOIN team_memberships tm ON tm.team_id = p.team_id AND tm.user_id = pm.user_id
                      INNER JOIN users u ON u.id = pm.user_id AND u.status = 'active'
                      WHERE pm.project_id = :project_id AND pm.user_id = :user_id
