@@ -174,6 +174,13 @@ try {
     $statusAudit = $accountManager->listRecentAuditForSiteAdmin($adminId, $statusTestId);
     $assert(count($statusAudit) === 2 && $statusAudit[0]['action'] === 'account_reactivated'
         && $statusAudit[1]['action'] === 'account_disabled', 'status changes create ordered audit records with action history');
+    $auditPermissionRejected = false;
+    try {
+        $accountManager->listRecentAuditForSiteAdmin($outsiderId, $statusTestId);
+    } catch (DomainException) {
+        $auditPermissionRejected = true;
+    }
+    $assert($auditPermissionRejected, 'non-admin accounts cannot read administrator account audit history');
 
     $selfDisableRejected = false;
     try {
