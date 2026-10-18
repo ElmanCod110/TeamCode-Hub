@@ -91,7 +91,7 @@ The UI currently uses a bounded refresh for reconciliation; it is not a durable 
 - Invitation links keep their token in the URL fragment and remove it from browser history. The recipient must sign in or create and verify an account with the invited email address before explicitly accepting the invitation.
 - Team invitation UI is available from a team detail view to users whose current team role is owner or manager. The server independently verifies the role.
 - Member assignment searches only active members of the selected project’s team. It does not provide global account discovery or invite an email address that does not already belong to the team.
-- Permanent team/project deletion, Git provider integration, system-role editing, richer site-administration pages, and browser-level visual/accessibility regression tests remain planned. Project archiving is reversible; restoration checks the active project quota and preserves historical records. Team renaming is owner-only; project metadata edits require an active team owner/manager and approved project membership.
+- Permanent team/project deletion, private GitHub repository access, Git write operations/webhooks, additional Git providers, system-role editing, richer site-administration pages, and browser-level visual/accessibility regression tests remain planned. Project archiving is reversible; restoration checks the active project quota and preserves historical records. Team renaming is owner-only; project metadata edits require an active team owner/manager and approved project membership.
 - Theme preference is stored locally in the current browser; it does not change account-wide settings or access permissions.
 
 ## Verification
