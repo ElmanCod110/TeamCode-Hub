@@ -22,6 +22,10 @@ The application deliberately returns a generic response for both existing and un
 
 Password recovery uses the same HTTPS origin and sender configuration. Reset requests also return a generic response, use purpose-specific IP/email and token-attempt rate limits, and enforce a per-account cooldown. Reset tokens expire after 30 minutes, are stored only as SHA-256 hashes, and are invalidated after use. Password reset and password changes increment `users.session_version`; older sessions are rejected on their next authenticated request. Test both email flows end-to-end before enabling public traffic.
 
+## Team invitation email delivery
+
+Team invitations use the same `APP_URL`, `MAIL_FROM_ADDRESS`, and PHP mail transport as verification and password recovery. Configure the canonical application URL as HTTPS and verify SPF, DKIM, and DMARC for the sender domain. Successful delivery keeps the bearer token out of the API response; when delivery fails, the owner/manager receives a one-time token fallback to share through a trusted channel. Invitees must use the invited email address and should finish registration/email verification before reopening the link if they do not already have an account.
+
 ## Database migrations
 
 After configuring `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, and `DB_PASSWORD`, run `php bin/migrate.php` from a trusted CLI environment. Never run migrations automatically in response to normal web requests or arbitrary SQL errors. The runner records completed versions and uses a MySQL advisory lock to avoid concurrent runs.
