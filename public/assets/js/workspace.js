@@ -491,9 +491,9 @@
     submit.disabled = true;
     submit.textContent = "Updating password…";
     try {
+      if (!state.csrf) await loadCsrf();
       // Remove the bearer token from browser history before sending it to the API.
       history.replaceState({}, "", "/reset-password");
-      if (!state.csrf) await loadCsrf();
       const result = await request("/api/auth/password-reset/complete", {
         method: "POST",
         body: { token: state.passwordResetToken, password, confirm_password: confirmation }
