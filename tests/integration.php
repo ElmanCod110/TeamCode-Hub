@@ -153,6 +153,40 @@ try {
     }
     $assert($invalidDirectoryPageRejected, 'admin user directory rejects unsupported page offsets');
 
+    $disabledMember = $userDirectory->setStatusForSiteAdmin($adminId, $memberId, 'disabled');
+    $memberStatusRow = $pdo->prepare('SELECT status FROM users WHERE id = :id');
+    $memberStatusRow->execute(['id' => $memberId]);
+    $assert($disabledMember['status'] === 'disabled' && $memberStatusRow->fetchColumn() === 'disabled', 'site admin can disable an account without deleting its records');
+    $reactivatedMember = $userDirectory->setStatusForSiteAdmin($adminId, $memberId, 'active');
+    $memberStatusRow->execute(['id' => $memberId]);
+    $assert($reactivatedMember['status'] === 'active' && $memberStatusRow->fetchColumn() === 'active', 'site admin can reactivate a previously disabled account');
+
+    $selfDisableRejected = false;
+    try {
+        $userDirectory->setStatusForSiteAdmin($adminId, $adminId, 'disabled');
+    } catch (DomainException) {
+        $selfDisableRejected = true;
+    }
+    $assert($selfDisableRejected, 'site admin cannot disable their own account');
+
+    $pendingUserLookup = $pdo->prepare("SELECT id FROM users WHERE email = 'directory-fixture-1@example.test' LIMIT 1");
+    $pendingUserLookup->execute();
+    $pendingUserId = (int) $pendingUserLookup->fetchColumn();
+    $pendingStatusChangeRejected = false;
+    try {
+        $userDirectory->setStatusForSiteAdmin($adminId, $pendingUserId, 'active');
+    } catch (DomainException) {
+        $pendingStatusChangeRejected = true;
+    }
+    $assert($pendingStatusChangeRejected, 'admin status endpoint cannot bypass the pending-account onboarding workflow');
+
+    $nonAdminStatusChangeRejected = false;
+    try {
+        $userDirectory->setStatusForSiteAdmin($outsiderId, $memberId, 'disabled');
+    } catch (DomainException) {
+        $nonAdminStatusChangeRejected = true;
+    }
+    $assert($nonAdminStatusChangeRejected, 'non-admin accounts cannot change account status');
 
     $directoryFixture = $pdo->prepare(
         "INSERT INTO users (email, password_hash, display_name, status, email_verified_at)
