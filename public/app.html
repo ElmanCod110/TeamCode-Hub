@@ -57,6 +57,7 @@
         <div class="auth-secondary-actions">
           <button class="btn btn-outline btn-block" type="button" id="show-register">Create account</button>
           <button class="btn btn-ghost btn-block" type="button" id="show-resend-verification">Resend verification email</button>
+          <button class="btn btn-ghost btn-block" type="button" id="show-password-reset">Forgot password?</button>
         </div>
       </form>
 
@@ -104,6 +105,44 @@
         </div>
         <button class="btn btn-primary btn-lg btn-block auth-submit" type="submit" id="resend-submit">Send verification link</button>
         <button class="btn btn-ghost btn-block" type="button" id="show-login-from-resend">Back to sign in</button>
+      </form>
+
+      <!-- Password reset requests use a generic response for existing and unknown addresses. -->
+      <form id="password-reset-request-form" class="auth-card" novalidate hidden>
+        <div class="auth-card-heading">
+          <span class="eyebrow">Account recovery</span>
+          <h2 id="password-reset-request-title">Reset your password</h2>
+          <p>If the email belongs to an active verified account, a short-lived reset link will be sent.</p>
+        </div>
+        <div id="password-reset-request-error" class="alert alert-danger auth-error" role="alert" hidden></div>
+        <div id="password-reset-request-status" class="alert alert-info auth-status" role="status" aria-live="polite" hidden></div>
+        <div class="field">
+          <label class="label" for="password-reset-request-email">Email address</label>
+          <input class="input" id="password-reset-request-email" name="email" type="email" autocomplete="email" maxlength="254" required placeholder="you@company.com">
+        </div>
+        <button class="btn btn-primary btn-lg btn-block auth-submit" type="submit" id="password-reset-request-submit">Send reset link</button>
+        <button class="btn btn-ghost btn-block" type="button" id="show-login-from-reset-request">Back to sign in</button>
+      </form>
+
+      <!-- The reset token is read from the URL fragment and submitted only after explicit confirmation. -->
+      <form id="reset-password-form" class="auth-card" novalidate hidden>
+        <div class="auth-card-heading">
+          <span class="eyebrow">Account recovery</span>
+          <h2 id="reset-password-title">Choose a new password</h2>
+          <p>Use a new password with at least 12 bytes. Resetting it signs out other sessions.</p>
+        </div>
+        <div id="reset-password-error" class="alert alert-danger auth-error" role="alert" hidden></div>
+        <div id="reset-password-status" class="alert alert-info auth-status" role="status" aria-live="polite">The reset link is ready to be confirmed.</div>
+        <div class="field">
+          <label class="label" for="reset-password-new">New password</label>
+          <input class="input" id="reset-password-new" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="72" required placeholder="At least 12 bytes">
+        </div>
+        <div class="field">
+          <label class="label" for="reset-password-confirm">Confirm new password</label>
+          <input class="input" id="reset-password-confirm" name="confirm_password" type="password" autocomplete="new-password" minlength="12" maxlength="72" required placeholder="Enter the same password">
+        </div>
+        <button class="btn btn-primary btn-lg btn-block auth-submit" type="submit" id="reset-password-submit">Reset password</button>
+        <button class="btn btn-ghost btn-block" type="button" id="show-login-from-reset">Back to sign in</button>
       </form>
 
       <!-- The email token is read from the URL fragment and submitted only after explicit user confirmation. -->
