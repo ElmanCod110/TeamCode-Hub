@@ -204,6 +204,9 @@ return static function (): void {
     $router->get('/api/admin/users', static fn (Request $request, array $params): Response =>
         $modules->get('admin-user.controller')->index($request)
     );
+    $router->post('/api/admin/users/{userId}/status', static fn (Request $request, array $params): Response =>
+        $modules->get('admin-user.controller')->updateStatus($request, $params)
+    );
     $router->post('/api/reports/{reportId}/review', static fn (Request $request, array $params): Response =>
         $modules->get('chat-report.controller')->review($request, $params)
     );
