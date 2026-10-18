@@ -17,7 +17,7 @@ final class EmailDeliveryService
         $sender = getenv('MAIL_FROM_ADDRESS');
         $baseUrl = getenv('APP_URL');
         if (!is_string($sender) || filter_var($sender, FILTER_VALIDATE_EMAIL) === false
-            || !is_string($baseUrl) || $baseUrl === '' || preg_match('/[\\r\\n]/', $baseUrl) === 1) {
+            || !is_string($baseUrl) || $baseUrl === '' || preg_match('/[\r\n]/', $baseUrl) === 1) {
             return false;
         }
 
@@ -37,14 +37,14 @@ final class EmailDeliveryService
 
         $invitationUrl = rtrim($baseUrl, '/') . '/accept-invitation#accept-invitation?token=' . rawurlencode($token);
         $subject = 'You have been invited to a TeamCode Hub team';
-        $message = "You have been invited to join the team \"" . trim($teamName) . "\" on TeamCode Hub.\\n\\n"
-            . "Open the secure link below and sign in with the email address this invitation was sent to.\\n\\n"
-            . $invitationUrl . "\\n\\n"
-            . "If you do not have an account yet, create and verify your account first, then open this invitation link again. The invitation expires in seven days and can be used only once.\\n\\n"
-            . "If you were not expecting this invitation, you can ignore this email.\\n";
-        $headers = "From: " . $sender . "\\r\\n"
-            . "MIME-Version: 1.0\\r\\n"
-            . "Content-Type: text/plain; charset=UTF-8\\r\\n";
+        $message = "You have been invited to join the team \"" . trim($teamName) . "\" on TeamCode Hub.\n\n"
+            . "Open the secure link below and sign in with the email address this invitation was sent to.\n\n"
+            . $invitationUrl . "\n\n"
+            . "If you do not have an account yet, create and verify your account first, then open this invitation link again. The invitation expires in seven days and can be used only once.\n\n"
+            . "If you were not expecting this invitation, you can ignore this email.\n"
+        $headers = "From: " . $sender . "\r\n"
+            . "MIME-Version: 1.0\r\n"
+            . "Content-Type: text/plain; charset=UTF-8\r\n";
 
         try {
             return @mail($recipient, $subject, $message, $headers);
