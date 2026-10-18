@@ -19,8 +19,8 @@ The HTML has no inline style or script blocks. The front controller returns HTML
 | View | Data source | Available interactions |
 | --- | --- | --- |
 | Overview | `GET /api/dashboard`, `GET /api/teams`, `GET /api/notifications`, project task endpoints | Review team/project counts, due-today and overdue tasks, recent notifications; navigate to records |
-| Teams | `GET /api/teams`, `POST /api/teams`, team project/invitation endpoints | Create teams, view a team's projects, create/revoke pending invitations, accept a token from a matching account |
-| Projects | Dashboard projection and `GET /api/projects/{projectId}` | Search projects and open a project workspace |
+| Teams | `GET /api/teams`, `POST /api/teams`, `POST /api/teams/{teamId}/edit`, team project/invitation endpoints | Create teams, rename a team as its owner, view projects, manage invitations, and accept a token from a matching account |
+| Projects | Dashboard projection, `GET /api/projects/{projectId}`, and `POST /api/projects/{projectId}/edit` | Search projects, open a workspace, and let team owners/managers update project name and description |
 | Project overview | Project detail and task endpoints | View task metrics and navigate to task/member/chat panels |
 | Tasks | Task list/create/edit/status endpoints and task detail/comment/checklist endpoints | Search/filter, edit/reassign, view task details, discuss work, and manage a bounded checklist; viewer access remains read-only |
 | Members | Project member listing/assignment/approval/revocation endpoints | Assign existing user IDs, select member/viewer access, approve pending access, revoke access when permitted |
