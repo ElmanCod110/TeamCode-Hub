@@ -49,9 +49,9 @@ The project uses plain PHP, browser-native JavaScript, CSS, and PDO. It does not
 
 Authentication: `GET /api/auth/csrf`, `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`, `POST /api/auth/profile`, and `POST /api/auth/password`.
 
-Teams and invitations: `GET|POST /api/teams`, `GET /api/teams/{teamId}`, `GET /api/teams/{teamId}/projects`, invitation creation/listing/acceptance/revocation.
+Teams and invitations: `GET|POST /api/teams`, `GET /api/teams/{teamId}`, `POST /api/teams/{teamId}/edit`, `GET /api/teams/{teamId}/projects`, invitation creation/listing/acceptance/revocation.
 
-Projects and members: project list/detail/create, member assignment/approval/revocation, task list/create/edit/status, task comments/checklists, and project chat/report workflows.
+Projects and members: project list/detail/create/edit, member assignment/approval/revocation, task list/create/edit/status, task comments/checklists, and project chat/report workflows.
 
 Dashboard: `GET /api/dashboard`, `GET /api/notifications`, and `POST /api/notifications/{notificationId}/read`.
 
