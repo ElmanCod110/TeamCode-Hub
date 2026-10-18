@@ -25,7 +25,7 @@ Project source files are stored privately in MariaDB and are never executed. The
 | View | Data source | Available interactions |
 | --- | --- | --- |
 | Overview | `GET /api/dashboard`, `GET /api/teams`, `GET /api/notifications`, project task endpoints | Review team/project counts, due-today and overdue tasks, recent notifications; navigate to records |
-| Teams | `GET /api/teams`, `POST /api/teams`, team project/invitation endpoints | Create teams, rename a team as owner, view a team's projects, archive and restore projects as a team manager, create/revoke pending invitations, accept a token from a matching account |
+| Teams | `GET /api/teams`, `POST /api/teams`, team project/invitation endpoints | Create teams, rename a team as owner, view a team's projects, archive and restore projects as a team manager, email/revoke pending invitations, accept a token from a matching account |
 | Projects | Dashboard projection and `GET /api/projects/{projectId}` | Search projects, edit name/description as an authorized team manager, archive a project without deleting its history, and open a project workspace |
 | Project overview | Project detail and task endpoints | View task metrics and navigate to task/member/chat/repository panels |
 | Project files | `GET|POST /api/projects/{projectId}/files` plus file detail/edit/history/restore endpoints | Browse/search up to 200 private source files, edit text with optimistic concurrency, and restore a retained revision; viewers are read-only |
@@ -87,10 +87,11 @@ The UI currently uses a bounded refresh for reconciliation; it is not a durable 
 ## Operational limitations
 
 - Public registration, email verification, and password recovery are connected. New accounts stay pending until the recipient verifies the email address.
-- Invitation creation returns a one-time token but does not send an email. The token should be shared through a trusted channel.
+- Invitation creation sends a seven-day one-time link when HTTPS email delivery is configured. Successful delivery does not expose the raw token to the inviter; if delivery fails, the UI displays a one-time fallback token for sharing through a trusted channel.
+- Invitation links keep their token in the URL fragment and remove it from browser history. The recipient must sign in or create and verify an account with the invited email address before explicitly accepting the invitation.
 - Team invitation UI is available from a team detail view to users whose current team role is owner or manager. The server independently verifies the role.
 - Member assignment searches only active members of the selected project’s team. It does not provide global account discovery or invite an email address that does not already belong to the team.
-- Permanent team/project deletion, private repository access, Git write operations/webhooks, additional Git providers, system-role editing, richer site-administration pages, and browser-level visual/accessibility regression tests remain planned. Project archiving is reversible; restoration checks the active project quota and preserves historical records. Team renaming is owner-only; project metadata edits require an active team owner/manager and approved project membership.
+- Permanent team/project deletion, Git provider integration, system-role editing, richer site-administration pages, and browser-level visual/accessibility regression tests remain planned. Project archiving is reversible; restoration checks the active project quota and preserves historical records. Team renaming is owner-only; project metadata edits require an active team owner/manager and approved project membership.
 - Theme preference is stored locally in the current browser; it does not change account-wide settings or access permissions.
 
 ## Verification
