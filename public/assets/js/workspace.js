@@ -427,6 +427,7 @@
   }
 
   function navigate(page, updateHash = true) {
+    if (state.page === "project" && state.projectTab === "files" && page !== "project" && !confirmDiscardProjectFileChanges()) return;
     if (page === "admin-users" && !(state.user?.roles || []).includes("site_admin")) {
       toast("Site administrator role required.", "warning");
       page = "overview";
@@ -637,6 +638,7 @@
   }
 
   async function openTeam(teamId) {
+    if (state.page === "project" && state.projectTab === "files" && !confirmDiscardProjectFileChanges()) return;
     const team = teamById(teamId);
     if (!team) return;
     state.page = "teams";
@@ -819,6 +821,9 @@
   }
 
   async function openProject(project, updateHash = true, tab = "overview") {
+    if (state.page === "project" && state.projectTab === "files"
+      && (Number(state.selectedProject?.id) !== Number(project.id) || tab !== "files")
+      && !confirmDiscardProjectFileChanges()) return;
     state.selectedProject = project;
     state.page = "project";
     state.projectTab = tab;
@@ -941,8 +946,7 @@
           "data-file-id": file.id,
           "data-file-path": file.path
         });
-        row.setAttribute("role", "listitem");
-        const path = el("span", "project-file-path", file.path);
+          const path = el("span", "project-file-path", file.path);
         const metadata = el("span", "project-file-meta", "v" + file.version + " · " + formatFileBytes(file.size_bytes));
         append(row, path, metadata);
         fileList.appendChild(row);
@@ -1000,6 +1004,8 @@
       const source = el("textarea", "project-file-source");
       source.id = "project-file-source";
       source.value = file.content || "";
+      source.defaultValue = source.value;
+      editor.dataset.fileId = String(file.id);
       source.spellcheck = false;
       source.wrap = "off";
       source.autocomplete = "off";
@@ -1012,7 +1018,7 @@
       const updateStats = () => {
         const bytes = new TextEncoder().encode(source.value).length;
         stats.textContent = formatFileBytes(bytes) + " / " + formatFileBytes(directory.limits.max_file_bytes);
-        status.textContent = directory.can_edit ? "Unsaved changes are kept in this editor until saved." : "Read-only access.";
+        status.textContent = !directory.can_edit ? "Read-only access." : (source.value === source.defaultValue ? "Saved version loaded." : "Unsaved changes — save before leaving.");
       };
       source.addEventListener("input", updateStats);
       updateStats();
@@ -1022,6 +1028,17 @@
     } catch (error) {
       content.replaceChildren(el("div", "alert alert-danger", error.message || "Project files could not be loaded."));
     }
+  }
+
+
+  function hasUnsavedProjectFileChanges() {
+    const source = $("#project-file-source");
+    return !!source && source.value !== source.defaultValue;
+  }
+
+  function confirmDiscardProjectFileChanges() {
+    return !hasUnsavedProjectFileChanges()
+      || window.confirm("Discard unsaved source changes? Save them first if you need to keep them.");
   }
 
   function formatFileBytes(value) {
@@ -1039,6 +1056,7 @@
 
   /** Require a valid path and keep new source content within the server-enforced project quotas. */
   function createProjectFileModal(projectId) {
+    if (!confirmDiscardProjectFileChanges()) return;
     const project = projectById(projectId) || state.selectedProject;
     if (!project || project.access_level === "viewer" || !canManageTeam(project.team_id) && project.access_level !== "member") {
       toast("Approved member-level project access is required to create files.", "warning");
@@ -1125,6 +1143,7 @@
   }
 
   async function restoreProjectFileVersion(projectId, fileId, filePath, version, expectedVersion) {
+    if (!confirmDiscardProjectFileChanges()) return;
     if (!window.confirm("Restore version " + version + " of " + filePath + "? The current content will be preserved as an earlier revision.")) return;
     const result = await request("/api/projects/" + escapePath(projectId) + "/files/" + escapePath(fileId) + "/restore", {
       method: "POST",
@@ -2936,9 +2955,15 @@
       if (name === "create-team") createTeamModal();
       else if (name === "refresh-admin-users") await renderAdminUsers();
       else if (name === "create-project-file") createProjectFileModal(action.dataset.projectId);
-      else if (name === "select-project-file") await renderProjectFiles($(".project-tab-panel"), projectById(action.dataset.projectId) || state.selectedProject, action.dataset.fileId);
+      else if (name === "select-project-file") {
+        if (Number(action.dataset.fileId) !== Number($("#project-files-editor")?.dataset.fileId) && !confirmDiscardProjectFileChanges()) return;
+        await renderProjectFiles($(".project-tab-panel"), projectById(action.dataset.projectId) || state.selectedProject, action.dataset.fileId);
+      }
       else if (name === "save-project-file") await saveProjectFile(action.dataset.projectId, action.dataset.fileId, action.dataset.fileVersion);
-      else if (name === "reload-project-file") await renderProjectFiles($(".project-tab-panel"), projectById(action.dataset.projectId) || state.selectedProject, action.dataset.fileId);
+      else if (name === "reload-project-file") {
+        if (!confirmDiscardProjectFileChanges()) return;
+        await renderProjectFiles($(".project-tab-panel"), projectById(action.dataset.projectId) || state.selectedProject, action.dataset.fileId);
+      }
       else if (name === "project-file-history") await showProjectFileHistory(action.dataset.projectId, action.dataset.fileId, action.dataset.filePath || "Source file", action.dataset.fileVersion, action.dataset.canEdit === "true");
       else if (name === "restore-project-file-version") await restoreProjectFileVersion(action.dataset.projectId, action.dataset.fileId, action.dataset.filePath || "Source file", action.dataset.version, action.dataset.expectedVersion);
       else if (name === "connect-project-github") connectProjectRepositoryModal(action.dataset.projectId, action.dataset.repository || "");
