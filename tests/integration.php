@@ -223,7 +223,9 @@ try {
     $storedRecovery->execute(['id' => $recoveryUserId]);
     $storedRecoveryRow = $storedRecovery->fetch(PDO::FETCH_ASSOC);
     $assert(is_array($storedRecoveryRow) && $storedRecoveryRow['token_hash'] === $recoveryHash && $recoveryHash !== $recoveryToken, 'password reset stores only the SHA-256 token hash');
-    $assert(strtotime((string) $storedRecoveryRow['expires_at']) > time() && strtotime((string) $storedRecoveryRow['expires_at']) <= time() + 31 * 60, 'password reset token has a bounded 30-minute expiry');
+    $expiryBound = $pdo->prepare('SELECT expires_at > CURRENT_TIMESTAMP AND expires_at <= DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 31 MINUTE) FROM account_action_tokens WHERE token_hash = :hash');
+    $expiryBound->execute(['hash' => $recoveryHash]);
+    $assert((int) $expiryBound->fetchColumn() === 1, 'password reset token has a bounded 30-minute expiry');
 
     $recoveryReplacement = 'A-New-Recovery-Password-52';
     $assert($recoveryRepository->resetPassword($recoveryHash, password_hash($recoveryReplacement, PASSWORD_DEFAULT)), 'valid password reset atomically replaces the credential');
@@ -811,6 +813,13 @@ try {
     $projects->restoreForTeamManager($adminId, $projectId);
     $restoredProject = $projects->findAccessibleByUser($adminId, $projectId);
     $assert(is_array($restoredProject) && $restoredProject['status'] === 'active', 'team owner can restore an archived project after quota capacity is available');
+
+    // A stale browser session must stop resolving its user after the credential generation changes.
+    SecureSession::start();
+    $assert($auth->authenticate('admin@example.test', 'A-New-Strong-Password-52'), 'account can sign in with its replacement password');
+    $_SESSION['session_version'] = 1;
+    $assert($auth->currentUser() === null, 'session version mismatch invalidates an older authenticated session');
+
 
     echo "\n{$passed} integration assertions passed.\n";
     $output = ob_get_clean();
