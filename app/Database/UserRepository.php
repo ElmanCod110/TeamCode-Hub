@@ -185,6 +185,88 @@ final class UserRepository
         ];
     }
 
+    /**
+     * Change an existing active/disabled account status from the site-admin directory.
+     *
+     * The active administrator rows are locked in a stable order before any account
+     * status is changed. This prevents concurrent administrators from disabling one
+     * another after each independently observed an active administrator.
+     *
+     * @return array{id:int,status:string,is_site_admin:bool}
+     */
+    public function setStatusForSiteAdmin(int $actorId, int $targetUserId, string $status): array
+    {
+        if (!in_array($status, ['active', 'disabled'], true)) {
+            throw new DomainException('Only active and disabled account states can be selected.');
+        }
+
+        $this->pdo->beginTransaction();
+        try {
+            $adminStatement = $this->pdo->query(
+                "SELECT u.id, u.status
+                 FROM user_system_roles r
+                 INNER JOIN users u ON u.id = r.user_id
+                 WHERE r.role = 'site_admin'
+                 ORDER BY u.id ASC
+                 FOR UPDATE"
+            );
+            $adminRows = $adminStatement->fetchAll(PDO::FETCH_ASSOC);
+            $activeAdminIds = [];
+            $actorIsActiveAdmin = false;
+            foreach ($adminRows as $adminRow) {
+                $adminId = (int) $adminRow['id'];
+                if ($adminRow['status'] === 'active') {
+                    $activeAdminIds[] = $adminId;
+                }
+                if ($adminId === $actorId && $adminRow['status'] === 'active') {
+                    $actorIsActiveAdmin = true;
+                }
+            }
+            if (!$actorIsActiveAdmin) {
+                throw new DomainException('An active site administrator role is required.');
+            }
+            if ($actorId === $targetUserId && $status !== 'active') {
+                throw new DomainException('Administrators cannot disable their own account.');
+            }
+
+            $targetStatement = $this->pdo->prepare(
+                "SELECT id, status,
+                        EXISTS (SELECT 1 FROM user_system_roles WHERE user_id = users.id AND role = 'site_admin') AS is_site_admin
+                 FROM users
+                 WHERE id = :user_id
+                 LIMIT 1
+                 FOR UPDATE"
+            );
+            $targetStatement->execute(['user_id' => $targetUserId]);
+            $target = $targetStatement->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($target)) {
+                throw new DomainException('Target account was not found.');
+            }
+            if (!in_array($target['status'], ['active', 'disabled'], true)) {
+                throw new DomainException('Pending accounts cannot be activated or disabled through this endpoint.');
+            }
+
+            $isSiteAdmin = (bool) $target['is_site_admin'];
+            if ($isSiteAdmin && $target['status'] === 'active' && $status === 'disabled'
+                && count($activeAdminIds) <= 1) {
+                throw new DomainException('At least one active site administrator must remain.');
+            }
+
+            if ($target['status'] !== $status) {
+                $update = $this->pdo->prepare('UPDATE users SET status = :status WHERE id = :user_id');
+                $update->execute(['status' => $status, 'user_id' => $targetUserId]);
+            }
+
+            $this->pdo->commit();
+            return ['id' => $targetUserId, 'status' => $status, 'is_site_admin' => $isSiteAdmin];
+        } catch (\Throwable $error) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $error;
+        }
+    }
+
     /** @return list<string> */
     public function systemRoles(int $userId): array
     {
