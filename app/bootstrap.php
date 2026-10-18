@@ -103,6 +103,7 @@ return static function (): void {
             new TeamRepository($pdo),
             new TeamInvitationRepository($pdo),
             new EmailDeliveryService(),
+            new LoginRateLimiter($pdo),
         );
     });
 
