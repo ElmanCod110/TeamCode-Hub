@@ -6,6 +6,7 @@ This document maps the English browser application to the existing server APIs. 
 
 - `/` — authenticated workspace shell; shows sign-in when there is no active session.
 - `/login` — the same progressive-enhancement shell, initially displaying sign-in when unauthenticated.
+- `/verify-email` — the same shell, used to confirm the one-time token supplied in the URL fragment.
 - `/design-system.html` — component reference page.
 - `public/app.html` — semantic workspace shell.
 - `public/assets/css/app.css` and its token/base/layout/component/pattern/utility layers — shared design-system styles.
@@ -62,6 +63,13 @@ The client is not an authorization boundary. Hiding a button does not replace se
 - Normal messages expire after 24 hours. Reported messages can be retained while their moderation cases remain unresolved.
 
 The UI currently uses a bounded refresh for reconciliation; it is not a durable real-time event stream. If a chat view is left open for an extended period, the server's ID cursor still bounds each incremental response to 50 messages.
+
+## Public registration and email verification
+
+- Registration creates a pending account; it does not grant team/project access or bypass existing membership rules.
+- The browser displays a confirmation step before submitting the token, so link scanners that only fetch URLs do not consume it.
+- Configure `APP_BASE_URL` with the canonical HTTPS origin and `MAIL_FROM_ADDRESS` with a valid sender. The host must support PHP `mail()` delivery; see the operations guide.
+- Responses are generic for known and unknown email addresses. Pending accounts can request a resend, subject to rate limits and a 60-second cooldown.
 
 ## Operational limitations
 
