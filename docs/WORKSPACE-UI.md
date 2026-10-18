@@ -29,6 +29,7 @@ The HTML has no inline style or script blocks. The front controller returns HTML
 | Notifications | `GET /api/notifications`, `POST /api/notifications/{id}/read` | Receive background updates to recent notifications/unread counts while visible; mark individual or visible notifications as read |
 | Account preferences | `POST /api/auth/profile`, `POST /api/auth/password` | Update the signed-in display name or change the password after verifying the current credential; email and system roles remain read-only |
 | Moderation | `GET /api/admin/reports`, `GET /api/teams/{teamId}/reports`, `POST /api/reports/{reportId}/review` | Review scoped report queues, inspect preserved message context, mark reports valid/rejected, or resolve valid cases |
+| User directory | `GET /api/admin/users` | Search up to 50 account records by name, email, or exact ID; filter by status and inspect sign-in activity; read-only for site administrators |
 | GitHub activity | `GET /api/github/activity` | View up to 30 cached public events; the service makes at most one refresh attempt per configured username per UTC day and preserves the last good snapshot on failure |
 | Preferences | Browser storage and system color preference | Choose light, dark, or system theme; sign out |
 
