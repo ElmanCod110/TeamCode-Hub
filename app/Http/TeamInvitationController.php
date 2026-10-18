@@ -11,6 +11,8 @@ use TeamCodeHub\Core\Response;
 use TeamCodeHub\Database\TeamInvitationRepository;
 use TeamCodeHub\Security\AuthenticationService;
 use TeamCodeHub\Security\CsrfToken;
+use TeamCodeHub\Security\ClientIpResolver;
+use TeamCodeHub\Security\LoginRateLimiter;
 use TeamCodeHub\Security\SecureSession;
 use TeamCodeHub\Security\TeamAccessService;
 use TeamCodeHub\Services\EmailDeliveryService;
@@ -22,6 +24,7 @@ final class TeamInvitationController
         private readonly TeamAccessService $teamAccess,
         private readonly TeamInvitationRepository $invitations,
         private readonly EmailDeliveryService $emailDelivery,
+        private readonly LoginRateLimiter $rateLimiter,
     ) {
     }
 
@@ -58,8 +61,14 @@ final class TeamInvitationController
             return Response::json(['error' => 'A valid email address is required.'], 422);
         }
 
+        $normalizedEmail = strtolower(trim($email));
+        $rateLimitIdentity = 'team-' . $teamId . ':' . $normalizedEmail;
+        if (!$this->rateLimiter->allowsForPurpose('team-invite-create', $rateLimitIdentity, $this->clientIp($request))) {
+            return Response::json(['error' => 'Too many invitation attempts. Try again later.'], 429);
+        }
+
         try {
-            $invitation = $this->invitations->createForManager($user['id'], $teamId, strtolower(trim($email)));
+            $invitation = $this->invitations->createForManager($user['id'], $teamId, $normalizedEmail);
         } catch (QuotaExceededException) {
             return Response::json(['error' => 'The team has reached its member quota.'], 409);
         } catch (DomainException $error) {
@@ -155,6 +164,16 @@ final class TeamInvitationController
             $token = $body['csrf_token'];
         }
         return CsrfToken::validate($token);
+    }
+
+    /** Resolve client addresses only through explicitly trusted proxy configuration. */
+    private function clientIp(Request $request): string
+    {
+        return ClientIpResolver::resolve(
+            (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown'),
+            $request->header('X-Forwarded-For'),
+            ClientIpResolver::configuredTrustedProxies(),
+        );
     }
 
     private function positiveId(mixed $value): ?int
