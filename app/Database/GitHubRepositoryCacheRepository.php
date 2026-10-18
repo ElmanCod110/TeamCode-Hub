@@ -32,19 +32,19 @@ final class GitHubRepositoryCacheRepository
             $insert->execute(['repository' => $repository]);
 
             $budgetQuery = $this->pdo->query(
-                'SELECT utc_date, attempts FROM github_repository_refresh_budget WHERE id = 1 LIMIT 1 FOR UPDATE'
+                'SELECT budget_date, attempts FROM github_repository_refresh_budget WHERE id = 1 LIMIT 1 FOR UPDATE'
             );
             $budget = $budgetQuery->fetch(PDO::FETCH_ASSOC);
             if (!is_array($budget)) {
                 throw new RuntimeException('GitHub repository refresh budget has not been initialized.');
             }
-            $budgetDate = (string) $budget['utc_date'];
+            $budgetDate = (string) $budget['budget_date'];
             $attempts = (int) $budget['attempts'];
             if ($budgetDate !== $utcDate) {
                 $reset = $this->pdo->prepare(
-                    'UPDATE github_repository_refresh_budget SET utc_date = :utc_date, attempts = 0 WHERE id = 1'
+                    'UPDATE github_repository_refresh_budget SET budget_date = :budget_date, attempts = 0 WHERE id = 1'
                 );
-                $reset->execute(['utc_date' => $utcDate]);
+                $reset->execute(['budget_date' => $utcDate]);
                 $attempts = 0;
             }
 
@@ -78,7 +78,7 @@ final class GitHubRepositoryCacheRepository
 
             $increment = $this->pdo->prepare(
                 'UPDATE github_repository_refresh_budget
-                 SET utc_date = :utc_date, attempts = :attempts WHERE id = 1'
+                 SET budget_date = :budget_date, attempts = :attempts WHERE id = 1'
             );
             $increment->execute(['utc_date' => $utcDate, 'attempts' => $attempts + 1]);
 
