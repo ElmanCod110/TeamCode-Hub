@@ -1021,7 +1021,7 @@
       const updateStats = () => {
         const bytes = new TextEncoder().encode(source.value).length;
         stats.textContent = formatFileBytes(bytes) + " / " + formatFileBytes(directory.limits.max_file_bytes);
-        status.textContent = !directory.can_edit ? "Read-only access." : (source.value === source.defaultValue ? "Saved version loaded." : "Unsaved changes — save before leaving.");
+        status.textContent = !directory.can_edit ? "Read-only access." : (source.value === source.defaultValue ? "Saved. Ctrl/Cmd+S saves; Tab inserts four spaces." : "Unsaved changes — Ctrl/Cmd+S to save before leaving.");
       };
       source.addEventListener("input", updateStats);
       source.addEventListener("keydown", event => {
@@ -1078,8 +1078,8 @@
       return;
     }
     openFormModal("Create source file", "Create a relative text-file path in this project. Files are stored privately and are never executed by the platform.", [
-      { name: "path", label: "Relative file path", type: "text", required: true, maxLength: 240, placeholder: "src/main.php", help: "Use forward slashes for folders. Traversal paths, .git, and environment-secret files are blocked.", full: true },
-      { name: "content", label: "Initial source text", type: "textarea", rows: 9, maxLength: 262144, value: "", help: "Maximum 256 KiB per file and 10 MiB of source text per project.", full: true }
+      { name: "path", label: "Relative file path", type: "text", required: true, maxLength: 240, placeholder: "src/main.php", help: "Use forward slashes for folders. Traversal paths, .git, and environment-secret files are blocked. Never store real credentials or private keys.", full: true },
+      { name: "content", label: "Initial source text", type: "textarea", rows: 9, maxLength: 262144, value: "", help: "Maximum 256 KiB per file, 10 MiB of current source text, and 20 MiB of revision history per project.", full: true }
     ], "Create file", async values => {
       const result = await request("/api/projects/" + escapePath(project.id) + "/files", {
         method: "POST",
