@@ -17,6 +17,7 @@ use TeamCodeHub\Database\DatabaseConfig;
 use TeamCodeHub\Database\EmailVerificationRepository;
 use TeamCodeHub\Database\MembershipRepository;
 use TeamCodeHub\Database\NotificationRepository;
+use TeamCodeHub\Database\PasswordResetRepository;
 use TeamCodeHub\Database\ProjectRepository;
 use TeamCodeHub\Database\ProjectMembershipRepository;
 use TeamCodeHub\Database\TeamRepository;
@@ -32,6 +33,7 @@ use TeamCodeHub\Http\ChatReportController;
 use TeamCodeHub\Http\DashboardController;
 use TeamCodeHub\Http\GitHubActivityController;
 use TeamCodeHub\Http\ProjectGitHubController;
+use TeamCodeHub\Http\PasswordResetController;
 use TeamCodeHub\Http\WorkspaceController;
 use TeamCodeHub\Http\TaskController;
 use TeamCodeHub\Http\TaskCollaborationController;
@@ -47,6 +49,7 @@ use TeamCodeHub\Services\GitHubActivityService;
 use TeamCodeHub\Services\AccountLifecycleService;
 use TeamCodeHub\Services\EmailDeliveryService;
 use TeamCodeHub\Services\GitHubRepositoryService;
+use TeamCodeHub\Services\PasswordResetService;
 
 spl_autoload_register(static function (string $class): void {
     $prefix = 'TeamCodeHub\\';
@@ -78,6 +81,14 @@ return static function (): void {
         $users = new UserRepository($pdo);
         return new AccountLifecycleController(
             new AccountLifecycleService($users, new EmailVerificationRepository($pdo), new EmailDeliveryService()),
+            new LoginRateLimiter($pdo),
+        );
+    });
+
+    $modules->register('password-reset.controller', static function (): object {
+        $pdo = ConnectionFactory::connect(DatabaseConfig::fromEnvironment());
+        return new PasswordResetController(
+            new PasswordResetService(new PasswordResetRepository($pdo), new EmailDeliveryService()),
             new LoginRateLimiter($pdo),
         );
     });
@@ -204,6 +215,7 @@ return static function (): void {
     $router->get('/', static fn (Request $request, array $params): Response => $appPage());
     $router->get('/login', static fn (Request $request, array $params): Response => $appPage());
     $router->get('/verify-email', static fn (Request $request, array $params): Response => $appPage());
+    $router->get('/reset-password', static fn (Request $request, array $params): Response => $appPage());
 
     $router->get('/health', static fn (Request $request, array $params): Response => Response::json([
         'status' => 'ok',
@@ -270,6 +282,12 @@ return static function (): void {
     );
     $router->post('/api/auth/verify-email', static fn (Request $request, array $params): Response =>
         $modules->get('account-lifecycle.controller')->verifyEmail($request)
+    );
+    $router->post('/api/auth/password-reset/request', static fn (Request $request, array $params): Response =>
+        $modules->get('password-reset.controller')->requestReset($request)
+    );
+    $router->post('/api/auth/password-reset/complete', static fn (Request $request, array $params): Response =>
+        $modules->get('password-reset.controller')->completeReset($request)
     );
     $router->post('/api/auth/login', static fn (Request $request, array $params): Response =>
         $modules->get('auth.controller')->login($request)
