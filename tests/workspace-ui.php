@@ -131,7 +131,9 @@ $assert(str_contains($passwordRecoveryService, "hash('sha256'") && str_contains(
 $assert(str_contains($js, '/api/dashboard') && str_contains($js, '/api/teams') && str_contains($js, '/api/projects/') && str_contains($js, '/api/notifications'), 'controller connects the existing dashboard, team, project, and notification APIs');
 $assert(str_contains($bootstrap, "/api/teams/{teamId}/edit") && str_contains($bootstrap, "/api/projects/{projectId}/edit"), 'team and project metadata update routes are registered');
 $workspaceController = $read('app/Http/WorkspaceController.php');
-$assert(str_contains($workspaceController, 'public function renameTeam(') && str_contains($workspaceController, 'public function editProject('), 'registered settings routes resolve to implemented controller methods');
+$assert(str_contains($bootstrap, "->updateTeam(\\$request, \\$params)") && str_contains($bootstrap, "->updateProject(\\$request, \\$params)"), 'settings routes call the existing update handlers');
+$assert(str_contains($workspaceController, 'public function updateTeam(') && str_contains($workspaceController, 'public function updateProject('), 'registered settings handlers enforce validation and permissions');
+$assert(!str_contains($workspaceController, 'public function renameTeam(') && !str_contains($workspaceController, 'public function editProject('), 'unused duplicate settings handlers stay removed');
 $assert(str_contains($workspaceController, 'updateNameForOwner') && str_contains($workspaceController, 'updateMetadataForTeamManager'), 'settings controllers reuse transactional repository authorization boundaries');
 $assert(str_contains($bootstrap, '/api/teams/{teamId}/archived-projects') && str_contains($bootstrap, '/api/projects/{projectId}/archive') && str_contains($bootstrap, '/api/projects/{projectId}/restore'), 'project lifecycle endpoints are registered');
 $assert(str_contains($js, 'archive-project') && str_contains($js, 'restore-project') && str_contains($js, 'Archived projects'), 'workspace connects archive actions to a restorable archived-project list');
@@ -139,6 +141,7 @@ $assert(str_contains($workspaceController, 'updateNameForOwner') && str_contains
 $assert(str_contains($js, 'editTeamModal') && str_contains($js, 'editProjectModal'), 'workspace exposes connected team and project editing dialogs');
 $assert(str_contains($js, 'Dashboard summaries omit descriptions') && str_contains($js, 'Project details could not be loaded.'), 'project editing loads the full authorized record before saving metadata');
 $assert(str_contains($js, 'team.role === "owner"') && str_contains($js, 'canManageTeam(project.team_id)'), 'team rename is owner-only and project editing is manager-gated in the UI');
+$assert(str_contains($js, 'actionButton("Edit team", "edit-team"') && str_contains($js, 'actionButton("Edit project", "edit-project"'), 'team and project detail headers expose settings actions');
 $assert(str_contains($js, '/api/admin/reports') && str_contains($js, '/api/reports/') && str_contains($js, 'renderReportCard'), 'moderation UI connects scoped report queues and review actions');
 $assert(str_contains($bootstrap, "/api/admin/users") && str_contains($html, 'id="nav-admin-users-item"'), 'site-admin user directory route and navigation are registered');
 $assert(str_contains($js, 'function renderAdminUsers()') && str_contains($js, '/api/admin/users?') && str_contains($js, 'AbortController'), 'admin user directory connects debounced search with stale-request cancellation');
