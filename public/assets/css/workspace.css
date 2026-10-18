@@ -599,6 +599,9 @@
    -------------------------------------------------------------------------- */
 .admin-users-toolbar { display:grid; grid-template-columns:minmax(0,1fr) 180px auto; gap:12px; align-items:center; padding:16px; margin-bottom:16px; }
 .admin-users-results { overflow:hidden; }
+.admin-users-pagination { display:flex; justify-content:flex-end; align-items:center; gap:12px; padding:14px 18px; border-top:1px solid var(--border); }
+.admin-users-pagination > span { min-width:72px; text-align:center; color:var(--text-muted); }
+.admin-users-pagination button:disabled { opacity:.45; cursor:not-allowed; }
 .admin-user-list { display:flex; flex-direction:column; }
 .admin-user-row { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(120px,.55fr) minmax(170px,.8fr); gap:16px; align-items:center; padding:16px 20px; border-top:1px solid var(--border); }
 .admin-user-identity { display:flex; align-items:center; gap:12px; min-width:0; }
@@ -617,6 +620,7 @@
   .admin-users-toolbar { grid-template-columns:1fr; }
   .admin-users-toolbar button { grid-column:auto; width:100%; }
   .admin-user-row { padding:14px; }
+  .admin-users-pagination { justify-content:space-between; padding:12px; }
   .admin-user-state { grid-column:1 / -1; padding-inline-start:44px; }
   .admin-user-activity { padding-inline-start:44px; }
 }
