@@ -18,7 +18,7 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 - Searchable project-member assignment by display name, email, or exact user ID, pending membership approval, member/viewer access changes, and access revocation where the signed-in user has management permission.
 - Text-only project chat with incremental polling, periodic bounded-window reconciliation for edits/deletions, own-message editing/deletion, and message reporting.
 - Notification inbox with user-scoped read-state changes, background refresh, and authoritative unread badges.
-- Site-admin user directory with bounded, paginated search, account-status filtering, and sign-in metadata; password hashes and authentication secrets are never exposed.
+- Site-admin user directory with bounded, paginated search, account-status filtering, sign-in metadata, and audited account disable/reactivate controls; password hashes and authentication secrets are never exposed.
 - Personal preferences for light/dark/system theme; an expanded token-driven design system with responsive forms, feedback, navigation, upload controls, pagination, accordions, workflow steps, and reusable content patterns. No external fonts or UI framework are required.
 
 ## Security and backend foundation
@@ -35,6 +35,7 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 - Project chat with a 50-message response window, incremental ID cursor, edit/delete, 24-hour expiry, and report-context preservation.
 - Report review queues for team managers/site admins, duplicate-report controls, and escalation after two distinct valid reports within 24 hours.
 - Same-origin Content Security Policy for HTML application responses, external CSS/JS, and versioned frontend assets.
+- Account status changes require a recorded reason, use transactional audit events, prevent self-disable, and allow reactivation only for email-verified accounts.
 
 ## Run locally or deploy
 
@@ -55,7 +56,7 @@ Teams and invitations: `GET|POST /api/teams`, `GET /api/teams/{teamId}`, `GET /a
 Projects and members: project list/detail/create, member assignment/approval/revocation, task list/create/edit/status, searchable assignees, task comments/checklists, and project chat/report workflows.
 
 Dashboard: `GET /api/dashboard`, `GET /api/notifications`, and `POST /api/notifications/{notificationId}/read`.
-Site administration: `GET /api/admin/users` and the existing scoped report-review endpoints.
+Site administration: `GET /api/admin/users`, `POST /api/admin/users/{userId}/status`, `GET /api/admin/users/{userId}/audit`, and the existing scoped report-review endpoints.
 
 See [docs/API.md](docs/API.md) for request bodies, status codes, retention, and authorization boundaries. See [docs/WORKSPACE-UI.md](docs/WORKSPACE-UI.md) for UI-to-API mappings and browser behavior.
 
@@ -76,7 +77,7 @@ node --check public/assets/js/workspace.js
 
 ## Remaining product work
 
-Public registration, email verification, password recovery, automatic invitation email delivery, team/project deletion, Git synchronization, richer administrative pages, and automated browser-level visual/accessibility tests are not implemented yet. There is no automatic admin bypass of team/project access checks. Every protected route must continue to enforce authorization on the server.
+Public registration, email verification, password recovery, automatic invitation email delivery, team/project deletion, Git synchronization, system-role editing, richer administrative pages, and automated browser-level visual/accessibility tests are not implemented yet. There is no automatic admin bypass of team/project access checks. Every protected route must continue to enforce authorization on the server.
 
 ## Repository layout
 
