@@ -236,6 +236,10 @@ try {
     $assert(is_array($recoveryCredentialRow) && password_verify($recoveryReplacement, $recoveryCredentialRow['password_hash']), 'password reset persists the replacement password hash');
     $assert(is_array($recoveryCredentialRow) && (int) $recoveryCredentialRow['session_version'] === 2, 'password reset increments the session version to revoke old sessions');
     $assert(!$recoveryRepository->resetPassword($recoveryHash, password_hash('Another-Recovery-Password-53', PASSWORD_DEFAULT)), 'password reset tokens cannot be replayed');
+    $cooldownHash = hash('sha256', bin2hex(random_bytes(32)));
+    $assert($recoveryRepository->issueTokenForEmail('password-recovery@example.test', $cooldownHash) === null, 'reset email cooldown remains active after the prior token is consumed');
+    $pdo->prepare("UPDATE account_action_tokens SET created_at = DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 2 MINUTE) WHERE token_hash = :hash")
+        ->execute(['hash' => $recoveryHash]);
 
     $expiredRecoveryToken = bin2hex(random_bytes(32));
     $expiredRecoveryHash = hash('sha256', $expiredRecoveryToken);
