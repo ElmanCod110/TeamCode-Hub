@@ -31,6 +31,28 @@ final class ProjectRepository
         return array_map(self::normalize(...), $statement->fetchAll());
     }
 
+    /**
+     * Return archived project metadata for team owners/managers only.
+     * Archived records remain visible here so a manager can restore them without losing history.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function listArchivedForManager(int $userId, int $teamId): array
+    {
+        $statement = $this->pdo->prepare(
+            "SELECT p.id, p.team_id, p.name, p.slug, p.description, p.status, p.created_by, p.created_at, p.updated_at
+             FROM projects p
+             INNER JOIN teams t ON t.id = p.team_id AND t.status = 'active'
+             INNER JOIN team_memberships tm ON tm.team_id = t.id AND tm.user_id = :user_id AND tm.status = 'active'
+             WHERE p.team_id = :team_id AND p.status = 'archived'
+               AND tm.role IN ('owner', 'manager')
+             ORDER BY p.updated_at DESC, p.id DESC
+             LIMIT 100"
+        );
+        $statement->execute(['user_id' => $userId, 'team_id' => $teamId]);
+        return array_map(self::normalize(...), $statement->fetchAll(PDO::FETCH_ASSOC));
+    }
+
     /** @return array<string, mixed>|null */
     public function findAccessibleByUser(int $userId, int $projectId): ?array
     {
@@ -108,33 +130,116 @@ final class ProjectRepository
         }
     }
 
+    /**
+     * Archive a project without deleting its tasks, memberships, comments, or chat history.
+     * The operation is reversible by a team owner/manager.
+     */
+    public function archiveForTeamManager(int $userId, int $projectId): void
+    {
+        $this->pdo->beginTransaction();
+        try {
+            $project = $this->lockProjectForLifecycle($userId, $projectId);
+            if ($project['status'] !== 'active') {
+                throw new DomainException('Only active projects can be archived.');
+            }
+            $update = $this->pdo->prepare("UPDATE projects SET status = 'archived' WHERE id = :project_id AND status = 'active'");
+            $update->execute(['project_id' => $projectId]);
+            if ($update->rowCount() !== 1) {
+                throw new DomainException('Active project not found.');
+            }
+            $this->pdo->commit();
+        } catch (Throwable $error) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $error;
+        }
+    }
 
     /**
-     * Update a project only for an active team owner/manager.
-     * A project membership alone never grants project-settings privileges.
+     * Restore an archived project only when the active project quota still allows it.
+     * Locking the team row serializes restores against project creation.
      */
-    public function updateForTeamManager(int $userId, int $projectId, string $name, ?string $description): bool
+    public function restoreForTeamManager(int $userId, int $projectId): void
+    {
+        $this->pdo->beginTransaction();
+        try {
+            $project = $this->lockProjectForLifecycle($userId, $projectId);
+            if ($project['status'] !== 'archived') {
+                throw new DomainException('Only archived projects can be restored.');
+            }
+
+            $count = $this->pdo->prepare(
+                "SELECT COUNT(*) FROM projects WHERE team_id = :team_id AND status = 'active'"
+            );
+            $count->execute(['team_id' => $project['team_id']]);
+            if ((int) $count->fetchColumn() >= $project['project_limit']) {
+                throw new QuotaExceededException('Team active project quota reached.');
+            }
+
+            $update = $this->pdo->prepare("UPDATE projects SET status = 'active' WHERE id = :project_id AND status = 'archived'");
+            $update->execute(['project_id' => $projectId]);
+            if ($update->rowCount() !== 1) {
+                throw new DomainException('Archived project not found.');
+            }
+            $this->pdo->commit();
+        } catch (Throwable $error) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $error;
+        }
+    }
+
+    /** @return array{team_id:int,project_limit:int,status:string} */
+    private function lockProjectForLifecycle(int $userId, int $projectId): array
+    {
+        $statement = $this->pdo->prepare(
+            "SELECT p.id, p.team_id, p.status, t.project_limit, tm.role
+             FROM projects p
+             INNER JOIN teams t ON t.id = p.team_id AND t.status = 'active'
+             INNER JOIN team_memberships tm ON tm.team_id = t.id AND tm.user_id = :user_id AND tm.status = 'active'
+             WHERE p.id = :project_id AND tm.role IN ('owner', 'manager')
+             LIMIT 1 FOR UPDATE"
+        );
+        $statement->execute(['user_id' => $userId, 'project_id' => $projectId]);
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($row)) {
+            throw new DomainException('Active team owner/manager role required.');
+        }
+        return [
+            'team_id' => (int) $row['team_id'],
+            'project_limit' => (int) $row['project_limit'],
+            'status' => (string) $row['status'],
+        ];
+    }
+
+    /**
+     * Update project metadata only for a team owner/manager with approved project access.
+     * Keep the role and membership checks inside the transaction as a data-boundary guard.
+     */
+    public function updateMetadataForTeamManager(int $userId, int $projectId, string $name, ?string $description): void
     {
         $this->pdo->beginTransaction();
         try {
             $access = $this->pdo->prepare(
-                "SELECT p.id
+                "SELECT p.id, p.team_id, tm.role
                  FROM projects p
                  INNER JOIN teams t ON t.id = p.team_id AND t.status = 'active'
-                 INNER JOIN team_memberships tm ON tm.team_id = p.team_id
+                 INNER JOIN team_memberships tm ON tm.team_id = p.team_id AND tm.user_id = :team_user_id AND tm.status = 'active'
+                 INNER JOIN project_memberships pm ON pm.project_id = p.id AND pm.user_id = :project_user_id AND pm.status = 'approved'
                  WHERE p.id = :project_id AND p.status = 'active'
-                   AND tm.user_id = :user_id AND tm.status = 'active'
-                   AND tm.role IN ('owner', 'manager')
                  LIMIT 1 FOR UPDATE"
             );
-            $access->execute(['project_id' => $projectId, 'user_id' => $userId]);
-            if ($access->fetchColumn() === false) {
-                $this->pdo->rollBack();
-                return false;
+            $access->execute(['team_user_id' => $userId, 'project_user_id' => $userId, 'project_id' => $projectId]);
+            $row = $access->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($row) || !in_array($row['role'], ['owner', 'manager'], true)) {
+                throw new DomainException('Team manager role and approved project access required.');
             }
 
             $update = $this->pdo->prepare(
-                'UPDATE projects SET name = :name, description = :description WHERE id = :project_id'
+                "UPDATE projects SET name = :name, description = :description
+                 WHERE id = :project_id AND status = 'active'"
             );
             $update->execute([
                 'name' => $name,
@@ -142,7 +247,6 @@ final class ProjectRepository
                 'project_id' => $projectId,
             ]);
             $this->pdo->commit();
-            return true;
         } catch (Throwable $error) {
             if ($this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
