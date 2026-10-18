@@ -8,6 +8,7 @@ use TeamCodeHub\Database\ChatRepository;
 use TeamCodeHub\Database\ChatReportRepository;
 use TeamCodeHub\Database\DashboardRepository;
 use TeamCodeHub\Database\EmailVerificationRepository;
+use TeamCodeHub\Services\EmailDeliveryService;
 use TeamCodeHub\Database\GitHubActivityCacheRepository;
 use TeamCodeHub\Database\GitHubRepositoryCacheRepository;
 use TeamCodeHub\Database\NotificationRepository;
@@ -101,6 +102,16 @@ try {
         ->execute(['hash' => $expiredHash]);
     $assert(!$verificationRepository->verifyToken($expiredHash), 'expired email verification tokens cannot activate accounts');
     $pdo->prepare('DELETE FROM users WHERE id = :id')->execute(['id' => $expiredUserId]);
+
+    // A non-HTTPS base URL must be rejected before PHP's mail transport is invoked.
+    $previousAppUrl = getenv('APP_URL');
+    $previousMailFrom = getenv('MAIL_FROM_ADDRESS');
+    putenv('APP_URL=http://example.test');
+    putenv('MAIL_FROM_ADDRESS=notifications@example.test');
+    $mailDelivery = new EmailDeliveryService();
+    $assert(!$mailDelivery->sendVerificationEmail('recipient@example.test', bin2hex(random_bytes(32))), 'verification email delivery rejects non-HTTPS application URLs');
+    $previousAppUrl === false ? putenv('APP_URL') : putenv('APP_URL=' . $previousAppUrl);
+    $previousMailFrom === false ? putenv('MAIL_FROM_ADDRESS') : putenv('MAIL_FROM_ADDRESS=' . $previousMailFrom);
 
     // Exercise the daily GitHub cache through an injected transport; tests never call GitHub.
     $githubCache = new GitHubActivityCacheRepository($pdo);
