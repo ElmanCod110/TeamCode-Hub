@@ -42,7 +42,7 @@ final class GitHubRepositoryService
             return null;
         }
 
-        return $matches[1] . '/' . $repository;
+        return strtolower($matches[1] . '/' . $repository);
     }
 
     /** @return array<string,mixed> */
