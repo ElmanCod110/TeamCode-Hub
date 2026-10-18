@@ -277,12 +277,14 @@
       const resetStatus = $("#password-reset-status");
       if (!state.passwordResetToken) {
         resetStatus.textContent = "This reset link is missing its token. Request a new password reset link.";
+        resetStatus.hidden = false;
       }
       try {
         await loadCsrf();
         $("#password-reset-submit").disabled = !state.passwordResetToken;
       } catch (_) {
         resetStatus.textContent = "The password reset service is unavailable. Check the database setup and reload.";
+        resetStatus.hidden = false;
         $("#password-reset-submit").disabled = true;
       }
       return;
