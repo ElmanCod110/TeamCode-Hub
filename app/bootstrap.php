@@ -13,6 +13,7 @@ use TeamCodeHub\Database\DashboardRepository;
 use TeamCodeHub\Database\GitHubActivityCacheRepository;
 use TeamCodeHub\Database\ChatReportRepository;
 use TeamCodeHub\Database\DatabaseConfig;
+use TeamCodeHub\Database\EmailVerificationRepository;
 use TeamCodeHub\Database\MembershipRepository;
 use TeamCodeHub\Database\NotificationRepository;
 use TeamCodeHub\Database\ProjectRepository;
@@ -24,6 +25,7 @@ use TeamCodeHub\Database\TeamInvitationRepository;
 use TeamCodeHub\Database\UserRepository;
 use TeamCodeHub\Http\AdminUserController;
 use TeamCodeHub\Http\AuthController;
+use TeamCodeHub\Http\AccountLifecycleController;
 use TeamCodeHub\Http\ChatController;
 use TeamCodeHub\Http\ChatReportController;
 use TeamCodeHub\Http\DashboardController;
@@ -40,6 +42,8 @@ use TeamCodeHub\Security\ProjectAccessService;
 use TeamCodeHub\Security\SecureSession;
 use TeamCodeHub\Security\TeamAccessService;
 use TeamCodeHub\Services\GitHubActivityService;
+use TeamCodeHub\Services\AccountLifecycleService;
+use TeamCodeHub\Services\EmailDeliveryService;
 
 spl_autoload_register(static function (string $class): void {
     $prefix = 'TeamCodeHub\\';
@@ -62,6 +66,15 @@ return static function (): void {
         $pdo = ConnectionFactory::connect(DatabaseConfig::fromEnvironment());
         return new AuthController(
             new AuthenticationService(new UserRepository($pdo)),
+            new LoginRateLimiter($pdo),
+        );
+    });
+
+    $modules->register('account-lifecycle.controller', static function (): object {
+        $pdo = ConnectionFactory::connect(DatabaseConfig::fromEnvironment());
+        $users = new UserRepository($pdo);
+        return new AccountLifecycleController(
+            new AccountLifecycleService($users, new EmailVerificationRepository($pdo), new EmailDeliveryService()),
             new LoginRateLimiter($pdo),
         );
     });
@@ -175,6 +188,7 @@ return static function (): void {
 
     $router->get('/', static fn (Request $request, array $params): Response => $appPage());
     $router->get('/login', static fn (Request $request, array $params): Response => $appPage());
+    $router->get('/verify-email', static fn (Request $request, array $params): Response => $appPage());
 
     $router->get('/health', static fn (Request $request, array $params): Response => Response::json([
         'status' => 'ok',
@@ -233,6 +247,15 @@ return static function (): void {
         SecureSession::start();
         return Response::json(['csrf_token' => CsrfToken::get()]);
     });
+    $router->post('/api/auth/register', static fn (Request $request, array $params): Response =>
+        $modules->get('account-lifecycle.controller')->register($request)
+    );
+    $router->post('/api/auth/verification/resend', static fn (Request $request, array $params): Response =>
+        $modules->get('account-lifecycle.controller')->resendVerification($request)
+    );
+    $router->post('/api/auth/verify-email', static fn (Request $request, array $params): Response =>
+        $modules->get('account-lifecycle.controller')->verifyEmail($request)
+    );
     $router->post('/api/auth/login', static fn (Request $request, array $params): Response =>
         $modules->get('auth.controller')->login($request)
     );
