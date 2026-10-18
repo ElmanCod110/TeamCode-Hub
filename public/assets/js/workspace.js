@@ -272,6 +272,7 @@
     // Invitation tokens are fragment-only and are submitted only to the authenticated acceptance endpoint.
     if (hash.startsWith("accept-invitation?")) {
       state.invitationToken = new URLSearchParams(hash.slice("accept-invitation?".length)).get("token") || "";
+      if (!state.invitationToken) history.replaceState({}, "", "/login");
     }
     // Reset links keep the bearer token in the fragment, outside HTTP request logs.
     if (hash.startsWith("reset-password?")) {
