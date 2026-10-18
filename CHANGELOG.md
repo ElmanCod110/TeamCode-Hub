@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Send team invitations through the configured HTTPS mail transport, using a seven-day fragment-only link and no raw token in successful API responses.
+- Return a one-time manual token fallback only when mail delivery fails; keep invitation token hashes as the only database representation.
+- Add an authenticated email-link acceptance flow and preserve the invitation through sign-in in the same browser session.
+- Add integration/UI contract coverage for delivery metadata, HTTPS-only links, token fallback behavior, and automatic acceptance routing.
+
+
 - Add generic password-reset requests and a responsive reset form connected to the application shell.
 - Store only SHA-256 token hashes, enforce a 30-minute expiry and 60-second resend cooldown, rate-limit public requests, and consume reset tokens transactionally.
 - Increment account session versions after credential changes so password reset invalidates existing sessions.
