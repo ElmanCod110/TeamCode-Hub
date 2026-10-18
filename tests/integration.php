@@ -317,6 +317,9 @@ try {
     $disabledStatus = $accountManager->changeStatusForSiteAdmin($adminId, $statusTestId, 'disabled', 'Integration disable test');
     $assert($disabledStatus['changed'] && $disabledStatus['user']['status'] === 'disabled', 'site administrator can disable another account');
     $assert($disabledStatus['user']['email_verified'], 'account status response exposes only a boolean email-verification state');
+    $disabledVersion = $pdo->prepare('SELECT auth_version FROM users WHERE id = :id');
+    $disabledVersion->execute(['id' => $statusTestId]);
+    $assert((int) $disabledVersion->fetchColumn() === 2, 'disabling an account increments its authentication version');
 
     SecureSession::start();
     $statusAuthentication = new AuthenticationService($userDirectory);
@@ -324,6 +327,9 @@ try {
 
     $reactivatedStatus = $accountManager->changeStatusForSiteAdmin($adminId, $statusTestId, 'active', 'Integration reactivation test');
     $assert($reactivatedStatus['changed'] && $reactivatedStatus['user']['status'] === 'active', 'verified disabled account can be reactivated');
+    $reactivatedVersion = $pdo->prepare('SELECT auth_version FROM users WHERE id = :id');
+    $reactivatedVersion->execute(['id' => $statusTestId]);
+    $assert((int) $reactivatedVersion->fetchColumn() === 3, 'reactivating an account does not restore pre-disable sessions');
     $unchangedStatus = $accountManager->changeStatusForSiteAdmin($adminId, $statusTestId, 'active', 'Integration unchanged status test');
     $assert(!$unchangedStatus['changed'], 'repeating the current account status is an idempotent no-op');
     $statusAudit = $accountManager->listRecentAuditForSiteAdmin($adminId, $statusTestId);
