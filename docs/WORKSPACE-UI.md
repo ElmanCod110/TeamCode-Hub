@@ -76,6 +76,6 @@ These checks validate the static asset contract and JavaScript syntax. They do n
 
 ## Team and project settings
 
-- Team owners and managers can rename a team from its detail page.
+- Only the active team owner can rename a team from its detail page; managers retain invitation and project-management permissions.
 - Team owners and managers can edit a project's name and description from the project header.
 - Settings updates use CSRF-protected JSON endpoints and do not change membership or permission state.
