@@ -37,6 +37,8 @@ $html = $read('public/app.html');
 $css = $read('public/assets/css/workspace.css');
 $js = $read('public/assets/js/workspace.js');
 $bootstrap = $read('app/bootstrap.php');
+$authController = $read('app/Http/AuthController.php');
+$authService = $read('app/Security/AuthenticationService.php');
 $response = $read('app/Core/Response.php');
 $workflow = $read('.github/workflows/ci.yml');
 $htaccess = $read('public/.htaccess');
@@ -68,6 +70,11 @@ $assert(str_contains($css, '.chat-messages') && str_contains($css, '.metric-grid
 $assert(str_contains($js, 'credentials: "same-origin"') && str_contains($js, '"X-Csrf-Token"'), 'API client keeps same-origin credentials and CSRF protection');
 $assert(str_contains($js, 'textContent') && str_contains($js, 'after_id=') && str_contains($js, 'set-task-status'), 'controller renders text safely, polls chat incrementally, and updates task status');
 $assert(str_contains($js, 'canManageTeam') && str_contains($js, 'access_level !== "viewer"'), 'UI controls reflect manager and viewer capabilities without replacing server authorization');
+$assert(str_contains($bootstrap, "/api/auth/profile") && str_contains($bootstrap, "/api/auth/password"), 'account profile and password endpoints are registered');
+$assert(str_contains($js, 'editProfileModal') && str_contains($js, 'changePasswordModal') && str_contains($js, 'confirm_password'), 'preferences connect profile editing and password confirmation forms');
+$assert(str_contains($authController, 'CsrfToken::rotate()') && str_contains($authController, 'SecureSession::regenerateAfterAuthentication()'), 'successful password changes rotate the session identifier and CSRF token');
+$assert(str_contains($authService, 'password_verify($currentPassword') && str_contains($authService, 'strlen($newPassword) < 12'), 'password changes verify the current credential and enforce a 12-character minimum');
+
 $assert(str_contains($js, '/api/dashboard') && str_contains($js, '/api/teams') && str_contains($js, '/api/projects/') && str_contains($js, '/api/notifications'), 'controller connects the existing dashboard, team, project, and notification APIs');
 $assert(str_contains($js, '/api/admin/reports') && str_contains($js, '/api/reports/') && str_contains($js, 'renderReportCard'), 'moderation UI connects scoped report queues and review actions');
 $assert(str_contains($js, '/api/team-invitations/accept') && str_contains($js, 'revoke-invitation') && str_contains($js, 'renderPendingInvitations'), 'team UI connects invitation acceptance, listing, and revocation');
