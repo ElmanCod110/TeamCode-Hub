@@ -14,11 +14,11 @@ final class UserRepository
     {
     }
 
-    /** @return array{id:int,email:string,password_hash:string,status:string,display_name:string}|null */
+    /** @return array{id:int,email:string,password_hash:string,status:string,display_name:string,auth_version:int}|null */
     public function findForAuthentication(string $email): ?array
     {
         $statement = $this->pdo->prepare(
-            'SELECT id, email, password_hash, status, display_name FROM users WHERE email = :email LIMIT 1'
+            'SELECT id, email, password_hash, status, display_name, auth_version FROM users WHERE email = :email LIMIT 1'
         );
         $statement->execute(['email' => strtolower(trim($email))]);
         $row = $statement->fetch();
@@ -32,6 +32,7 @@ final class UserRepository
             'password_hash' => (string) $row['password_hash'],
             'status' => (string) $row['status'],
             'display_name' => (string) $row['display_name'],
+            'auth_version' => (int) $row['auth_version'],
         ];
     }
 
@@ -79,6 +80,17 @@ final class UserRepository
             }
             throw $error;
         }
+    }
+
+    /**
+     * Read the current credential/session generation without selecting any password material.
+     */
+    public function findAuthVersionById(int $userId): ?int
+    {
+        $statement = $this->pdo->prepare('SELECT auth_version FROM users WHERE id = :id LIMIT 1');
+        $statement->execute(['id' => $userId]);
+        $version = $statement->fetchColumn();
+        return $version === false ? null : (int) $version;
     }
 
     /** @return array{id:int,email:string}|null */
@@ -145,7 +157,7 @@ final class UserRepository
     public function replacePasswordHash(int $userId, string $expectedHash, string $newHash): bool
     {
         $statement = $this->pdo->prepare(
-            "UPDATE users SET password_hash = :new_hash
+            "UPDATE users SET password_hash = :new_hash, auth_version = auth_version + 1
              WHERE id = :id AND status = 'active' AND password_hash = :expected_hash"
         );
         $statement->execute([
