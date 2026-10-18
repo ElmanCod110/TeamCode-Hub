@@ -5,7 +5,7 @@ This document distinguishes implemented primitives from controls still required 
 ## Implemented primitives
 
 - Session startup enables strict mode, cookie-only session IDs, HttpOnly cookies, SameSite=Lax, and Secure cookies when direct HTTPS is detected or `APP_HTTPS=true` is configured.
-- Session IDs are rotated after successful authentication; logout clears session data and expires the session cookie.
+- Session IDs are rotated after successful authentication; logout clears session data and expires the session cookie. Password changes and password resets increment a database-backed session version, invalidating older authenticated sessions on their next request.
 - Public registration creates pending accounts only. Email verification uses 256-bit random bearer tokens stored as SHA-256 hashes, a 24-hour expiry, single-use consumption, a resend cooldown, and purpose-specific IP/email rate limits. Verification links keep tokens in the URL fragment and require an explicit confirmation POST.
 - State-changing authentication, workspace, invitation, task, chat, report, and notification routes require session-bound CSRF tokens.
 - Authentication accepts only active accounts and uses generic failure responses. Login attempts are throttled with database-backed per-IP and per-email-hash buckets.
@@ -23,8 +23,8 @@ This document distinguishes implemented primitives from controls still required 
 
 ## Required controls before production
 
-- Add rate limiting and monitoring for chat posting, report submission, project membership changes, account recovery, and other sensitive actions.
-- Implement password reset and secure invitation delivery by email. Public registration and email verification are implemented but require correctly configured mail delivery before production use.
+- Add operational monitoring and alerting for chat posting, report submission, project membership changes, account recovery, and other sensitive actions; account recovery already has purpose-specific IP/email and token-attempt rate limits.
+- Implement secure invitation delivery by email. Public registration, email verification, and password recovery require correctly configured HTTPS URLs and mail delivery before production use.
 - Define and document final retention durations for report snapshots, notifications, and audit data; schedule the chat cleanup CLI job.
 - Review abuse handling and notification access for reported users, reviewers, and site administrators.
 - Ensure every future file, Git, and admin route checks authorization at the data-access boundary.

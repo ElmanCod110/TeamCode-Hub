@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="/assets/css/app.css?v=0.2.1-dev">
   <link rel="stylesheet" href="/assets/css/workspace.css?v=0.2.6-dev">
   <script src="/assets/js/ui.js?v=0.2.0-dev" defer></script>
-  <script src="/assets/js/workspace.js?v=0.2.15-dev" defer></script>
+  <script src="/assets/js/workspace.js?v=0.2.16-dev" defer></script>
 </head>
 <body class="tch-workspace">
   <!-- Keyboard users can bypass navigation and jump directly to the current page content. -->
@@ -54,6 +54,7 @@
           <span>Sign in</span><span aria-hidden="true">→</span>
         </button>
         <p class="auth-footnote">Access is controlled by your TeamCode Hub account permissions.</p>
+        <button class="btn btn-ghost btn-block auth-forgot-link" type="button" id="show-password-recovery">Forgot your password?</button>
         <div class="auth-secondary-actions">
           <button class="btn btn-outline btn-block" type="button" id="show-register">Create account</button>
           <button class="btn btn-ghost btn-block" type="button" id="show-resend-verification">Resend verification email</button>
@@ -104,6 +105,44 @@
         </div>
         <button class="btn btn-primary btn-lg btn-block auth-submit" type="submit" id="resend-submit">Send verification link</button>
         <button class="btn btn-ghost btn-block" type="button" id="show-login-from-resend">Back to sign in</button>
+      </form>
+
+      <!-- Password recovery uses a generic response to avoid account enumeration. -->
+      <form id="password-recovery-form" class="auth-card" novalidate hidden>
+        <div class="auth-card-heading">
+          <span class="eyebrow">Account recovery</span>
+          <h2 id="password-recovery-title">Reset your password</h2>
+          <p>If you can access your account email, request a one-time reset link. We will not reveal whether an account exists.</p>
+        </div>
+        <div id="password-recovery-error" class="alert alert-danger auth-error" role="alert" hidden></div>
+        <div id="password-recovery-status" class="alert alert-info auth-status" role="status" aria-live="polite" hidden></div>
+        <div class="field">
+          <label class="label" for="password-recovery-email">Email address</label>
+          <input class="input" id="password-recovery-email" name="email" type="email" autocomplete="email" maxlength="254" required placeholder="you@company.com">
+        </div>
+        <button class="btn btn-primary btn-lg btn-block auth-submit" type="submit" id="password-recovery-submit">Send reset link</button>
+        <button class="btn btn-ghost btn-block" type="button" id="show-login-from-password-recovery">Back to sign in</button>
+      </form>
+
+      <!-- The reset token is read from the URL fragment and used only after explicit form submission. -->
+      <form id="password-reset-form" class="auth-card" novalidate hidden>
+        <div class="auth-card-heading">
+          <span class="eyebrow">Secure account recovery</span>
+          <h2 id="password-reset-title">Choose a new password</h2>
+          <p>Use a unique password with at least 12 bytes. Reset links expire after 30 minutes and work only once.</p>
+        </div>
+        <div id="password-reset-error" class="alert alert-danger auth-error" role="alert" hidden></div>
+        <div id="password-reset-status" class="alert alert-info auth-status" role="status" aria-live="polite" hidden></div>
+        <div class="field">
+          <label class="label" for="password-reset-new">New password</label>
+          <input class="input" id="password-reset-new" name="new_password" type="password" autocomplete="new-password" minlength="12" maxlength="72" required placeholder="At least 12 bytes">
+        </div>
+        <div class="field">
+          <label class="label" for="password-reset-confirm">Confirm new password</label>
+          <input class="input" id="password-reset-confirm" name="confirm_password" type="password" autocomplete="new-password" minlength="12" maxlength="72" required placeholder="Enter the same password">
+        </div>
+        <button class="btn btn-primary btn-lg btn-block auth-submit" type="submit" id="password-reset-submit">Update password</button>
+        <button class="btn btn-ghost btn-block" type="button" id="show-login-from-password-reset">Back to sign in</button>
       </form>
 
       <!-- The email token is read from the URL fragment and submitted only after explicit user confirmation. -->

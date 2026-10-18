@@ -14,11 +14,11 @@ final class UserRepository
     {
     }
 
-    /** @return array{id:int,email:string,password_hash:string,status:string,display_name:string}|null */
+    /** @return array{id:int,email:string,password_hash:string,status:string,display_name:string,session_version:int}|null */
     public function findForAuthentication(string $email): ?array
     {
         $statement = $this->pdo->prepare(
-            'SELECT id, email, password_hash, status, display_name FROM users WHERE email = :email LIMIT 1'
+            'SELECT id, email, password_hash, status, display_name, session_version FROM users WHERE email = :email LIMIT 1'
         );
         $statement->execute(['email' => strtolower(trim($email))]);
         $row = $statement->fetch();
@@ -32,6 +32,7 @@ final class UserRepository
             'password_hash' => (string) $row['password_hash'],
             'status' => (string) $row['status'],
             'display_name' => (string) $row['display_name'],
+            'session_version' => (int) $row['session_version'],
         ];
     }
 
@@ -117,11 +118,11 @@ final class UserRepository
         return $exists->fetchColumn() !== false;
     }
 
-    /** @return array{id:int,email:string,password_hash:string,status:string,display_name:string}|null */
+    /** @return array{id:int,email:string,password_hash:string,status:string,display_name:string,session_version:int}|null */
     public function findAuthenticationById(int $userId): ?array
     {
         $statement = $this->pdo->prepare(
-            'SELECT id, email, password_hash, status, display_name FROM users WHERE id = :id LIMIT 1'
+            'SELECT id, email, password_hash, status, display_name, session_version FROM users WHERE id = :id LIMIT 1'
         );
         $statement->execute(['id' => $userId]);
         $row = $statement->fetch();
@@ -135,6 +136,7 @@ final class UserRepository
             'password_hash' => (string) $row['password_hash'],
             'status' => (string) $row['status'],
             'display_name' => (string) $row['display_name'],
+            'session_version' => (int) $row['session_version'],
         ];
     }
 
@@ -145,7 +147,7 @@ final class UserRepository
     public function replacePasswordHash(int $userId, string $expectedHash, string $newHash): bool
     {
         $statement = $this->pdo->prepare(
-            "UPDATE users SET password_hash = :new_hash
+            "UPDATE users SET password_hash = :new_hash, session_version = session_version + 1
              WHERE id = :id AND status = 'active' AND password_hash = :expected_hash"
         );
         $statement->execute([
@@ -156,6 +158,17 @@ final class UserRepository
         return $statement->rowCount() > 0;
     }
 
+
+    /** Return the current credential/session generation for an active account. */
+    public function findSessionVersionById(int $userId): ?int
+    {
+        $statement = $this->pdo->prepare(
+            "SELECT session_version FROM users WHERE id = :id AND status = 'active' LIMIT 1"
+        );
+        $statement->execute(['id' => $userId]);
+        $value = $statement->fetchColumn();
+        return $value === false ? null : (int) $value;
+    }
 
     /**
      * Search a bounded user directory for site administrators only.

@@ -12,6 +12,7 @@ use TeamCodeHub\Services\EmailDeliveryService;
 use TeamCodeHub\Database\GitHubActivityCacheRepository;
 use TeamCodeHub\Database\GitHubRepositoryCacheRepository;
 use TeamCodeHub\Database\NotificationRepository;
+use TeamCodeHub\Database\PasswordRecoveryRepository;
 use TeamCodeHub\Database\DatabaseConfig;
 use TeamCodeHub\Database\MembershipRepository;
 use TeamCodeHub\Database\MigrationRunner;
@@ -50,7 +51,7 @@ try {
     $pdo = ConnectionFactory::connect($config);
     $runner = new MigrationRunner($pdo, dirname(__DIR__) . '/database/migrations');
     $applied = $runner->migrate();
-    $assert(count($applied) >= 12, 'all versioned migrations are applied to MariaDB');
+    $assert(count($applied) >= 13, 'all versioned migrations are applied to MariaDB');
     $assert($runner->migrate() === [], 'migration runner is idempotent on a migrated schema');
 
     // Exercise email verification directly without invoking the server's real mail transport.
@@ -110,6 +111,7 @@ try {
     putenv('MAIL_FROM_ADDRESS=notifications@example.test');
     $mailDelivery = new EmailDeliveryService();
     $assert(!$mailDelivery->sendVerificationEmail('recipient@example.test', bin2hex(random_bytes(32))), 'verification email delivery rejects non-HTTPS application URLs');
+    $assert(!$mailDelivery->sendPasswordResetEmail('recipient@example.test', bin2hex(random_bytes(32))), 'password reset email delivery rejects non-HTTPS application URLs');
     $previousAppUrl === false ? putenv('APP_URL') : putenv('APP_URL=' . $previousAppUrl);
     $previousMailFrom === false ? putenv('MAIL_FROM_ADDRESS') : putenv('MAIL_FROM_ADDRESS=' . $previousMailFrom);
 
@@ -211,6 +213,43 @@ try {
         return (int) $pdo->lastInsertId();
     };
 
+    // Password recovery uses hashed, short-lived, single-use tokens and revokes prior sessions.
+    $recoveryUserId = $insertUser('password-recovery@example.test', 'Password Recovery Fixture', 'A-Strong-Recovery-Password-51');
+    $recoveryRepository = new PasswordRecoveryRepository($pdo);
+    $recoveryToken = bin2hex(random_bytes(32));
+    $recoveryHash = hash('sha256', $recoveryToken);
+    $issuedRecovery = $recoveryRepository->issueTokenForEmail('password-recovery@example.test', $recoveryHash);
+    $assert(is_array($issuedRecovery) && $issuedRecovery['id'] === $recoveryUserId, 'active account can receive a password reset token');
+    $storedRecovery = $pdo->prepare("SELECT token_hash, expires_at FROM account_action_tokens WHERE user_id = :id AND purpose = 'password_reset' LIMIT 1");
+    $storedRecovery->execute(['id' => $recoveryUserId]);
+    $storedRecoveryRow = $storedRecovery->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($storedRecoveryRow) && $storedRecoveryRow['token_hash'] === $recoveryHash && $recoveryHash !== $recoveryToken, 'password reset stores only the SHA-256 token hash');
+    $expiryBound = $pdo->prepare('SELECT expires_at > CURRENT_TIMESTAMP AND expires_at <= DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 31 MINUTE) FROM account_action_tokens WHERE token_hash = :hash');
+    $expiryBound->execute(['hash' => $recoveryHash]);
+    $assert((int) $expiryBound->fetchColumn() === 1, 'password reset token has a bounded 30-minute expiry');
+
+    $recoveryReplacement = 'A-New-Recovery-Password-52';
+    $assert($recoveryRepository->resetPassword($recoveryHash, password_hash($recoveryReplacement, PASSWORD_DEFAULT)), 'valid password reset atomically replaces the credential');
+    $recoveryCredential = $pdo->prepare('SELECT password_hash, session_version FROM users WHERE id = :id');
+    $recoveryCredential->execute(['id' => $recoveryUserId]);
+    $recoveryCredentialRow = $recoveryCredential->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($recoveryCredentialRow) && password_verify($recoveryReplacement, $recoveryCredentialRow['password_hash']), 'password reset persists the replacement password hash');
+    $assert(is_array($recoveryCredentialRow) && (int) $recoveryCredentialRow['session_version'] === 2, 'password reset increments the session version to revoke old sessions');
+    $assert(!$recoveryRepository->resetPassword($recoveryHash, password_hash('Another-Recovery-Password-53', PASSWORD_DEFAULT)), 'password reset tokens cannot be replayed');
+    $cooldownHash = hash('sha256', bin2hex(random_bytes(32)));
+    $assert($recoveryRepository->issueTokenForEmail('password-recovery@example.test', $cooldownHash) === null, 'reset email cooldown remains active after the prior token is consumed');
+    $pdo->prepare("UPDATE account_action_tokens SET created_at = DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 2 MINUTE) WHERE token_hash = :hash")
+        ->execute(['hash' => $recoveryHash]);
+
+    $expiredRecoveryToken = bin2hex(random_bytes(32));
+    $expiredRecoveryHash = hash('sha256', $expiredRecoveryToken);
+    $issuedExpiredRecovery = $recoveryRepository->issueTokenForEmail('password-recovery@example.test', $expiredRecoveryHash);
+    $assert(is_array($issuedExpiredRecovery), 'a later password reset request can issue a fresh token');
+    $pdo->prepare("UPDATE account_action_tokens SET expires_at = DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 1 MINUTE) WHERE token_hash = :hash")
+        ->execute(['hash' => $expiredRecoveryHash]);
+    $assert(!$recoveryRepository->resetPassword($expiredRecoveryHash, password_hash('Expired-Recovery-Password-54', PASSWORD_DEFAULT)), 'expired password reset tokens cannot change credentials');
+    $pdo->prepare('DELETE FROM users WHERE id = :id')->execute(['id' => $recoveryUserId]);
+
     $adminId = $insertUser('admin@example.test', 'Integration Admin', 'A-Strong-Test-Password-42');
     $memberId = $insertUser('member@example.test', 'Integration Member', 'A-Strong-Test-Password-43');
     $viewerId = $insertUser('viewer@example.test', 'Integration Viewer', 'A-Strong-Test-Password-44');
@@ -278,6 +317,10 @@ try {
     $disabledStatus = $accountManager->changeStatusForSiteAdmin($adminId, $statusTestId, 'disabled', 'Integration disable test');
     $assert($disabledStatus['changed'] && $disabledStatus['user']['status'] === 'disabled', 'site administrator can disable another account');
     $assert($disabledStatus['user']['email_verified'], 'account status response exposes only a boolean email-verification state');
+    $disabledVersion = $pdo->prepare('SELECT session_version FROM users WHERE id = :id');
+    $disabledVersion->execute(['id' => $statusTestId]);
+    $assert((int) $disabledVersion->fetchColumn() === 2, 'disabling an account increments its session version');
+
 
     SecureSession::start();
     $statusAuthentication = new AuthenticationService($userDirectory);
@@ -285,6 +328,8 @@ try {
 
     $reactivatedStatus = $accountManager->changeStatusForSiteAdmin($adminId, $statusTestId, 'active', 'Integration reactivation test');
     $assert($reactivatedStatus['changed'] && $reactivatedStatus['user']['status'] === 'active', 'verified disabled account can be reactivated');
+    $disabledVersion->execute(['id' => $statusTestId]);
+    $assert((int) $disabledVersion->fetchColumn() === 3, 'reactivating an account also invalidates sessions issued before the transition');
     $unchangedStatus = $accountManager->changeStatusForSiteAdmin($adminId, $statusTestId, 'active', 'Integration unchanged status test');
     $assert(!$unchangedStatus['changed'], 'repeating the current account status is an idempotent no-op');
     $statusAudit = $accountManager->listRecentAuditForSiteAdmin($adminId, $statusTestId);
@@ -745,6 +790,8 @@ try {
     $assert(!$auth->changePassword($adminId, 'incorrect-password', 'A-New-Strong-Password-52'), 'password change rejects an incorrect current password');
     $assert(!$auth->changePassword($adminId, 'A-Strong-Test-Password-42', str_repeat('x', 73)), 'password change rejects values beyond the supported byte limit');
     $assert($auth->changePassword($adminId, 'A-Strong-Test-Password-42', 'A-New-Strong-Password-52'), 'password change accepts a verified current password and strong replacement');
+    $updatedSessionUser = $auth->currentUser();
+    $assert(is_array($updatedSessionUser) && $updatedSessionUser['id'] === $adminId, 'current session remains valid after its own password change updates the session version');
     $assert(!$auth->changePassword($adminId, 'A-Strong-Test-Password-42', 'Another-New-Strong-Password-53'), 'a replaced password cannot be reused as the current credential');
     $newCredential = (new UserRepository($pdo))->findAuthenticationById($adminId);
     $assert(is_array($newCredential) && password_verify('A-New-Strong-Password-52', $newCredential['password_hash']), 'only the new password hash is persisted after a password change');
@@ -779,6 +826,13 @@ try {
     $projects->restoreForTeamManager($adminId, $projectId);
     $restoredProject = $projects->findAccessibleByUser($adminId, $projectId);
     $assert(is_array($restoredProject) && $restoredProject['status'] === 'active', 'team owner can restore an archived project after quota capacity is available');
+
+    // A stale browser session must stop resolving its user after the credential generation changes.
+    SecureSession::start();
+    $assert($auth->authenticate('admin@example.test', 'A-New-Strong-Password-52'), 'account can sign in with its replacement password');
+    $_SESSION['session_version'] = 1;
+    $assert($auth->currentUser() === null, 'session version mismatch invalidates an older authenticated session');
+
 
     echo "\n{$passed} integration assertions passed.\n";
     $output = ob_get_clean();

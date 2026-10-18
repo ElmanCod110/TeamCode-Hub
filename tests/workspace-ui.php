@@ -42,6 +42,10 @@ $accountLifecycleController = $read('app/Http/AccountLifecycleController.php');
 $emailVerificationRepository = $read('app/Database/EmailVerificationRepository.php');
 $accountLifecycleService = $read('app/Services/AccountLifecycleService.php');
 $emailDeliveryService = $read('app/Services/EmailDeliveryService.php');
+$passwordRecoveryController = $read('app/Http/PasswordRecoveryController.php');
+$passwordRecoveryService = $read('app/Services/PasswordRecoveryService.php');
+$passwordRecoveryRepository = $read('app/Database/PasswordRecoveryRepository.php');
+$sessionVersionMigration = $read('database/migrations/20261018000300_add_user_session_version.php');
 $adminUserController = $read('app/Http/AdminUserController.php');
 $userRepository = $read('app/Database/UserRepository.php');
 $adminAccountRepository = $read('app/Database/AdminAccountRepository.php');
@@ -102,6 +106,13 @@ $assert(str_contains($bootstrap, "/api/auth/profile") && str_contains($bootstrap
 $assert(str_contains($js, 'editProfileModal') && str_contains($js, 'changePasswordModal') && str_contains($js, 'confirm_password'), 'preferences connect profile editing and password confirmation forms');
 $assert(str_contains($authController, 'CsrfToken::rotate()') && str_contains($authController, 'SecureSession::regenerateAfterAuthentication()'), 'successful password changes rotate the session identifier and CSRF token');
 $assert(str_contains($authService, 'password_verify($currentPassword') && str_contains($authService, 'strlen($newPassword) < 12'), 'password changes verify the current credential and enforce password limits');
+$assert(str_contains($bootstrap, '/api/auth/password-reset/request') && str_contains($bootstrap, '/api/auth/password-reset/confirm') && str_contains($bootstrap, "get('/reset-password'"), 'password recovery request, confirmation, and page routes are registered');
+$assert(str_contains($html, 'id="password-recovery-form"') && str_contains($html, 'id="password-reset-form"') && str_contains($html, 'id="show-password-recovery"'), 'authentication screen exposes password recovery and reset forms');
+$assert(str_contains($js, 'requestPasswordReset') && str_contains($js, 'resetPassword') && str_contains($js, 'reset-password?'), 'browser flow reads reset tokens from fragments and connects both recovery endpoints');
+$assert(str_contains($passwordRecoveryController, 'allowsForPurpose') && str_contains($passwordRecoveryController, 'GENERIC_RESPONSE') && str_contains($passwordRecoveryController, 'validCsrf'), 'password recovery uses generic responses, rate limiting, and CSRF validation');
+$assert(str_contains($passwordRecoveryRepository, 'INTERVAL 30 MINUTE') && str_contains($passwordRecoveryRepository, 'session_version = session_version + 1') && str_contains($passwordRecoveryRepository, 'FOR UPDATE'), 'reset token redemption is time-bounded, transactional, and revokes old sessions');
+$assert(str_contains($adminAccountRepository, 'session_version = session_version + 1'), 'administrator account status transitions invalidate existing sessions');
+$assert(str_contains($passwordRecoveryService, "hash('sha256'") && str_contains($emailDeliveryService, 'sendPasswordResetEmail') && str_contains($sessionVersionMigration, 'session_version'), 'password reset stores token hashes and versions account sessions');
 
 $assert(str_contains($js, '/api/dashboard') && str_contains($js, '/api/teams') && str_contains($js, '/api/projects/') && str_contains($js, '/api/notifications'), 'controller connects the existing dashboard, team, project, and notification APIs');
 $assert(str_contains($bootstrap, "/api/teams/{teamId}/edit") && str_contains($bootstrap, "/api/projects/{projectId}/edit"), 'team and project metadata update routes are registered');

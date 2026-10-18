@@ -26,7 +26,7 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 - Public front controller, request/response objects, pretty-route dispatcher, and lazy module registry.
 - Project GitHub repository links with cached public metadata and five recent commits, strict HTTPS host validation, one refresh per repository per UTC day, and a 20-repository daily refresh budget.
 - Validated MySQL/MariaDB configuration, PDO repositories, and explicit CLI migration runner.
-- Hardened sessions, CSRF-protected authentication, login and registration throttling, one-time email verification tokens, and trusted-proxy-aware IP resolution.
+- Hardened sessions, CSRF-protected authentication, login and registration throttling, one-time email verification and password reset tokens, credential-versioned session revocation, and trusted-proxy-aware IP resolution.
 - CLI-only one-time administrator bootstrap.
 - Team/project APIs with active/approved membership checks and transactional quota enforcement.
 - Seven-day team invitations with hashed tokens, acceptance, and revocation.
@@ -44,13 +44,13 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 2. Run `php bin/migrate.php` from a trusted CLI shell.
 3. Create the first administrator using the CLI-only procedure in [docs/OPERATIONS.md](docs/OPERATIONS.md).
 4. Configure the web server document root to `public/` and enable HTTPS. Set `APP_HTTPS=true` only when browser-facing HTTPS is guaranteed by the deployment.
-5. Open `/`. The application shows the sign-in form when there is no authenticated session. Accounts must already exist and be active.
+5. Open `/`. The application shows the sign-in form when there is no authenticated session. Sign in with an active account or create an account and verify its email address. Forgotten-password recovery uses a one-time, 30-minute email link.
 
 The project uses plain PHP, browser-native JavaScript, CSS, and PDO. It does not require a Node build step or a remote font download for production.
 
 ## API and frontend contracts
 
-Authentication: `GET /api/auth/csrf`, `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`, `POST /api/auth/profile`, and `POST /api/auth/password`.
+Authentication: `GET /api/auth/csrf`, `POST /api/auth/login`, `GET /api/auth/me`, `POST /api/auth/logout`, `POST /api/auth/profile`, `POST /api/auth/password`, and one-time email-based password recovery.
 
 Teams and invitations: `GET|POST /api/teams`, `GET /api/teams/{teamId}`, `GET /api/teams/{teamId}/projects`, invitation creation/listing/acceptance/revocation.
 
@@ -78,7 +78,7 @@ node --check public/assets/js/workspace.js
 
 ## Remaining product work
 
-Password recovery, automatic invitation email delivery, team/project deletion, private GitHub repositories, Git write operations/webhooks, other Git providers, system-role editing, richer administrative pages, and automated browser-level visual/accessibility tests are not implemented yet. There is no automatic admin bypass of team/project access checks. Public registration requires the documented HTTPS application URL and configured PHP mail transport. Every protected route must continue to enforce authorization on the server.
+Automatic invitation email delivery, team/project deletion, private GitHub repositories, Git write operations/webhooks, other Git providers, system-role editing, richer administrative pages, and automated browser-level visual/accessibility tests are not implemented yet. There is no automatic admin bypass of team/project access checks. Public registration requires the documented HTTPS application URL and configured PHP mail transport. Every protected route must continue to enforce authorization on the server.
 
 ## Repository layout
 

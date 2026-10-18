@@ -67,6 +67,13 @@ The client is not an authorization boundary. Hiding a button does not replace se
 
 The UI currently uses a bounded refresh for reconciliation; it is not a durable real-time event stream. If a chat view is left open for an extended period, the server's ID cursor still bounds each incremental response to 50 messages.
 
+## Password recovery
+
+- The sign-in screen links to a password reset request form. Requests always show the same success response for known and unknown addresses.
+- Reset links are delivered only when `APP_URL` is a valid HTTPS origin and `MAIL_FROM_ADDRESS` is configured. Tokens are placed in the URL fragment, hashed in MariaDB, expire after 30 minutes, and can be used only once.
+- The reset form validates the new password and confirmation before submission. The browser removes the token from history before sending it and keeps it only in memory for transient retries.
+- Successful reset increments the account's `session_version`, consumes outstanding reset tokens, and invalidates older authenticated sessions when they next access the server. The user must sign in again.
+
 ## Public registration and email verification
 
 - Registration creates a pending account; it does not grant team/project access or bypass existing membership rules.
@@ -76,7 +83,7 @@ The UI currently uses a bounded refresh for reconciliation; it is not a durable 
 
 ## Operational limitations
 
-- Public registration and email verification are connected; password recovery is not implemented. New accounts stay pending until the recipient verifies the email address.
+- Public registration, email verification, and password recovery are connected. New accounts stay pending until the recipient verifies the email address.
 - Invitation creation returns a one-time token but does not send an email. The token should be shared through a trusted channel.
 - Team invitation UI is available from a team detail view to users whose current team role is owner or manager. The server independently verifies the role.
 - Member assignment searches only active members of the selected project’s team. It does not provide global account discovery or invite an email address that does not already belong to the team.

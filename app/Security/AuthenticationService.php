@@ -40,6 +40,7 @@ final class AuthenticationService
         $this->users->updateLastLogin($user['id']);
         SecureSession::regenerateAfterAuthentication();
         $_SESSION['user_id'] = $user['id'];
+        $_SESSION['session_version'] = $user['session_version'];
         $_SESSION['authenticated_at'] = time();
         CsrfToken::rotate();
 
@@ -75,7 +76,12 @@ final class AuthenticationService
             return false;
         }
 
-        return $this->users->replacePasswordHash($userId, $user['password_hash'], $newHash);
+        $updated = $this->users->replacePasswordHash($userId, $user['password_hash'], $newHash);
+        if ($updated && session_status() === PHP_SESSION_ACTIVE
+            && (int) ($_SESSION['user_id'] ?? 0) === $userId) {
+            $_SESSION['session_version'] = $user['session_version'] + 1;
+        }
+        return $updated;
     }
 
     /** @return array{id:int,email:string,status:string,display_name:string,roles:list<string>}|null */
@@ -87,6 +93,14 @@ final class AuthenticationService
 
         $id = $_SESSION['user_id'] ?? null;
         if (!is_int($id) || $id < 1) {
+            return null;
+        }
+
+        $sessionVersion = $_SESSION['session_version'] ?? null;
+        $currentVersion = $this->users->findSessionVersionById($id);
+        if (!is_int($sessionVersion) || $currentVersion === null || $sessionVersion !== $currentVersion) {
+            // Password changes invalidate old sessions even when their cookies remain valid.
+            SecureSession::destroy();
             return null;
         }
 
