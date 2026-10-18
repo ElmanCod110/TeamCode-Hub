@@ -55,6 +55,36 @@ final class WorkspaceController
         return Response::json(['team' => $this->teams->createForOwner($user['id'], trim($name))], 201);
     }
 
+    public function updateTeam(Request $request, array $params): Response
+    {
+        SecureSession::start();
+        if (!$this->validCsrf($request)) {
+            return Response::json(['error' => 'Invalid or expired request token.'], 419);
+        }
+
+        $user = $this->authentication->currentUser();
+        $teamId = $this->positiveId($params['teamId'] ?? null);
+        if ($user === null) {
+            return Response::json(['error' => 'Authentication required.'], 401);
+        }
+        if ($teamId === null) {
+            return Response::json(['error' => 'Team not found.'], 404);
+        }
+
+        $name = $request->body()['name'] ?? null;
+        if (!is_string($name) || trim($name) === '' || strlen(trim($name)) > 100) {
+            return Response::json(['error' => 'Team name must contain 1 to 100 bytes.'], 422);
+        }
+
+        try {
+            $team = $this->teams->updateNameForOwner($user['id'], $teamId, trim($name));
+        } catch (DomainException) {
+            return Response::json(['error' => 'Team not found or owner permission denied.'], 404);
+        }
+
+        return Response::json(['team' => $team]);
+    }
+
     public function showTeam(Request $request, array $params): Response
     {
         $user = $this->currentUser();
@@ -84,6 +114,24 @@ final class WorkspaceController
         }
 
         return Response::json(['projects' => $this->projects->listAccessibleByUserInTeam($user['id'], $teamId)]);
+    }
+
+    public function listArchivedProjects(Request $request, array $params): Response
+    {
+        $user = $this->currentUser();
+        $teamId = $this->positiveId($params['teamId'] ?? null);
+        if ($user === null) {
+            return Response::json(['error' => 'Authentication required.'], 401);
+        }
+        if ($teamId === null || !$this->teamAccess->canManage($user['id'], $teamId)) {
+            return Response::json(['error' => 'Team not found or management permission denied.'], 404);
+        }
+
+        try {
+            return Response::json(['projects' => $this->projects->listArchivedForManager($user['id'], $teamId)]);
+        } catch (DomainException) {
+            return Response::json(['error' => 'Team not found or management permission denied.'], 404);
+        }
     }
 
     public function createProject(Request $request, array $params): Response
@@ -125,6 +173,104 @@ final class WorkspaceController
             : Response::json(['project' => $project], 201);
     }
 
+    public function updateProject(Request $request, array $params): Response
+    {
+        SecureSession::start();
+        if (!$this->validCsrf($request)) {
+            return Response::json(['error' => 'Invalid or expired request token.'], 419);
+        }
+
+        $user = $this->authentication->currentUser();
+        $projectId = $this->positiveId($params['projectId'] ?? null);
+        if ($user === null) {
+            return Response::json(['error' => 'Authentication required.'], 401);
+        }
+        if ($projectId === null) {
+            return Response::json(['error' => 'Project not found.'], 404);
+        }
+
+        $project = $this->projects->findAccessibleByUser($user['id'], $projectId);
+        if ($project === null || !$this->teamAccess->canManage($user['id'], (int) $project['team_id'])) {
+            return Response::json(['error' => 'Project not found or management permission denied.'], 404);
+        }
+
+        $body = $request->body();
+        $name = $body['name'] ?? null;
+        $description = $body['description'] ?? null;
+        if (!is_string($name) || trim($name) === '' || strlen(trim($name)) > 120) {
+            return Response::json(['error' => 'Project name must contain 1 to 120 bytes.'], 422);
+        }
+        if ($description !== null && (!is_string($description) || strlen($description) > 5000)) {
+            return Response::json(['error' => 'Project description must be at most 5000 bytes.'], 422);
+        }
+
+        try {
+            $this->projects->updateMetadataForTeamManager(
+                $user['id'],
+                $projectId,
+                trim($name),
+                is_string($description) && trim($description) !== '' ? trim($description) : null,
+            );
+        } catch (DomainException) {
+            return Response::json(['error' => 'Project not found or management permission denied.'], 404);
+        }
+
+        $updated = $this->projects->findAccessibleByUser($user['id'], $projectId);
+        return $updated === null
+            ? Response::json(['error' => 'Project update could not be verified.'], 500)
+            : Response::json(['project' => $updated]);
+    }
+
+    public function archiveProject(Request $request, array $params): Response
+    {
+        SecureSession::start();
+        if (!$this->validCsrf($request)) {
+            return Response::json(['error' => 'Invalid or expired request token.'], 419);
+        }
+
+        $user = $this->authentication->currentUser();
+        $projectId = $this->positiveId($params['projectId'] ?? null);
+        if ($user === null) {
+            return Response::json(['error' => 'Authentication required.'], 401);
+        }
+        if ($projectId === null) {
+            return Response::json(['error' => 'Project not found.'], 404);
+        }
+
+        try {
+            $this->projects->archiveForTeamManager($user['id'], $projectId);
+        } catch (DomainException) {
+            return Response::json(['error' => 'Project not found or management permission denied.'], 404);
+        }
+        return Response::json(['archived' => true, 'project_id' => $projectId]);
+    }
+
+    public function restoreProject(Request $request, array $params): Response
+    {
+        SecureSession::start();
+        if (!$this->validCsrf($request)) {
+            return Response::json(['error' => 'Invalid or expired request token.'], 419);
+        }
+
+        $user = $this->authentication->currentUser();
+        $projectId = $this->positiveId($params['projectId'] ?? null);
+        if ($user === null) {
+            return Response::json(['error' => 'Authentication required.'], 401);
+        }
+        if ($projectId === null) {
+            return Response::json(['error' => 'Project not found.'], 404);
+        }
+
+        try {
+            $this->projects->restoreForTeamManager($user['id'], $projectId);
+        } catch (QuotaExceededException) {
+            return Response::json(['error' => 'The team has reached its active project quota. Archive another project before restoring this one.'], 409);
+        } catch (DomainException) {
+            return Response::json(['error' => 'Project not found or management permission denied.'], 404);
+        }
+        return Response::json(['restored' => true, 'project_id' => $projectId]);
+    }
+
     public function showProject(Request $request, array $params): Response
     {
         $user = $this->currentUser();
@@ -141,77 +287,6 @@ final class WorkspaceController
         return $project === null
             ? Response::json(['error' => 'Project not found.'], 404)
             : Response::json(['project' => $project]);
-    }
-
-
-    /**
-     * Update the team display name after validating the request and CSRF token.
-     * The repository enforces the owner/manager role again in its SQL predicate.
-     */
-    public function renameTeam(Request $request, array $params): Response
-    {
-        SecureSession::start();
-        if (!$this->validCsrf($request)) {
-            return Response::json(['error' => 'Invalid or expired request token.'], 419);
-        }
-
-        $user = $this->authentication->currentUser();
-        $teamId = $this->positiveId($params['teamId'] ?? null);
-        if ($user === null) {
-            return Response::json(['error' => 'Authentication required.'], 401);
-        }
-        if ($teamId === null) {
-            return Response::json(['error' => 'Team not found or management permission denied.'], 404);
-        }
-
-        $name = $request->body()['name'] ?? null;
-        if (!is_string($name) || trim($name) === '' || strlen(trim($name)) > 100 || preg_match('//u', trim($name)) !== 1) {
-            return Response::json(['error' => 'Team name must contain 1 to 100 bytes.'], 422);
-        }
-
-        if (!$this->teams->renameForManager($user['id'], $teamId, trim($name))) {
-            return Response::json(['error' => 'Team not found or management permission denied.'], 404);
-        }
-
-        return Response::json(['updated' => true, 'team_id' => $teamId, 'name' => trim($name)]);
-    }
-
-    /**
-     * Update a project's name and description without granting project data access.
-     * Only an active owner/manager of the parent team may change these settings.
-     */
-    public function editProject(Request $request, array $params): Response
-    {
-        SecureSession::start();
-        if (!$this->validCsrf($request)) {
-            return Response::json(['error' => 'Invalid or expired request token.'], 419);
-        }
-
-        $user = $this->authentication->currentUser();
-        $projectId = $this->positiveId($params['projectId'] ?? null);
-        if ($user === null) {
-            return Response::json(['error' => 'Authentication required.'], 401);
-        }
-        if ($projectId === null) {
-            return Response::json(['error' => 'Project not found or management permission denied.'], 404);
-        }
-
-        $body = $request->body();
-        $name = $body['name'] ?? null;
-        $description = $body['description'] ?? null;
-        if (!is_string($name) || trim($name) === '' || strlen(trim($name)) > 120 || preg_match('//u', trim($name)) !== 1) {
-            return Response::json(['error' => 'Project name must contain 1 to 120 bytes.'], 422);
-        }
-        if ($description !== null && (!is_string($description) || strlen($description) > 5000 || preg_match('//u', $description) !== 1)) {
-            return Response::json(['error' => 'Project description must be at most 5000 bytes.'], 422);
-        }
-
-        $normalizedDescription = is_string($description) && trim($description) !== '' ? trim($description) : null;
-        if (!$this->projects->updateForTeamManager($user['id'], $projectId, trim($name), $normalizedDescription)) {
-            return Response::json(['error' => 'Project not found or management permission denied.'], 404);
-        }
-
-        return Response::json(['updated' => true, 'project_id' => $projectId, 'name' => trim($name), 'description' => $normalizedDescription]);
     }
 
     private function currentUser(): ?array
