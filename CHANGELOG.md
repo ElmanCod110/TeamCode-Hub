@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Removed unused duplicate team/project settings handlers and aligned UI contract tests with the registered transactional update endpoints.
+
 - Add a project Files tab with a searchable private source-file directory, lightweight text editor, save/reload controls, and revision-history restore.
 - Add optimistic version checks, a 200-file project limit, a 256 KiB file limit, a 10 MiB current-source quota, and a 20 MiB revision-history quota with 20 retained versions per file.
 - Keep project file reads available to approved viewers while restricting creation, editing, and restoration to approved member-level access.
