@@ -83,6 +83,117 @@ final class TeamRepository
         }
     }
 
+    /**
+     * List archived teams owned by the current user. Managers and ordinary members
+     * cannot discover archived teams through this recovery endpoint.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function listArchivedForOwner(int $userId): array
+    {
+        $statement = $this->pdo->prepare(
+            "SELECT t.id, t.name, t.slug, t.status, t.created_at, tm.role
+             FROM teams t
+             INNER JOIN team_memberships tm ON tm.team_id = t.id
+             WHERE t.status = 'archived' AND tm.user_id = :user_id
+               AND tm.status = 'active' AND tm.role = 'owner'
+             ORDER BY t.updated_at DESC, t.id DESC
+             LIMIT 100"
+        );
+        $statement->execute(['user_id' => $userId]);
+        return array_map(self::normalize(...), $statement->fetchAll(PDO::FETCH_ASSOC));
+    }
+
+    /**
+     * Archive a team without deleting its projects, tasks, files, chat, or audit history.
+     * Revoke pending invitations in the same transaction so they cannot be revived later.
+     *
+     * @return array<string, mixed>
+     */
+    public function archiveForOwner(int $userId, int $teamId): array
+    {
+        $this->pdo->beginTransaction();
+        try {
+            $access = $this->pdo->prepare(
+                "SELECT t.id, t.name, t.slug, t.status, tm.role
+                 FROM teams t
+                 INNER JOIN team_memberships tm ON tm.team_id = t.id AND tm.user_id = :user_id
+                 WHERE t.id = :team_id AND t.status = 'active' AND tm.status = 'active'
+                 LIMIT 1 FOR UPDATE"
+            );
+            $access->execute(['user_id' => $userId, 'team_id' => $teamId]);
+            $team = $access->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($team) || $team['role'] !== 'owner') {
+                throw new DomainException('Active team owner role required.');
+            }
+
+            $archive = $this->pdo->prepare(
+                "UPDATE teams SET status = 'archived' WHERE id = :team_id AND status = 'active'"
+            );
+            $archive->execute(['team_id' => $teamId]);
+            if ($archive->rowCount() !== 1) {
+                throw new DomainException('Team is no longer active.');
+            }
+
+            $revokeInvitations = $this->pdo->prepare(
+                "UPDATE team_invitations SET status = 'revoked'
+                 WHERE team_id = :team_id AND status = 'pending'"
+            );
+            $revokeInvitations->execute(['team_id' => $teamId]);
+
+            $this->pdo->commit();
+            $team['status'] = 'archived';
+            return self::normalize($team);
+        } catch (Throwable $error) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $error;
+        }
+    }
+
+    /**
+     * Restore an archived team only for its still-active owner membership.
+     * Child records are preserved and regain access through existing active-team predicates.
+     *
+     * @return array<string, mixed>
+     */
+    public function restoreForOwner(int $userId, int $teamId): array
+    {
+        $this->pdo->beginTransaction();
+        try {
+            $access = $this->pdo->prepare(
+                "SELECT t.id, t.name, t.slug, t.status, tm.role
+                 FROM teams t
+                 INNER JOIN team_memberships tm ON tm.team_id = t.id AND tm.user_id = :user_id
+                 WHERE t.id = :team_id AND t.status = 'archived' AND tm.status = 'active'
+                 LIMIT 1 FOR UPDATE"
+            );
+            $access->execute(['user_id' => $userId, 'team_id' => $teamId]);
+            $team = $access->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($team) || $team['role'] !== 'owner') {
+                throw new DomainException('Archived team owner role required.');
+            }
+
+            $restore = $this->pdo->prepare(
+                "UPDATE teams SET status = 'active' WHERE id = :team_id AND status = 'archived'"
+            );
+            $restore->execute(['team_id' => $teamId]);
+            if ($restore->rowCount() !== 1) {
+                throw new DomainException('Team is no longer archived.');
+            }
+
+            $this->pdo->commit();
+            $team['status'] = 'active';
+            return self::normalize($team);
+        } catch (Throwable $error) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $error;
+        }
+    }
+
     /** @return array<string, mixed> */
     public function createForOwner(int $userId, string $name): array
     {
