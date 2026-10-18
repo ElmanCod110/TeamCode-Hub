@@ -19,6 +19,15 @@ final class EmailVerificationRepository
      */
     public function issueToken(int $userId, string $tokenHash): bool
     {
+        // Periodically prune old tokens so the support table remains bounded.
+        if (random_int(1, 100) === 1) {
+            $this->pdo->exec(
+                "DELETE FROM account_action_tokens
+                 WHERE expires_at < CURRENT_TIMESTAMP - INTERVAL 30 DAY
+                    OR used_at < CURRENT_TIMESTAMP - INTERVAL 30 DAY"
+            );
+        }
+
         $this->pdo->beginTransaction();
         try {
             $user = $this->pdo->prepare(
