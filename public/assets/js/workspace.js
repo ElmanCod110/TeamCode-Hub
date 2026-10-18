@@ -697,6 +697,9 @@
   function routeFromHash() {
     const hash = location.hash.replace(/^#/, "");
     if (hash.startsWith("accept-invitation?")) {
+      if (!state.invitationToken) {
+        state.invitationToken = new URLSearchParams(hash.slice("accept-invitation?".length)).get("token") || "";
+      }
       if (state.invitationToken) acceptPendingInvitation();
       return;
     }
