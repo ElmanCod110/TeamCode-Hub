@@ -620,3 +620,11 @@
   .admin-user-state { grid-column:1 / -1; padding-inline-start:44px; }
   .admin-user-activity { padding-inline-start:44px; }
 }
+
+
+/* Keep directory pagination aligned with the bounded result list. */
+.admin-users-pagination { display:flex; align-items:center; justify-content:center; gap:12px; padding:16px; border-top:1px solid var(--border); }
+.admin-users-pagination .small { min-width:72px; text-align:center; }
+@media (max-width:420px) {
+  .admin-users-pagination { justify-content:space-between; }
+}
