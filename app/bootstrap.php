@@ -222,6 +222,12 @@ return static function (): void {
     $router->get('/api/auth/me', static fn (Request $request, array $params): Response =>
         $modules->get('auth.controller')->me()
     );
+    $router->post('/api/auth/profile', static fn (Request $request, array $params): Response =>
+        $modules->get('auth.controller')->updateProfile($request)
+    );
+    $router->post('/api/auth/password', static fn (Request $request, array $params): Response =>
+        $modules->get('auth.controller')->changePassword($request)
+    );
     $router->post('/api/auth/logout', static fn (Request $request, array $params): Response =>
         $modules->get('auth.controller')->logout($request)
     );
