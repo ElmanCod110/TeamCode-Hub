@@ -83,6 +83,9 @@ $assert(str_contains($authService, 'password_verify($currentPassword') && str_co
 
 $assert(str_contains($js, '/api/dashboard') && str_contains($js, '/api/teams') && str_contains($js, '/api/projects/') && str_contains($js, '/api/notifications'), 'controller connects the existing dashboard, team, project, and notification APIs');
 $assert(str_contains($bootstrap, "/api/teams/{teamId}/edit") && str_contains($bootstrap, "/api/projects/{projectId}/edit"), 'team and project metadata update routes are registered');
+$workspaceController = $read('app/Http/WorkspaceController.php');
+$assert(str_contains($workspaceController, 'public function renameTeam(') && str_contains($workspaceController, 'public function editProject('), 'registered settings routes resolve to implemented controller methods');
+$assert(str_contains($workspaceController, 'updateNameForOwner') && str_contains($workspaceController, 'updateMetadataForTeamManager'), 'settings controllers reuse transactional repository authorization boundaries');
 $assert(str_contains($bootstrap, '/api/teams/{teamId}/archived-projects') && str_contains($bootstrap, '/api/projects/{projectId}/archive') && str_contains($bootstrap, '/api/projects/{projectId}/restore'), 'project lifecycle endpoints are registered');
 $assert(str_contains($js, 'archive-project') && str_contains($js, 'restore-project') && str_contains($js, 'Archived projects'), 'workspace connects archive actions to a restorable archived-project list');
 $assert(str_contains($workspaceController, 'updateNameForOwner') && str_contains($workspaceController, 'updateMetadataForTeamManager'), 'metadata endpoints use repository-level authorization guards');

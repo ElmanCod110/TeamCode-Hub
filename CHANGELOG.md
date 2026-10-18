@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Implement the already-registered team rename and project metadata routes in `WorkspaceController`.
+- Reuse the existing transactional repository checks: team renaming is owner-only; project settings require an active team owner/manager with approved project access.
+- Extend workspace UI contract tests to fail when a registered settings route has no controller handler.
+
 - Add authenticated display-name editing without exposing email or system-role mutation.
 - Add password changes requiring the current password, matching confirmation, and a 12–72 byte limit.
 - Persist password updates with a compare-and-swap hash check to avoid overwriting concurrent changes.
