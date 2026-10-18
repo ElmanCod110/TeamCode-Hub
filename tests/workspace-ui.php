@@ -130,6 +130,10 @@ $assert(str_contains($passwordRecoveryService, "hash('sha256'") && str_contains(
 
 $assert(str_contains($js, '/api/dashboard') && str_contains($js, '/api/teams') && str_contains($js, '/api/projects/') && str_contains($js, '/api/notifications'), 'controller connects the existing dashboard, team, project, and notification APIs');
 $assert(str_contains($bootstrap, "/api/teams/{teamId}/edit") && str_contains($bootstrap, "/api/projects/{projectId}/edit"), 'team and project metadata update routes are registered');
+$assert(str_contains($bootstrap, "'/api/teams/archived'") && str_contains($bootstrap, "'/api/teams/{teamId}/archive'") && str_contains($bootstrap, "'/api/teams/{teamId}/restore'"), 'archived team listing, archive, and restore routes are registered');
+$assert(str_contains($read('app/Database/TeamRepository.php'), 'archiveForOwner') && str_contains($read('app/Database/TeamRepository.php'), 'restoreForOwner') && str_contains($read('app/Database/TeamRepository.php'), "SET status = 'revoked'"), 'team archive repository preserves data and revokes pending invitations');
+$assert(str_contains($js, 'showArchivedTeamsModal') && str_contains($js, 'archiveTeamAction') && str_contains($js, 'restoreTeamAction'), 'workspace UI connects archived team recovery and owner archive actions');
+$assert(str_contains($js, 'actionButton("Archived teams"') && str_contains($js, 'actionButton("Archive team"'), 'team list and owner team view expose the archive workflow');
 $workspaceController = $read('app/Http/WorkspaceController.php');
 $assert(str_contains($workspaceController, 'public function renameTeam(') && str_contains($workspaceController, 'public function editProject('), 'registered settings routes resolve to implemented controller methods');
 $assert(str_contains($workspaceController, 'updateNameForOwner') && str_contains($workspaceController, 'updateMetadataForTeamManager'), 'settings controllers reuse transactional repository authorization boundaries');
