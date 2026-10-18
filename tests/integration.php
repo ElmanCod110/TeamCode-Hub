@@ -254,6 +254,15 @@ try {
     $assert($resetAuthentication->currentUser() === null, 'session with a pre-reset authentication version is rejected');
     SecureSession::start();
     $pdo->prepare('DELETE FROM users WHERE id = :id')->execute(['id' => $resetUserId]);
+    $expiredResetUserId = $insertUser('expired-password-reset@example.test', 'Expired Password Reset Fixture', 'Old-Expired-Reset-Password-54');
+    $expiredResetToken = bin2hex(random_bytes(32));
+    $expiredResetHash = hash('sha256', $expiredResetToken);
+    $assert($passwordReset->issueForEmail('expired-password-reset@example.test', $expiredResetHash) === 'expired-password-reset@example.test', 'separate active account can receive an independent reset token');
+    $pdo->prepare("UPDATE account_action_tokens SET expires_at = DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 1 MINUTE) WHERE token_hash = :hash")
+        ->execute(['hash' => $expiredResetHash]);
+    $assert(!$passwordReset->resetPassword($expiredResetHash, password_hash('Rejected-Expired-Reset-Password-55', PASSWORD_DEFAULT)), 'expired password reset tokens cannot replace credentials');
+    $pdo->prepare('DELETE FROM users WHERE id = :id')->execute(['id' => $expiredResetUserId]);
+
 
     $pdo->prepare("INSERT INTO user_system_roles (user_id, role) VALUES (:user_id, 'site_admin')")->execute(['user_id' => $adminId]);
 
