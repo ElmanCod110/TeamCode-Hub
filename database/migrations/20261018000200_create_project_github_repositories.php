@@ -29,13 +29,13 @@ return new class implements MigrationInterface {
 
         $pdo->exec("CREATE TABLE IF NOT EXISTS github_repository_refresh_budget (
             id TINYINT UNSIGNED NOT NULL,
-            utc_date DATE NOT NULL,
+            budget_date DATE NOT NULL,
             attempts SMALLINT UNSIGNED NOT NULL DEFAULT 0,
             updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
-        $pdo->exec("INSERT IGNORE INTO github_repository_refresh_budget (id, utc_date, attempts)
+        $pdo->exec("INSERT IGNORE INTO github_repository_refresh_budget (id, budget_date, attempts)
                     VALUES (1, '1970-01-01', 0)");
     }
 };
