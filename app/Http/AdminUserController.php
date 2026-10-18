@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace TeamCodeHub\Http;
 
 use DomainException;
+use OutOfBoundsException;
 use TeamCodeHub\Core\Request;
 use TeamCodeHub\Core\Response;
 use TeamCodeHub\Database\AdminAccountRepository;
