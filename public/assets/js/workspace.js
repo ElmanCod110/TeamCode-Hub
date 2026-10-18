@@ -1514,7 +1514,7 @@
   async function renderAdminUsers() {
     const root = pageRoot();
     root.appendChild(pageHeading("SITE ADMINISTRATION", "User directory",
-      "Search account records and review status, sign-in activity, and administrator flags.",
+      "Search account records, review sign-in activity, and safely manage active/disabled access.",
       actionGroup(actionButton("Refresh", "refresh-admin-users", "btn btn-outline"))));
 
     const toolbar = el("form", "admin-users-toolbar surface-panel");
