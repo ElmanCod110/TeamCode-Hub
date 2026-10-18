@@ -12,6 +12,7 @@ use TeamCodeHub\Services\EmailDeliveryService;
 use TeamCodeHub\Database\GitHubActivityCacheRepository;
 use TeamCodeHub\Database\GitHubRepositoryCacheRepository;
 use TeamCodeHub\Database\NotificationRepository;
+use TeamCodeHub\Database\PasswordRecoveryRepository;
 use TeamCodeHub\Database\DatabaseConfig;
 use TeamCodeHub\Database\MembershipRepository;
 use TeamCodeHub\Database\MigrationRunner;
@@ -50,7 +51,7 @@ try {
     $pdo = ConnectionFactory::connect($config);
     $runner = new MigrationRunner($pdo, dirname(__DIR__) . '/database/migrations');
     $applied = $runner->migrate();
-    $assert(count($applied) >= 12, 'all versioned migrations are applied to MariaDB');
+    $assert(count($applied) >= 13, 'all versioned migrations are applied to MariaDB');
     $assert($runner->migrate() === [], 'migration runner is idempotent on a migrated schema');
 
     // Exercise email verification directly without invoking the server's real mail transport.
@@ -210,6 +211,37 @@ try {
         ]);
         return (int) $pdo->lastInsertId();
     };
+
+    // Password recovery uses hashed, short-lived, single-use tokens and revokes prior sessions.
+    $recoveryUserId = $insertUser('password-recovery@example.test', 'Password Recovery Fixture', 'A-Strong-Recovery-Password-51');
+    $recoveryRepository = new PasswordRecoveryRepository($pdo);
+    $recoveryToken = bin2hex(random_bytes(32));
+    $recoveryHash = hash('sha256', $recoveryToken);
+    $issuedRecovery = $recoveryRepository->issueTokenForEmail('password-recovery@example.test', $recoveryHash);
+    $assert(is_array($issuedRecovery) && $issuedRecovery['id'] === $recoveryUserId, 'active account can receive a password reset token');
+    $storedRecovery = $pdo->prepare("SELECT token_hash, expires_at FROM account_action_tokens WHERE user_id = :id AND purpose = 'password_reset' LIMIT 1");
+    $storedRecovery->execute(['id' => $recoveryUserId]);
+    $storedRecoveryRow = $storedRecovery->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($storedRecoveryRow) && $storedRecoveryRow['token_hash'] === $recoveryHash && $recoveryHash !== $recoveryToken, 'password reset stores only the SHA-256 token hash');
+    $assert(strtotime((string) $storedRecoveryRow['expires_at']) > time() && strtotime((string) $storedRecoveryRow['expires_at']) <= time() + 31 * 60, 'password reset token has a bounded 30-minute expiry');
+
+    $recoveryReplacement = 'A-New-Recovery-Password-52';
+    $assert($recoveryRepository->resetPassword($recoveryHash, password_hash($recoveryReplacement, PASSWORD_DEFAULT)), 'valid password reset atomically replaces the credential');
+    $recoveryCredential = $pdo->prepare('SELECT password_hash, session_version FROM users WHERE id = :id');
+    $recoveryCredential->execute(['id' => $recoveryUserId]);
+    $recoveryCredentialRow = $recoveryCredential->fetch(PDO::FETCH_ASSOC);
+    $assert(is_array($recoveryCredentialRow) && password_verify($recoveryReplacement, $recoveryCredentialRow['password_hash']), 'password reset persists the replacement password hash');
+    $assert(is_array($recoveryCredentialRow) && (int) $recoveryCredentialRow['session_version'] === 2, 'password reset increments the session version to revoke old sessions');
+    $assert(!$recoveryRepository->resetPassword($recoveryHash, password_hash('Another-Recovery-Password-53', PASSWORD_DEFAULT)), 'password reset tokens cannot be replayed');
+
+    $expiredRecoveryToken = bin2hex(random_bytes(32));
+    $expiredRecoveryHash = hash('sha256', $expiredRecoveryToken);
+    $issuedExpiredRecovery = $recoveryRepository->issueTokenForEmail('password-recovery@example.test', $expiredRecoveryHash);
+    $assert(is_array($issuedExpiredRecovery), 'a later password reset request can issue a fresh token');
+    $pdo->prepare("UPDATE account_action_tokens SET expires_at = DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 1 MINUTE) WHERE token_hash = :hash")
+        ->execute(['hash' => $expiredRecoveryHash]);
+    $assert(!$recoveryRepository->resetPassword($expiredRecoveryHash, password_hash('Expired-Recovery-Password-54', PASSWORD_DEFAULT)), 'expired password reset tokens cannot change credentials');
+    $pdo->prepare('DELETE FROM users WHERE id = :id')->execute(['id' => $recoveryUserId]);
 
     $adminId = $insertUser('admin@example.test', 'Integration Admin', 'A-Strong-Test-Password-42');
     $memberId = $insertUser('member@example.test', 'Integration Member', 'A-Strong-Test-Password-43');
