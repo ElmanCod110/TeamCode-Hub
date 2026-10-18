@@ -42,6 +42,16 @@ $workflow = $read('.github/workflows/ci.yml');
 $htaccess = $read('public/.htaccess');
 
 $assert(str_contains($html, '<html lang="en" dir="ltr"'), 'workspace declares English left-to-right document semantics');
+
+$assert(str_contains($html, '/assets/css/app.css?v=0.2.0-dev') && str_contains($html, '/assets/css/workspace.css?v=0.2.0-dev'), 'workspace loads shared design tokens and workspace-specific stylesheets');
+$assert(str_contains($html, '/assets/js/ui.js?v=0.2.0-dev') && str_contains($html, '/assets/js/workspace.js?v=0.2.0-dev'), 'workspace loads the shared UI controller and product controller');
+preg_match_all('/(?:href|src)=["\\'](\\/assets\\/[^"\\']+)["\\']/', $html, $workspaceAssetMatches);
+foreach ($workspaceAssetMatches[1] as $assetUrl) {
+    $relativePath = 'public' . strtok($assetUrl, '?');
+    $assert(is_file($root . '/' . $relativePath), 'workspace asset URL resolves: ' . $relativePath);
+}
+$assert(str_contains($html, 'data-theme="light"') && str_contains($read('public/assets/js/ui.js'), 'root.dataset.theme = next'), 'workspace theme switcher updates the shared light/dark design tokens');
+
 $assert(str_contains($html, 'id="login-form"') && str_contains($html, 'id="application"'), 'login and authenticated application shells are present');
 $assert(str_contains($html, 'id="nav-moderation-item"') && str_contains($html, 'data-page="moderation"'), 'moderation navigation exists as a permission-gated workspace view');
 $assert(str_contains($html, 'data-page="github"') && str_contains($js, '/api/github/activity'), 'GitHub activity page is connected to its authenticated endpoint');
