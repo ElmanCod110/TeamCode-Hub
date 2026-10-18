@@ -1610,7 +1610,7 @@
     const passwordRow = el("div", "settings-row");
     const passwordCopy = el("div");
     append(passwordCopy, el("strong", "", "Password and sign-in"),
-      el("p", "", "Change your password after verifying your current credential. Use at least 12 characters."));
+      el("p", "", "Change your password after verifying your current credential. Use 12–72 bytes."));
     append(passwordRow, passwordCopy, actionButton("Change password", "change-password", "btn btn-outline"));
     const securityRow = el("div", "settings-row");
     const securityCopy = el("div");
