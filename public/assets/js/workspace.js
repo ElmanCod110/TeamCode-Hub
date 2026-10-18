@@ -1671,7 +1671,7 @@
     openFormModal(actionWord + " account", reactivating
       ? "Restore sign-in access for " + displayName + ". The reason is retained in the administrator audit history."
       : "Block sign-in access for " + displayName + ". Existing membership and project history are preserved. The reason is retained in the audit history.", [
-      { name: "reason", label: "Reason for this change", type: "textarea", rows: 4, required: true, minLength: 5, maxLength: 500, placeholder: "Explain the operational reason for this status change.", help: "Use 5–500 characters. This note is visible to site administrators in the audit history.", full: true }
+      { name: "reason", label: "Reason for this change", type: "textarea", rows: 4, required: true, minLength: 5, maxLength: 500, placeholder: "Explain the operational reason for this status change.", help: "Use 5–500 UTF-8 bytes. Never include passwords, tokens, or sensitive personal details.", full: true }
     ], actionWord + " account", async values => {
       const result = await request("/api/admin/users/" + escapePath(userId) + "/status", {
         method: "POST",
