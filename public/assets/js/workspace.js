@@ -13,6 +13,7 @@
   const $$ = (selector, scope = document) => Array.from(scope.querySelectorAll(selector));
   const state = {
     csrf: "",
+    verificationToken: "",
     user: null,
     dashboard: null,
     teams: [],
@@ -222,6 +223,25 @@
     $("#auth-screen").hidden = false;
     $("#login-password").value = "";
     $("#login-error").hidden = true;
+    showAuthMode("login");
+  }
+
+  /** Display one authentication flow at a time and keep keyboard focus predictable. */
+  function showAuthMode(mode) {
+    const views = {
+      login: $("#login-form"),
+      register: $("#register-form"),
+      resend: $("#verification-resend-form"),
+      verify: $("#verify-screen")
+    };
+    Object.entries(views).forEach(([name, view]) => { view.hidden = name !== mode; });
+    const focusTargets = {
+      login: $("#login-email"),
+      register: $("#register-name"),
+      resend: $("#resend-email"),
+      verify: $("#verify-submit")
+    };
+    if (focusTargets[mode] && !focusTargets[mode].disabled) focusTargets[mode].focus();
   }
 
   function showApplication() {
@@ -239,7 +259,28 @@
 
   async function boot() {
     // Populate stable SVG icons in the document shell.
-    $$("[data-icon]").forEach(node => node.appendChild(icon(node.dataset.icon)));
+    $("[data-icon]").forEach(node => node.appendChild(icon(node.dataset.icon)));
+
+    // Email tokens live in the fragment, which browsers do not send to the web server.
+    const hash = location.hash.replace(/^#/, "");
+    if (hash.startsWith("verify-email?")) {
+      state.verificationToken = new URLSearchParams(hash.slice("verify-email?".length)).get("token") || "";
+      $("#verify-submit").disabled = true;
+      showAuth();
+      showAuthMode("verify");
+      if (!state.verificationToken) {
+        $("#verify-status").textContent = "This verification link is missing its token. Request a new link and try again.";
+      }
+      try {
+        await loadCsrf();
+        $("#verify-submit").disabled = !state.verificationToken;
+      } catch (_) {
+        $("#verify-status").textContent = "The verification service is unavailable. Check the database setup and reload.";
+        $("#verify-submit").disabled = true;
+      }
+      return;
+    }
+
     try {
       const me = await request("/api/auth/me", { method: "GET", allowUnauthenticated: true, noCsrf: true });
       if (!me.authenticated) {
@@ -295,6 +336,106 @@
     } finally {
       submit.disabled = false;
       submit.innerHTML = original;
+    }
+  }
+
+  async function registerAccount(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const submit = $("#register-submit");
+    const error = $("#register-error");
+    const status = $("#register-status");
+    error.hidden = true;
+    status.hidden = true;
+    if (!form.reportValidity()) return;
+    const email = $("#register-email").value.trim();
+    const displayName = $("#register-name").value.trim();
+    const password = $("#register-password").value;
+    const confirmation = $("#register-confirm-password").value;
+    if (password !== confirmation) {
+      error.textContent = "Password confirmation does not match.";
+      error.hidden = false;
+      return;
+    }
+    submit.disabled = true;
+    submit.textContent = "Creating account…";
+    try {
+      if (!state.csrf) await loadCsrf();
+      const result = await request("/api/auth/register", {
+        method: "POST",
+        body: { email, display_name: displayName, password, confirm_password: confirmation }
+      });
+      status.textContent = result.message || "If the request can be processed, a verification email will be sent.";
+      status.hidden = false;
+      $("#resend-email").value = email;
+      form.reset();
+    } catch (failure) {
+      error.textContent = failure.message || "Registration could not be processed. Try again later.";
+      error.hidden = false;
+    } finally {
+      submit.disabled = false;
+      submit.textContent = "Create account";
+    }
+  }
+
+  async function resendVerification(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const submit = $("#resend-submit");
+    const error = $("#resend-error");
+    const status = $("#resend-status");
+    error.hidden = true;
+    status.hidden = true;
+    if (!form.reportValidity()) return;
+    submit.disabled = true;
+    submit.textContent = "Sending…";
+    try {
+      if (!state.csrf) await loadCsrf();
+      const result = await request("/api/auth/verification/resend", {
+        method: "POST",
+        body: { email: $("#resend-email").value.trim() }
+      });
+      status.textContent = result.message || "If the request can be processed, a verification email will be sent.";
+      status.hidden = false;
+    } catch (failure) {
+      error.textContent = failure.message || "The request could not be processed. Try again later.";
+      error.hidden = false;
+    } finally {
+      submit.disabled = false;
+      submit.textContent = "Send verification link";
+    }
+  }
+
+  async function verifyEmail() {
+    const token = state.verificationToken;
+    const submit = $("#verify-submit");
+    const status = $("#verify-status");
+    if (!token || !state.csrf) {
+      status.textContent = "This verification link is invalid or expired. Request a new link.";
+      status.className = "alert alert-danger auth-status";
+      submit.disabled = true;
+      return;
+    }
+
+    // Remove the bearer token from browser history before sending the verification request.
+    history.replaceState({}, "", "/#overview");
+    submit.disabled = true;
+    submit.textContent = "Verifying…";
+    status.textContent = "Verifying your email address…";
+    try {
+      const result = await request("/api/auth/verify-email", { method: "POST", body: { token } });
+      state.verificationToken = "";
+      status.className = "alert alert-success auth-status";
+      status.textContent = result.message || "Email verified. You can now sign in.";
+      submit.hidden = true;
+    } catch (failure) {
+      state.verificationToken = "";
+      status.className = "alert alert-danger auth-status";
+      status.textContent = failure.message || "This verification link is invalid, expired, or already used.";
+      submit.hidden = true;
+    } finally {
+      submit.disabled = false;
+      submit.textContent = "Verify email";
     }
   }
 
@@ -2903,6 +3044,18 @@
   }
 
   $("#login-form").addEventListener("submit", login);
+  $("#register-form").addEventListener("submit", registerAccount);
+  $("#verification-resend-form").addEventListener("submit", resendVerification);
+  $("#verify-submit").addEventListener("click", verifyEmail);
+  $("#show-register").addEventListener("click", () => showAuthMode("register"));
+  $("#show-resend-verification").addEventListener("click", () => showAuthMode("resend"));
+  $("#show-login-from-register").addEventListener("click", () => showAuthMode("login"));
+  $("#show-login-from-resend").addEventListener("click", () => showAuthMode("login"));
+  $("#show-login-from-verify").addEventListener("click", () => {
+    state.verificationToken = "";
+    history.replaceState({}, "", "/login");
+    showAuthMode("login");
+  });
   document.addEventListener("click", event => {
     if (event.target.closest("[data-sidebar-close]")) closeSidebar();
   });
