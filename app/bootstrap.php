@@ -11,6 +11,7 @@ use TeamCodeHub\Database\AdminAccountRepository;
 use TeamCodeHub\Database\ChatRepository;
 use TeamCodeHub\Database\DashboardRepository;
 use TeamCodeHub\Database\GitHubActivityCacheRepository;
+use TeamCodeHub\Database\GitHubRepositoryCacheRepository;
 use TeamCodeHub\Database\ChatReportRepository;
 use TeamCodeHub\Database\DatabaseConfig;
 use TeamCodeHub\Database\MembershipRepository;
@@ -28,6 +29,7 @@ use TeamCodeHub\Http\ChatController;
 use TeamCodeHub\Http\ChatReportController;
 use TeamCodeHub\Http\DashboardController;
 use TeamCodeHub\Http\GitHubActivityController;
+use TeamCodeHub\Http\ProjectGitHubController;
 use TeamCodeHub\Http\WorkspaceController;
 use TeamCodeHub\Http\TaskController;
 use TeamCodeHub\Http\TaskCollaborationController;
@@ -40,6 +42,7 @@ use TeamCodeHub\Security\ProjectAccessService;
 use TeamCodeHub\Security\SecureSession;
 use TeamCodeHub\Security\TeamAccessService;
 use TeamCodeHub\Services\GitHubActivityService;
+use TeamCodeHub\Services\GitHubRepositoryService;
 
 spl_autoload_register(static function (string $class): void {
     $prefix = 'TeamCodeHub\\';
@@ -108,6 +111,18 @@ return static function (): void {
         $pdo = ConnectionFactory::connect(DatabaseConfig::fromEnvironment());
         $users = new UserRepository($pdo);
         return new AdminUserController(new AuthenticationService($users), $users, new AdminAccountRepository($pdo));
+    });
+
+    $modules->register('project-github.controller', static function (): object {
+        $pdo = ConnectionFactory::connect(DatabaseConfig::fromEnvironment());
+        $memberships = new MembershipRepository($pdo);
+        return new ProjectGitHubController(
+            new AuthenticationService(new UserRepository($pdo)),
+            new ProjectRepository($pdo),
+            new ProjectAccessService($memberships),
+            new TeamAccessService($memberships),
+            new GitHubRepositoryService(new GitHubRepositoryCacheRepository($pdo)),
+        );
     });
 
     $modules->register('github-activity.controller', static function (): object {
@@ -272,6 +287,12 @@ return static function (): void {
     );
     $router->get('/api/projects/{projectId}', static fn (Request $request, array $params): Response =>
         $modules->get('workspace.controller')->showProject($request, $params)
+    );
+    $router->get('/api/projects/{projectId}/github', static fn (Request $request, array $params): Response =>
+        $modules->get('project-github.controller')->show($request, $params)
+    );
+    $router->post('/api/projects/{projectId}/github', static fn (Request $request, array $params): Response =>
+        $modules->get('project-github.controller')->updateLink($request, $params)
     );
     $router->post('/api/projects/{projectId}/archive', static fn (Request $request, array $params): Response =>
         $modules->get('workspace.controller')->archiveProject($request, $params)
