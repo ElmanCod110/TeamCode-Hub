@@ -51,7 +51,7 @@ try {
     $pdo = ConnectionFactory::connect($config);
     $runner = new MigrationRunner($pdo, dirname(__DIR__) . '/database/migrations');
     $applied = $runner->migrate();
-    $assert(count($applied) >= 12, 'all versioned migrations are applied to MariaDB');
+    $assert(count($applied) >= 13, 'all versioned migrations are applied to MariaDB');
     $assert($runner->migrate() === [], 'migration runner is idempotent on a migrated schema');
 
     // Exercise email verification directly without invoking the server's real mail transport.
@@ -236,9 +236,15 @@ try {
     $assert($resetTtl > 1700 && $resetTtl <= 1800, 'password reset tokens expire after 30 minutes');
     $assert($passwordReset->issueForEmail('password-reset@example.test', hash('sha256', bin2hex(random_bytes(32)))) === null, 'password reset issuance enforces a per-account cooldown');
     $assert($passwordReset->issueForEmail('unknown-reset@example.test', hash('sha256', bin2hex(random_bytes(32)))) === null, 'unknown accounts do not receive password reset tokens');
+    $versionBeforeReset = $pdo->prepare('SELECT auth_version FROM users WHERE id = :id');
+    $versionBeforeReset->execute(['id' => $resetUserId]);
+    $initialAuthVersion = (int) $versionBeforeReset->fetchColumn();
     $newResetPassword = 'New-Unique-Password-For-Reset-52';
     $newResetHash = password_hash($newResetPassword, PASSWORD_DEFAULT);
     $assert(is_string($newResetHash) && $passwordReset->resetPassword($resetHash, $newResetHash), 'valid password reset token changes the password transactionally');
+    $versionAfterReset = $pdo->prepare('SELECT auth_version FROM users WHERE id = :id');
+    $versionAfterReset->execute(['id' => $resetUserId]);
+    $assert((int) $versionAfterReset->fetchColumn() === $initialAuthVersion + 1, 'password reset increments the account authentication version to revoke older sessions');
     $assert(!$passwordReset->resetPassword($resetHash, password_hash('Another-Reset-Password-53', PASSWORD_DEFAULT)), 'password reset token cannot be replayed');
     $resetAuthentication = new AuthenticationService(new UserRepository($pdo));
     $assert($resetAuthentication->authenticate('password-reset@example.test', $newResetPassword), 'new password works after a successful reset');
