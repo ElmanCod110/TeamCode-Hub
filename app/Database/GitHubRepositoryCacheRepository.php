@@ -80,7 +80,7 @@ final class GitHubRepositoryCacheRepository
                 'UPDATE github_repository_refresh_budget
                  SET budget_date = :budget_date, attempts = :attempts WHERE id = 1'
             );
-            $increment->execute(['utc_date' => $utcDate, 'attempts' => $attempts + 1]);
+            $increment->execute(['budget_date' => $utcDate, 'attempts' => $attempts + 1]);
 
             $row['attempted_date'] = $utcDate;
             $row['last_error'] = null;
