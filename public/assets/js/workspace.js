@@ -1554,13 +1554,14 @@
       const params = new URLSearchParams();
       if (query.value.trim()) params.set("q", query.value.trim());
       params.set("status", status.value);
+      params.set("page", String(page));
       try {
         const data = await request("/api/admin/users?" + params.toString(), { signal: controller.signal });
         if (current !== sequence) return;
         results.replaceChildren();
         const users = Array.isArray(data.users) ? data.users : [];
         const heading = el("div", "panel-heading");
-        append(heading, append(el("div"), el("h2", "", "Accounts"), el("p", "", users.length + " result" + (users.length === 1 ? "" : "s") + (data.has_more ? " · showing the first 50 matches" : ""))), badge(status.value === "all" ? "all statuses" : status.value));
+        append(heading, append(el("div"), el("h2", "", "Accounts"), el("p", "", users.length + " result" + (users.length === 1 ? "" : "s") + (" · page " + page + (data.has_more ? " · more results available" : "")))), badge(status.value === "all" ? "all statuses" : status.value));
         results.appendChild(heading);
         if (!users.length) {
           results.appendChild(emptyState("No accounts found", "Try a different name, email address, or exact user ID."));
