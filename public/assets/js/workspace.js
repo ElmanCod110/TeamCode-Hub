@@ -876,7 +876,7 @@
   function renderTeams() {
     const root = pageRoot();
     root.appendChild(pageHeading("COLLABORATE", "Your teams", "Organize people around shared goals, manage invitations, and keep each project connected.",
-      actionGroup(actionButton("Accept invitation", "accept-invitation", "btn btn-outline"), actionButton("＋ Create team", "create-team", "btn btn-primary"))));
+      actionGroup(actionButton("Archived teams", "show-archived-teams", "btn btn-outline"), actionButton("Accept invitation", "accept-invitation", "btn btn-outline"), actionButton("＋ Create team", "create-team", "btn btn-primary"))));
     const toolbar = el("div", "view-toolbar");
     const search = el("div", "search-control");
     search.append(icon("search"));
@@ -925,7 +925,9 @@
     const root = pageRoot();
     const teamActions = actionGroup();
     if (canManageTeam(team.id)) append(teamActions, actionButton("Invite member", "invite-member", "btn btn-outline", { "data-team-id": team.id }), actionButton("New project", "create-project", "btn btn-primary", { "data-team-id": team.id }));
-    if (team.role === "owner") teamActions.appendChild(actionButton("Edit team", "edit-team", "btn btn-outline", { "data-team-id": team.id }));
+    if (team.role === "owner") append(teamActions,
+      actionButton("Edit team", "edit-team", "btn btn-outline", { "data-team-id": team.id }),
+      actionButton("Archive team", "archive-team", "btn btn-danger-outline", { "data-team-id": team.id }));
     root.appendChild(pageHeading("TEAM WORKSPACE", team.name, "Projects and invitations for this team.", teamActions));
     const layout = el("div", "overview-columns");
     const projectContent = el("div", "project-mini-list");
@@ -2867,6 +2869,88 @@
     });
   }
 
+  /**
+   * Show the archived teams that the signed-in user still owns.
+   * Restoring is explicit because it makes the team's preserved projects accessible again.
+   */
+  async function showArchivedTeamsModal() {
+    modalReturnFocus = document.activeElement;
+    const overlay = el("div", "tch-modal-overlay");
+    const modal = el("section", "tch-modal");
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", "archived-teams-title");
+    const header = el("div", "tch-modal-header");
+    const titleBlock = el("div");
+    const title = el("h2", "", "Archived teams");
+    title.id = "archived-teams-title";
+    append(titleBlock, title, el("p", "", "Archived teams keep their projects and history. Restore one to reopen access."));
+    append(header, titleBlock, actionButton("×", "close-modal", "btn btn-ghost btn-icon", { "aria-label": "Close archived teams" }));
+    const body = el("div", "tch-modal-body");
+    body.appendChild(el("p", "small page-loading", "Loading archived teams…"));
+    const footer = el("div", "tch-modal-footer");
+    footer.appendChild(actionButton("Close", "close-modal", "btn btn-outline"));
+    append(modal, header, body, footer);
+    overlay.appendChild(modal);
+    $("#modal-root").replaceChildren(overlay);
+    overlay.addEventListener("click", event => { if (event.target === overlay) closeModal(); });
+    overlay.addEventListener("keydown", event => handleDialogKeydown(event, overlay));
+    const close = $("button", modal);
+    if (close) close.focus();
+
+    try {
+      const result = await request("/api/teams/archived");
+      const teams = Array.isArray(result.teams) ? result.teams : [];
+      body.replaceChildren();
+      if (!teams.length) {
+        body.appendChild(emptyState("No archived teams", "Teams you own will appear here after you archive them."));
+        return;
+      }
+      const list = el("div", "grid");
+      teams.forEach(team => {
+        const card = el("article", "team-card surface-panel");
+        const top = el("div", "team-card-top");
+        append(top, el("span", "project-mark team-card-mark", initials(team.name).slice(0, 2)), badge("archived"));
+        const copy = el("div", "team-card-body");
+        append(copy, el("h3", "", team.name), el("p", "", "Projects, tasks, source files, and conversations are preserved."));
+        const foot = el("div", "team-card-foot");
+        append(foot, el("span", "small", "Archived team"), actionButton("Restore team", "restore-team", "btn btn-primary btn-sm", { "data-team-id": team.id }));
+        append(card, top, copy, foot);
+        list.appendChild(card);
+      });
+      body.appendChild(list);
+    } catch (error) {
+      body.replaceChildren(el("div", "alert alert-danger", error.message || "Archived teams could not be loaded."));
+    }
+  }
+
+  /**
+   * Archive is a reversible access shutdown, not a data deletion.
+   * The server verifies owner permissions and revokes outstanding invitations transactionally.
+   */
+  async function archiveTeamAction(teamId) {
+    const team = teamById(teamId);
+    if (!team || team.role !== "owner") {
+      toast("Only the team owner can archive this team.", "warning");
+      return;
+    }
+    if (!window.confirm("Archive “" + team.name + "”? All team members will lose access until the owner restores it. Projects, tasks, files, chat, and reports are preserved; pending invitations are revoked.")) return;
+    await request("/api/teams/" + escapePath(team.id) + "/archive", { method: "POST", body: {} });
+    await refreshWorkspace(false);
+    toast("Team archived. Its data is preserved and can be restored.");
+    navigate("teams");
+  }
+
+  /** Restore an archived team from the owner's recovery list. */
+  async function restoreTeamAction(teamId) {
+    if (!window.confirm("Restore this team and reopen access for its active members?")) return;
+    await request("/api/teams/" + escapePath(teamId) + "/restore", { method: "POST", body: {} });
+    closeModal();
+    await refreshWorkspace(false);
+    toast("Team restored. Its preserved projects are available again.");
+    navigate("teams");
+  }
+
   function editTeamModal(teamId) {
     const team = teamById(teamId);
     if (!team || team.role !== "owner") {
@@ -3259,6 +3343,9 @@
     const name = action.dataset.action;
     try {
       if (name === "create-team") createTeamModal();
+      else if (name === "show-archived-teams") await showArchivedTeamsModal();
+      else if (name === "archive-team") await archiveTeamAction(action.dataset.teamId);
+      else if (name === "restore-team") await restoreTeamAction(action.dataset.teamId);
       else if (name === "create-project-file") createProjectFileModal(action.dataset.projectId);
       else if (name === "select-project-file") {
         if (Number(action.dataset.fileId) !== Number($("#project-files-editor")?.dataset.fileId) && !confirmDiscardProjectFileChanges()) return;
