@@ -3,7 +3,7 @@
 ## Unreleased
 
 - Added authenticated display-name editing without exposing email or system-role mutation.
-- Added password changes requiring the current password, matching confirmation, and a 12-character minimum.
+- Added password changes requiring the current password, matching confirmation, and a 12–72 byte limit.
 - Persisted password updates with a compare-and-swap hash check to avoid overwriting concurrent changes.
 - Rotated the current session identifier and CSRF token after successful password changes.
 - Connected account dialogs to Preferences and added integration/UI contract coverage.
