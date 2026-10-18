@@ -40,7 +40,7 @@ final class ProjectRepository
     public function listArchivedForManager(int $userId, int $teamId): array
     {
         $statement = $this->pdo->prepare(
-            "SELECT p.id, p.team_id, p.name, p.slug, p.description, p.status, p.created_by, p.created_at, p.updated_at
+            "SELECT p.id, p.team_id, p.name, p.slug, p.description, p.github_repository, p.status, p.created_by, p.created_at, p.updated_at
              FROM projects p
              INNER JOIN teams t ON t.id = p.team_id AND t.status = 'active'
              INNER JOIN team_memberships tm ON tm.team_id = t.id AND tm.user_id = :user_id AND tm.status = 'active'
@@ -57,7 +57,7 @@ final class ProjectRepository
     public function findAccessibleByUser(int $userId, int $projectId): ?array
     {
         $statement = $this->pdo->prepare(
-            "SELECT p.id, p.team_id, p.name, p.slug, p.description, p.status, p.created_by, p.created_at, p.updated_at, pm.access_level
+            "SELECT p.id, p.team_id, p.name, p.slug, p.description, p.github_repository, p.status, p.created_by, p.created_at, p.updated_at, pm.access_level
              FROM projects p
              INNER JOIN project_memberships pm ON pm.project_id = p.id AND pm.user_id = :user_id
              INNER JOIN team_memberships tm ON tm.team_id = p.team_id AND tm.user_id = pm.user_id
