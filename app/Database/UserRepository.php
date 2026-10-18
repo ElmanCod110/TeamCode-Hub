@@ -6,6 +6,7 @@ namespace TeamCodeHub\Database;
 
 use DomainException;
 use PDO;
+use PDOException;
 
 final class UserRepository
 {
@@ -54,6 +55,46 @@ final class UserRepository
         ];
     }
 
+
+    /**
+     * Create a pending account without granting access before email ownership is verified.
+     * A duplicate email is represented as null so the public registration endpoint can stay generic.
+     */
+    public function createPendingAccount(string $email, string $passwordHash, string $displayName): ?int
+    {
+        try {
+            $statement = $this->pdo->prepare(
+                "INSERT INTO users (email, password_hash, display_name, status, email_verified_at)
+                 VALUES (:email, :password_hash, :display_name, 'pending', NULL)"
+            );
+            $statement->execute([
+                'email' => strtolower(trim($email)),
+                'password_hash' => $passwordHash,
+                'display_name' => $displayName,
+            ]);
+            return (int) $this->pdo->lastInsertId();
+        } catch (PDOException $error) {
+            if ((int) ($error->errorInfo[1] ?? 0) === 1062) {
+                return null;
+            }
+            throw $error;
+        }
+    }
+
+    /** @return array{id:int,email:string}|null */
+    public function findPendingVerificationByEmail(string $email): ?array
+    {
+        $statement = $this->pdo->prepare(
+            "SELECT id, email FROM users
+             WHERE email = :email AND status = 'pending' AND email_verified_at IS NULL
+             LIMIT 1"
+        );
+        $statement->execute(['email' => strtolower(trim($email))]);
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+        return is_array($row)
+            ? ['id' => (int) $row['id'], 'email' => (string) $row['email']]
+            : null;
+    }
 
     /**
      * Update the public display name for an active account.
