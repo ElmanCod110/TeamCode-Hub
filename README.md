@@ -44,7 +44,7 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 2. Run `php bin/migrate.php` from a trusted CLI shell.
 3. Create the first administrator using the CLI-only procedure in [docs/OPERATIONS.md](docs/OPERATIONS.md).
 4. Configure the web server document root to `public/` and enable HTTPS. Set `APP_HTTPS=true` only when browser-facing HTTPS is guaranteed by the deployment.
-5. Open `/`. The application shows the sign-in form when there is no authenticated session. Accounts must already exist and be active. Public registration requires email verification; forgotten-password recovery uses a one-time, 30-minute email link.
+5. Open `/`. The application shows the sign-in form when there is no authenticated session. Sign in with an active account or create an account and verify its email address. Forgotten-password recovery uses a one-time, 30-minute email link.
 
 The project uses plain PHP, browser-native JavaScript, CSS, and PDO. It does not require a Node build step or a remote font download for production.
 
