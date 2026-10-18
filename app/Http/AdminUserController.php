@@ -33,15 +33,21 @@ final class AdminUserController
 
         $query = $request->query()['q'] ?? '';
         $status = $request->query()['status'] ?? 'all';
+        $pageInput = $request->query()['page'] ?? '1';
         if (!is_string($query) || strlen($query) > 100 || preg_match('//u', $query) !== 1) {
             return Response::json(['error' => 'Search text must be valid UTF-8 and at most 100 bytes.'], 422);
         }
         if (!is_string($status) || !in_array($status, ['all', 'active', 'pending', 'disabled'], true)) {
             return Response::json(['error' => 'Status must be all, active, pending, or disabled.'], 422);
         }
+        if ((!is_string($pageInput) && !is_int($pageInput)) || !ctype_digit((string) $pageInput)
+            || (int) $pageInput < 1 || (int) $pageInput > 10000) {
+            return Response::json(['error' => 'Page must be an integer between 1 and 10000.'], 422);
+        }
+        $page = (int) $pageInput;
 
         try {
-            $result = $this->users->searchForSiteAdmin($user['id'], trim($query), $status);
+            $result = $this->users->searchForSiteAdmin($user['id'], trim($query), $status, $page);
         } catch (DomainException) {
             return Response::json(['error' => 'Site administrator role required.'], 403);
         }
@@ -50,6 +56,7 @@ final class AdminUserController
             'query' => trim($query),
             'status' => $status,
             'limit' => 50,
+            'page' => $page,
         ]);
     }
 }
