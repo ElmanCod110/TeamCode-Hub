@@ -19,14 +19,18 @@ return new class implements MigrationInterface {
             version_number INT UNSIGNED NOT NULL DEFAULT 1,
             created_by BIGINT UNSIGNED NOT NULL,
             updated_by BIGINT UNSIGNED NOT NULL,
+            deleted_at DATETIME NULL,
+            deleted_by BIGINT UNSIGNED NULL,
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
             UNIQUE KEY uq_project_files_project_path (project_id, path),
             KEY idx_project_files_project_updated (project_id, updated_at, id),
+            KEY idx_project_files_project_deleted (project_id, deleted_at, id),
             CONSTRAINT fk_project_files_project FOREIGN KEY (project_id) REFERENCES projects (id) ON UPDATE CASCADE ON DELETE CASCADE,
             CONSTRAINT fk_project_files_creator FOREIGN KEY (created_by) REFERENCES users (id) ON UPDATE CASCADE ON DELETE RESTRICT,
-            CONSTRAINT fk_project_files_updater FOREIGN KEY (updated_by) REFERENCES users (id) ON UPDATE CASCADE ON DELETE RESTRICT
+            CONSTRAINT fk_project_files_updater FOREIGN KEY (updated_by) REFERENCES users (id) ON UPDATE CASCADE ON DELETE RESTRICT,
+            CONSTRAINT fk_project_files_deleter FOREIGN KEY (deleted_by) REFERENCES users (id) ON UPDATE CASCADE ON DELETE SET NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
         $pdo->exec("CREATE TABLE IF NOT EXISTS project_file_versions (
