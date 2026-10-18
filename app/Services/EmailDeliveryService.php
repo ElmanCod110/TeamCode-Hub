@@ -17,7 +17,7 @@ final class EmailDeliveryService
         $sender = getenv('MAIL_FROM_ADDRESS');
         $baseUrl = getenv('APP_URL');
         if (!is_string($sender) || filter_var($sender, FILTER_VALIDATE_EMAIL) === false
-            || !is_string($baseUrl) || $baseUrl === '' || preg_match('/[\\r\\n]/', $baseUrl) === 1) {
+            || !is_string($baseUrl) || $baseUrl === '' || preg_match('/[\r\n]/', $baseUrl) === 1) {
             return false;
         }
 
@@ -36,13 +36,13 @@ final class EmailDeliveryService
 
         $resetUrl = rtrim($baseUrl, '/') . '/reset-password#reset-password?token=' . rawurlencode($token);
         $subject = 'Reset your TeamCode Hub password';
-        $message = "A password reset was requested for your TeamCode Hub account.\\n\\n"
-            . "Open the secure link below and choose a new password.\\n\\n"
-            . $resetUrl . "\\n\\n"
-            . "This link expires in 30 minutes and can be used only once. If you did not request a reset, ignore this message; your current password will remain unchanged.\\n";
-        $headers = "From: " . $sender . "\\r\\n"
-            . "MIME-Version: 1.0\\r\\n"
-            . "Content-Type: text/plain; charset=UTF-8\\r\\n";
+        $message = "A password reset was requested for your TeamCode Hub account.\n\n"
+            . "Open the secure link below and choose a new password.\n\n"
+            . $resetUrl . "\n\n"
+            . "This link expires in 30 minutes and can be used only once. If you did not request a reset, ignore this message; your current password will remain unchanged.\n";
+        $headers = "From: " . $sender . "\r\n"
+            . "MIME-Version: 1.0\r\n"
+            . "Content-Type: text/plain; charset=UTF-8\r\n";
 
         try {
             return @mail($recipient, $subject, $message, $headers);
