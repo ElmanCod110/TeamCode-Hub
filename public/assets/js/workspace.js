@@ -2292,7 +2292,7 @@
     append(securityRow, securityCopy, append(el("span", "activity-dot"), icon("shield")));
     append(panelBox, themeRow, accountRow, passwordRow, securityRow);
     root.appendChild(panelBox);
-    root.appendChild(el("p", "small settings-note", "Password changes rotate the current session identifier and security token. Account recovery and invitation email delivery are not part of this development baseline."));
+    root.appendChild(el("p", "small settings-note", "Password changes rotate the current session identifier and security token. Password recovery and invitation email require the configured HTTPS mail transport."));
   }
 
 
