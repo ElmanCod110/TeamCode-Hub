@@ -108,7 +108,7 @@ try {
     $nextRepositoryDate = gmdate('Y-m-d', strtotime($repositoryDate . ' +1 day UTC'));
     $staleRepository = $repositoryFailureService->repository('integration-fixture/repository', $nextRepositoryDate);
     $assert($staleRepository['stale'] && $staleRepository['data']['stars'] === 12, 'failed repository refresh preserves the last good public snapshot');
-    $assert(GitHubRepositoryService::parseRepositoryReference('https://github.com/Example-Org/sample-repo.git/') === 'Example-Org/sample-repo', 'repository URL parser canonicalizes a public GitHub URL');
+    $assert(GitHubRepositoryService::parseRepositoryReference('https://github.com/Example-Org/sample-repo.git/') === 'example-org/sample-repo', 'repository URL parser canonicalizes a public GitHub URL');
     $assert(GitHubRepositoryService::parseRepositoryReference('https://github.com.evil.test/Example-Org/sample-repo') === null
         && GitHubRepositoryService::parseRepositoryReference('http://github.com/Example-Org/sample-repo') === null
         && GitHubRepositoryService::parseRepositoryReference('https://github.com/Example-Org/../settings') === null,
