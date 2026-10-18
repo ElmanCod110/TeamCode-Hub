@@ -889,6 +889,53 @@ try {
     $restoredProject = $projects->findAccessibleByUser($adminId, $projectId);
     $assert(is_array($restoredProject) && $restoredProject['status'] === 'active', 'team owner can restore an archived project after quota capacity is available');
 
+    // Team archiving is reversible: it removes access without deleting projects or private source history.
+    $archiveTeam = $teams->createForOwner($adminId, 'Archive Preservation Team');
+    $archiveTeamId = $archiveTeam['id'];
+    $archiveInvitation = $invitations->createForManager($adminId, $archiveTeamId, 'archive-pending@example.test');
+    $archiveProjectId = $projects->createForTeamManager($adminId, $archiveTeamId, 'Preserved Project', 'Preserve all project history');
+    $archiveFileId = $projectFiles->create($adminId, $archiveProjectId, 'src/preserved.php', '<?php echo "preserved";');
+    $pdo->prepare("INSERT INTO team_memberships (team_id, user_id, role, status) VALUES (:team_id, :user_id, 'manager', 'active')")
+        ->execute(['team_id' => $archiveTeamId, 'user_id' => $manager2Id]);
+
+    $managerArchiveRejected = false;
+    try {
+        $teams->archiveForOwner($manager2Id, $archiveTeamId);
+    } catch (DomainException) {
+        $managerArchiveRejected = true;
+    }
+    $assert($managerArchiveRejected, 'team managers cannot archive a team owned by someone else');
+
+    $archivedTeam = $teams->archiveForOwner($adminId, $archiveTeamId);
+    $assert($archivedTeam['status'] === 'archived', 'team owner can archive a team');
+    $assert($teams->findAccessibleByUser($archiveTeamId, $adminId) === null, 'archived teams leave active team access queries');
+    $archivedOwnedTeams = $teams->listArchivedForOwner($adminId);
+    $assert(count(array_filter($archivedOwnedTeams, static fn (array $item): bool => $item['id'] === $archiveTeamId)) === 1, 'team owner can find archived teams for recovery');
+    $archivedInvitationStatus = $pdo->prepare('SELECT status FROM team_invitations WHERE id = :id');
+    $archivedInvitationStatus->execute(['id' => $archiveInvitation['id']]);
+    $assert($archivedInvitationStatus->fetchColumn() === 'revoked', 'archiving revokes pending team invitations transactionally');
+    $assert($projects->findAccessibleByUser($adminId, $archiveProjectId) === null, 'archiving a team blocks access to its projects');
+    $preservedFileQuery = $pdo->prepare('SELECT content FROM project_files WHERE id = :id AND project_id = :project_id');
+    $preservedFileQuery->execute(['id' => $archiveFileId, 'project_id' => $archiveProjectId]);
+    $assert($preservedFileQuery->fetchColumn() === '<?php echo "preserved";', 'archiving a team preserves private project source text in storage');
+
+    $managerRestoreRejected = false;
+    try {
+        $teams->restoreForOwner($manager2Id, $archiveTeamId);
+    } catch (DomainException) {
+        $managerRestoreRejected = true;
+    }
+    $assert($managerRestoreRejected, 'team managers cannot restore an archived team without owner permission');
+
+    $restoredTeam = $teams->restoreForOwner($adminId, $archiveTeamId);
+    $assert($restoredTeam['status'] === 'active' && $teams->findAccessibleByUser($archiveTeamId, $adminId) !== null, 'team owner can restore the archived team');
+    $restoredArchiveProject = $projects->findAccessibleByUser($adminId, $archiveProjectId);
+    $assert(is_array($restoredArchiveProject) && $restoredArchiveProject['status'] === 'active', 'restoring a team restores access to its preserved active projects');
+    $restoredArchiveFile = $projectFiles->findForUser($adminId, $archiveProjectId, $archiveFileId);
+    $assert($restoredArchiveFile['content'] === '<?php echo "preserved";', 'restoring a team restores access to its preserved source files');
+    $archivedInvitationStatus->execute(['id' => $archiveInvitation['id']]);
+    $assert($archivedInvitationStatus->fetchColumn() === 'revoked', 'restoring a team does not revive revoked invitation tokens');
+
     // A stale browser session must stop resolving its user after the credential generation changes.
     SecureSession::start();
     $assert($auth->authenticate('admin@example.test', 'A-New-Strong-Password-52'), 'account can sign in with its replacement password');
