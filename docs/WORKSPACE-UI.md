@@ -27,6 +27,7 @@ The HTML has no inline style or script blocks. The front controller returns HTML
 | Members | Project member listing/candidate search/assignment/approval/revocation endpoints | Search active team members by name, email, or exact user ID; request member/viewer access; approve pending access; change approved access; and revoke access when permitted |
 | Project chat | `GET|POST /api/projects/{projectId}/chat` and message edit/delete/report endpoints | Send text, edit/delete own messages, report another member's message |
 | Notifications | `GET /api/notifications`, `POST /api/notifications/{id}/read` | Receive background updates to recent notifications/unread counts while visible; mark individual or visible notifications as read |
+| Account preferences | `POST /api/auth/profile`, `POST /api/auth/password` | Update the signed-in display name or change the password after verifying the current credential; email and system roles remain read-only |
 | Moderation | `GET /api/admin/reports`, `GET /api/teams/{teamId}/reports`, `POST /api/reports/{reportId}/review` | Review scoped report queues, inspect preserved message context, mark reports valid/rejected, or resolve valid cases |
 | GitHub activity | `GET /api/github/activity` | View up to 30 cached public events; the service makes at most one refresh attempt per configured username per UTC day and preserves the last good snapshot on failure |
 | Preferences | Browser storage and system color preference | Choose light, dark, or system theme; sign out |
