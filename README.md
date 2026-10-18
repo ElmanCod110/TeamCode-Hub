@@ -25,6 +25,7 @@ TeamCode Hub is a modular, security-focused collaboration platform for software 
 
 - Public front controller, request/response objects, pretty-route dispatcher, and lazy module registry.
 - Project GitHub repository links with cached public metadata and five recent commits, strict HTTPS host validation, one refresh per repository per UTC day, and a 20-repository daily refresh budget.
+- Private project source-file workspace with bounded UTF-8 text editing, optimistic concurrency, revision restore, and per-project storage/history quotas; source files are never executed.
 - Validated MySQL/MariaDB configuration, PDO repositories, and explicit CLI migration runner.
 - Hardened sessions, CSRF-protected authentication, login and registration throttling, one-time email verification and password reset tokens, credential-versioned session revocation, and trusted-proxy-aware IP resolution.
 - CLI-only one-time administrator bootstrap.
