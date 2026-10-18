@@ -231,7 +231,8 @@ try {
     $assert(is_array($storedResetRow) && $storedResetRow['token_hash'] === $resetHash && $resetHash !== $resetToken, 'password reset persists only the token hash');
     $resetExpirySeconds = $pdo->prepare("SELECT TIMESTAMPDIFF(SECOND, CURRENT_TIMESTAMP, expires_at) FROM account_action_tokens WHERE token_hash = :hash");
     $resetExpirySeconds->execute(['hash' => $resetHash]);
-    $assert((int) $resetExpirySeconds->fetchColumn() > 1700 && (int) $resetExpirySeconds->fetchColumn() <= 1800, 'password reset tokens expire after 30 minutes');
+    $resetTtl = (int) $resetExpirySeconds->fetchColumn();
+    $assert($resetTtl > 1700 && $resetTtl <= 1800, 'password reset tokens expire after 30 minutes');
     $assert($passwordReset->issueForEmail('password-reset@example.test', hash('sha256', bin2hex(random_bytes(32)))) === null, 'password reset issuance enforces a per-account cooldown');
     $assert($passwordReset->issueForEmail('unknown-reset@example.test', hash('sha256', bin2hex(random_bytes(32)))) === null, 'unknown accounts do not receive password reset tokens');
     $newResetPassword = 'New-Unique-Password-For-Reset-52';
