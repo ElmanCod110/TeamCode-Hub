@@ -118,6 +118,21 @@ try {
     }
     $assert($nonAdminDirectoryDenied, 'non-admin accounts cannot query the site-wide user directory');
 
+    $directoryFixture = $pdo->prepare(
+        "INSERT INTO users (email, password_hash, display_name, status, email_verified_at)
+         VALUES (:email, 'directory-test-only-hash', :display_name, 'active', CURRENT_TIMESTAMP)"
+    );
+    for ($directoryIndex = 1; $directoryIndex <= 52; $directoryIndex++) {
+        $directoryFixture->execute([
+            'email' => 'directory-pagination-' . $directoryIndex . '@example.test',
+            'display_name' => 'Directory Pagination ' . $directoryIndex,
+        ]);
+    }
+    $firstDirectoryPage = $userDirectory->searchForSiteAdmin($adminId, 'directory-pagination', 'active', 1);
+    $secondDirectoryPage = $userDirectory->searchForSiteAdmin($adminId, 'directory-pagination', 'active', 2);
+    $assert(count($firstDirectoryPage['users']) === 50 && $firstDirectoryPage['has_more'], 'admin user directory caps each page at 50 and signals additional results');
+    $assert(count($secondDirectoryPage['users']) === 2 && !$secondDirectoryPage['has_more'], 'admin user directory returns the remaining results on the next page');
+
     $teams = new TeamRepository($pdo);
     $team = $teams->createForOwner($adminId, 'Integration Team');
     $teamId = $team['id'];
