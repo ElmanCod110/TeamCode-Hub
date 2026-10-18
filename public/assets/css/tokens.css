@@ -40,7 +40,8 @@
   --border-strong: var(--g300);
   --text: var(--black);
   --text-secondary: var(--g600);
-  --text-muted: var(--g400);
+  /* Keep secondary copy readable on white surfaces (WCAG AA contrast target). */
+  --text-muted: var(--g500);
 
   /* Corner radii. */
   --r-xs: 4px;
