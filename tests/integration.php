@@ -895,6 +895,8 @@ try {
     $archiveInvitation = $invitations->createForManager($adminId, $archiveTeamId, 'archive-pending@example.test');
     $archiveProjectId = $projects->createForTeamManager($adminId, $archiveTeamId, 'Preserved Project', 'Preserve all project history');
     $archiveFileId = $projectFiles->create($adminId, $archiveProjectId, 'src/preserved.php', '<?php echo "preserved";');
+    $archiveTaskId = $tasks->create($adminId, $archiveProjectId, 'Preserved task', null, 'normal', null, null);
+    $chat->createMessage($adminId, $archiveProjectId, 'Message preserved during team archive');
     $pdo->prepare("INSERT INTO team_memberships (team_id, user_id, role, status) VALUES (:team_id, :user_id, 'manager', 'active')")
         ->execute(['team_id' => $archiveTeamId, 'user_id' => $manager2Id]);
 
@@ -915,6 +917,23 @@ try {
     $archivedInvitationStatus->execute(['id' => $archiveInvitation['id']]);
     $assert($archivedInvitationStatus->fetchColumn() === 'revoked', 'archiving revokes pending team invitations transactionally');
     $assert($projects->findAccessibleByUser($adminId, $archiveProjectId) === null, 'archiving a team blocks access to its projects');
+    $assert(!$projectAccess->canView($adminId, $archiveProjectId), 'central project access checks deny archived teams');
+    $assert($tasks->listAccessibleByUser($adminId, $archiveProjectId) === [], 'task listings deny archived-team projects');
+    $assert($chat->listMessages($adminId, $archiveProjectId) === [], 'chat listings deny archived-team projects');
+    $archivedTaskDetailsBlocked = false;
+    try {
+        $taskCollaboration->details($adminId, $archiveProjectId, $archiveTaskId);
+    } catch (DomainException) {
+        $archivedTaskDetailsBlocked = true;
+    }
+    $assert($archivedTaskDetailsBlocked, 'task comments and checklist details deny archived-team projects');
+    $archivedFileReadBlocked = false;
+    try {
+        $projectFiles->findForUser($adminId, $archiveProjectId, $archiveFileId);
+    } catch (DomainException) {
+        $archivedFileReadBlocked = true;
+    }
+    $assert($archivedFileReadBlocked, 'private source-file reads deny archived-team projects');
     $preservedFileQuery = $pdo->prepare('SELECT content FROM project_files WHERE id = :id AND project_id = :project_id');
     $preservedFileQuery->execute(['id' => $archiveFileId, 'project_id' => $archiveProjectId]);
     $assert($preservedFileQuery->fetchColumn() === '<?php echo "preserved";', 'archiving a team preserves private project source text in storage');
