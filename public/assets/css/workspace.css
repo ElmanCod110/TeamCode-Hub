@@ -225,6 +225,9 @@
 .auth-card-heading h2 { font-size:28px; font-weight:750; letter-spacing:-.055em; }
 .auth-card-heading p { margin-top:9px; color:var(--text-muted); font-size:12px; line-height:1.7; }
 .auth-error { font-size:12px; }
+.auth-status { font-size:12px; line-height:1.65; }
+.auth-secondary-actions { display:grid; gap:8px; margin-top:2px; }
+.auth-secondary-actions .btn, .auth-card > .btn-ghost { justify-content:center; }
 .auth-submit { justify-content:space-between; margin-top:2px; }
 .auth-footnote { color:var(--text-muted); font-size:10px; text-align:center; line-height:1.7; }
 .auth-copyright { margin-top:45px; color:var(--text-muted); font-size:10px; }
