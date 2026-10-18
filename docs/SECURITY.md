@@ -24,7 +24,8 @@ This document distinguishes implemented primitives from controls still required 
 ## Required controls before production
 
 - Add rate limiting and monitoring for chat posting, report submission, project membership changes, account recovery, and other sensitive actions.
-- Implement password reset and secure invitation delivery by email. Public registration and email verification are implemented but require correctly configured mail delivery before production use.
+- Implement secure invitation delivery by email. Public registration, email verification, and password recovery are implemented but require correctly configured mail delivery before production use.
+- Credential changes increment `auth_version`; authenticated sessions must match the stored version. Password reset and account status transitions invalidate sessions created with older credentials.
 - Define and document final retention durations for report snapshots, notifications, and audit data; schedule the chat cleanup CLI job.
 - Review abuse handling and notification access for reported users, reviewers, and site administrators.
 - Ensure every future file, Git, and admin route checks authorization at the data-access boundary.
