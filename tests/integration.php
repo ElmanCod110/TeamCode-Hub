@@ -151,20 +151,37 @@ try {
     $projects = new ProjectRepository($pdo);
     $projectId = $projects->createForTeamManager($adminId, $teamId, 'Integration Project', 'Testing project access');
 
-    // Team and project settings must be writable by managers but not ordinary project members.
-    $assert($teams->renameForManager($adminId, $teamId, 'Integration Team Renamed'), 'team owner can rename a team');
-    $renamedTeam = $teams->findAccessibleByUser($teamId, $adminId);
-    $assert(is_array($renamedTeam) && $renamedTeam['name'] === 'Integration Team Renamed', 'team rename persists the new display name');
-    $assert($teams->renameForManager($adminId, $teamId, 'Integration Team Renamed'), 'saving an unchanged team name remains a successful update');
-    $assert(!$teams->renameForManager($memberId, $teamId, 'Unauthorized Team Name'), 'ordinary team member cannot rename a team');
+    // Team renaming is owner-only, while project metadata edits require a team manager and approved project access.
+    $renamedTeam = $teams->updateNameForOwner($adminId, $teamId, 'Integration Team Renamed');
+    $assert($renamedTeam['name'] === 'Integration Team Renamed', 'team owner can rename a team');
+    $assert($teams->updateNameForOwner($adminId, $teamId, 'Integration Team Renamed')['name'] === 'Integration Team Renamed', 'saving an unchanged team name remains successful');
+    $memberRenameRejected = false;
+    try {
+        $teams->updateNameForOwner($memberId, $teamId, 'Unauthorized Team Name');
+    } catch (DomainException) {
+        $memberRenameRejected = true;
+    }
+    $assert($memberRenameRejected, 'ordinary team member cannot rename a team');
 
-    $assert($projects->updateForTeamManager($adminId, $projectId, 'Integration Project Updated', 'Updated project description'), 'team owner can edit project settings');
+    $projects->updateMetadataForTeamManager($adminId, $projectId, 'Integration Project Updated', 'Updated project description');
     $updatedProject = $projects->findAccessibleByUser($adminId, $projectId);
     $assert(is_array($updatedProject) && $updatedProject['name'] === 'Integration Project Updated'
         && $updatedProject['description'] === 'Updated project description', 'project name and description persist together');
-    $assert($projects->updateForTeamManager($adminId, $projectId, 'Integration Project Updated', 'Updated project description'), 'saving unchanged project settings remains successful');
-    $assert(!$projects->updateForTeamManager($memberId, $projectId, 'Unauthorized Project Name', null), 'ordinary project member cannot edit project settings');
-    $assert(!$projects->updateForTeamManager($outsiderId, $projectId, 'Outsider Project Name', null), 'unrelated user cannot edit project settings');
+    $projects->updateMetadataForTeamManager($adminId, $projectId, 'Integration Project Updated', 'Updated project description');
+    $memberProjectEditRejected = false;
+    try {
+        $projects->updateMetadataForTeamManager($memberId, $projectId, 'Unauthorized Project Name', null);
+    } catch (DomainException) {
+        $memberProjectEditRejected = true;
+    }
+    $assert($memberProjectEditRejected, 'ordinary project member cannot edit project settings');
+    $outsiderProjectEditRejected = false;
+    try {
+        $projects->updateMetadataForTeamManager($outsiderId, $projectId, 'Outsider Project Name', null);
+    } catch (DomainException) {
+        $outsiderProjectEditRejected = true;
+    }
+    $assert($outsiderProjectEditRejected, 'unrelated user cannot edit project settings');
 
     $projectMemberships = new ProjectMembershipRepository($pdo);
 
@@ -190,8 +207,16 @@ try {
     $pdo->prepare("INSERT INTO project_memberships (project_id, user_id, access_level, status, approved_by, approved_at)
         VALUES (:project_id, :user_id, 'member', 'approved', :approved_by, CURRENT_TIMESTAMP)")
         ->execute(['project_id' => $projectId, 'user_id' => $manager2Id, 'approved_by' => $adminId]);
-    $assert($teams->renameForManager($manager2Id, $teamId, 'Integration Team Managed'), 'active team manager can rename a team');
-    $assert($projects->updateForTeamManager($manager2Id, $projectId, 'Integration Project Managed', 'Manager updated the description'), 'active team manager can edit project settings');
+    $managerRenameRejected = false;
+    try {
+        $teams->updateNameForOwner($manager2Id, $teamId, 'Integration Team Managed');
+    } catch (DomainException) {
+        $managerRenameRejected = true;
+    }
+    $assert($managerRenameRejected, 'team manager cannot rename the team because renaming is owner-only');
+    $projects->updateMetadataForTeamManager($manager2Id, $projectId, 'Integration Project Managed', 'Manager updated the description');
+    $managerUpdatedProject = $projects->findAccessibleByUser($adminId, $projectId);
+    $assert(is_array($managerUpdatedProject) && $managerUpdatedProject['name'] === 'Integration Project Managed', 'approved project team manager can edit project settings');
 
     $chat = new ChatRepository($pdo);
     $reports = new ChatReportRepository($pdo);
