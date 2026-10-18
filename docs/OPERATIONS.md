@@ -24,6 +24,8 @@ Password recovery uses the same HTTPS origin and sender configuration. Reset req
 
 Team invitations use the same `APP_URL`, `MAIL_FROM_ADDRESS`, and PHP mail transport. Each invitation link expires after seven days and is bound to the invited email address. If delivery fails, the API exposes the raw token once as a trusted-channel fallback; successful delivery omits the token from the response. Test delivery to both existing and newly registered, verified accounts.
 
+Team invitations use the same `APP_URL`, `MAIL_FROM_ADDRESS`, and PHP mail transport. Each invitation link expires after seven days and is bound to the invited email address. If delivery fails, the API exposes the raw token once as a trusted-channel fallback; successful delivery omits the token from the response. Test delivery to both existing and newly registered, verified accounts.
+
 ## Database migrations
 
 After configuring `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, and `DB_PASSWORD`, run `php bin/migrate.php` from a trusted CLI environment. Never run migrations automatically in response to normal web requests or arbitrary SQL errors. The runner records completed versions and uses a MySQL advisory lock to avoid concurrent runs.
