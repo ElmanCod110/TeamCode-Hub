@@ -60,6 +60,8 @@ foreach ($expectedImports as $import) {
 $assert(str_contains($tokens, '--font-sans:') && str_contains($tokens, 'system-ui'), 'typography uses an installed system-font fallback stack');
 $assert(!preg_match('/fonts\.googleapis\.com|fonts\.gstatic\.com|use\.typekit\.net/i', $entry . $tokens . $base . $layout . $components . $utilities . $demoCss), 'design-system CSS does not require a hosted font service');
 $assert(str_contains($tokens, 'data-theme="dark"'), 'an explicit dark theme token set is available');
+$assert(str_contains($tokens, '--text-muted: var(--g500);'), 'muted text uses a readable neutral on light surfaces');
+$assert(str_contains($tokens, '--text-muted: #a1a1aa;'), 'muted text remains legible against dark surfaces');
 $assert(str_contains($base, 'prefers-reduced-motion: reduce'), 'base styles respect reduced-motion preferences');
 $assert(str_contains($base, ':focus-visible'), 'keyboard focus indicators are defined');
 $assert(str_contains($layout, '@media (max-width: 720px)'), 'responsive layout rules are present');
