@@ -17,6 +17,7 @@ use TeamCodeHub\Database\DatabaseConfig;
 use TeamCodeHub\Database\MembershipRepository;
 use TeamCodeHub\Database\NotificationRepository;
 use TeamCodeHub\Database\ProjectRepository;
+use TeamCodeHub\Database\ProjectFileRepository;
 use TeamCodeHub\Database\ProjectMembershipRepository;
 use TeamCodeHub\Database\TeamRepository;
 use TeamCodeHub\Database\TaskRepository;
@@ -30,6 +31,7 @@ use TeamCodeHub\Http\ChatReportController;
 use TeamCodeHub\Http\DashboardController;
 use TeamCodeHub\Http\GitHubActivityController;
 use TeamCodeHub\Http\ProjectGitHubController;
+use TeamCodeHub\Http\ProjectFileController;
 use TeamCodeHub\Http\WorkspaceController;
 use TeamCodeHub\Http\TaskController;
 use TeamCodeHub\Http\TaskCollaborationController;
@@ -111,6 +113,16 @@ return static function (): void {
         $pdo = ConnectionFactory::connect(DatabaseConfig::fromEnvironment());
         $users = new UserRepository($pdo);
         return new AdminUserController(new AuthenticationService($users), $users, new AdminAccountRepository($pdo));
+    });
+
+    $modules->register('project-file.controller', static function (): object {
+        $pdo = ConnectionFactory::connect(DatabaseConfig::fromEnvironment());
+        $memberships = new MembershipRepository($pdo);
+        return new ProjectFileController(
+            new AuthenticationService(new UserRepository($pdo)),
+            new ProjectAccessService($memberships),
+            new ProjectFileRepository($pdo),
+        );
     });
 
     $modules->register('project-github.controller', static function (): object {
@@ -293,6 +305,24 @@ return static function (): void {
     );
     $router->post('/api/projects/{projectId}/github', static fn (Request $request, array $params): Response =>
         $modules->get('project-github.controller')->updateLink($request, $params)
+    );
+    $router->get('/api/projects/{projectId}/files', static fn (Request $request, array $params): Response =>
+        $modules->get('project-file.controller')->index($request, $params)
+    );
+    $router->post('/api/projects/{projectId}/files', static fn (Request $request, array $params): Response =>
+        $modules->get('project-file.controller')->create($request, $params)
+    );
+    $router->get('/api/projects/{projectId}/files/{fileId}', static fn (Request $request, array $params): Response =>
+        $modules->get('project-file.controller')->show($request, $params)
+    );
+    $router->post('/api/projects/{projectId}/files/{fileId}/edit', static fn (Request $request, array $params): Response =>
+        $modules->get('project-file.controller')->update($request, $params)
+    );
+    $router->get('/api/projects/{projectId}/files/{fileId}/history', static fn (Request $request, array $params): Response =>
+        $modules->get('project-file.controller')->history($request, $params)
+    );
+    $router->post('/api/projects/{projectId}/files/{fileId}/restore', static fn (Request $request, array $params): Response =>
+        $modules->get('project-file.controller')->restore($request, $params)
     );
     $router->post('/api/projects/{projectId}/archive', static fn (Request $request, array $params): Response =>
         $modules->get('workspace.controller')->archiveProject($request, $params)
