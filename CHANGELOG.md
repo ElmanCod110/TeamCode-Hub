@@ -29,7 +29,6 @@
 
 Notable changes to TeamCode Hub are recorded here.
 
-## Unreleased
 
 - Align password-reset redemption lock order with token issuance by locking the account row before the token row, reducing avoidable concurrent-reset deadlocks.
 - Add a site-admin-only user directory with search by name, email, or exact user ID, status filters, and bounded pagination.
