@@ -102,6 +102,7 @@ return static function (): void {
             new TeamAccessService($memberships),
             new TeamInvitationRepository($pdo),
             new EmailDeliveryService(),
+            new LoginRateLimiter($pdo),
         );
     });
 
