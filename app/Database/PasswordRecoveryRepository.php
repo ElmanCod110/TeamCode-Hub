@@ -47,7 +47,6 @@ final class PasswordRecoveryRepository
             $recent = $this->pdo->prepare(
                 "SELECT id FROM account_action_tokens
                  WHERE user_id = :user_id AND purpose = 'password_reset'
-                   AND used_at IS NULL
                    AND created_at >= CURRENT_TIMESTAMP - INTERVAL 60 SECOND
                  LIMIT 1 FOR UPDATE"
             );
