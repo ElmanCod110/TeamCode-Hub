@@ -41,7 +41,7 @@ final class EmailDeliveryService
             . "Open the secure link below and sign in with the email address this invitation was sent to.\n\n"
             . $invitationUrl . "\n\n"
             . "If you do not have an account yet, create and verify your account first, then open this invitation link again. The invitation expires in seven days and can be used only once.\n\n"
-            . "If you were not expecting this invitation, you can ignore this email.\n"
+            . "If you were not expecting this invitation, you can ignore this email.\n";
         $headers = "From: " . $sender . "\r\n"
             . "MIME-Version: 1.0\r\n"
             . "Content-Type: text/plain; charset=UTF-8\r\n";
