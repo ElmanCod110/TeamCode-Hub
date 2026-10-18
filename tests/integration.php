@@ -68,6 +68,9 @@ try {
     $verificationToken = bin2hex(random_bytes(32));
     $verificationHash = hash('sha256', $verificationToken);
     $assert($verificationRepository->issueToken($verificationUserId, $verificationHash), 'pending account receives a hashed verification token');
+    $storedVerificationHash = $pdo->prepare("SELECT token_hash FROM account_action_tokens WHERE user_id = :id AND purpose = 'email_verification' LIMIT 1");
+    $storedVerificationHash->execute(['id' => $verificationUserId]);
+    $assert($storedVerificationHash->fetchColumn() === $verificationHash && $verificationHash !== $verificationToken, 'database stores only the SHA-256 token hash');
     $secondVerificationHash = hash('sha256', bin2hex(random_bytes(32)));
     $assert(!$verificationRepository->issueToken($verificationUserId, $secondVerificationHash), 'verification resend cooldown blocks repeated token issuance');
     $assert($verificationRepository->verifyToken($verificationHash), 'valid one-time token activates the pending account');
@@ -77,6 +80,22 @@ try {
     $assert(is_array($verifiedRow) && $verifiedRow['status'] === 'active' && $verifiedRow['email_verified_at'] !== null, 'verification commits active status and email timestamp together');
     $assert(!$verificationRepository->verifyToken($verificationHash), 'email verification tokens cannot be replayed');
     $pdo->prepare('DELETE FROM users WHERE id = :id')->execute(['id' => $verificationUserId]);
+
+    $expiredUserId = (new UserRepository($pdo))->createPendingAccount(
+        'expired-verification@example.test',
+        password_hash('A-Strong-Expired-Password-50', PASSWORD_DEFAULT),
+        'Expired Verification Fixture'
+    );
+    if (!is_int($expiredUserId) || $expiredUserId < 1) {
+        throw new RuntimeException('Expired verification fixture could not be created.');
+    }
+    $expiredToken = bin2hex(random_bytes(32));
+    $expiredHash = hash('sha256', $expiredToken);
+    $assert($verificationRepository->issueToken($expiredUserId, $expiredHash), 'second pending account can receive a separate token');
+    $pdo->prepare("UPDATE account_action_tokens SET expires_at = DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 1 MINUTE) WHERE token_hash = :hash")
+        ->execute(['hash' => $expiredHash]);
+    $assert(!$verificationRepository->verifyToken($expiredHash), 'expired email verification tokens cannot activate accounts');
+    $pdo->prepare('DELETE FROM users WHERE id = :id')->execute(['id' => $expiredUserId]);
 
     // Exercise the daily GitHub cache through an injected transport; tests never call GitHub.
     $githubCache = new GitHubActivityCacheRepository($pdo);
