@@ -78,7 +78,7 @@ node --check public/assets/js/workspace.js
 
 ## Remaining product work
 
-Team/project deletion, private GitHub repositories, Git write operations/webhooks, other Git providers, system-role editing, richer administrative pages, and automated browser-level visual/accessibility tests are not implemented yet. There is no automatic admin bypass of team/project access checks. Public registration requires the documented HTTPS application URL and configured PHP mail transport. Every protected route must continue to enforce authorization on the server.
+Permanent team/project deletion, private GitHub repositories, Git write operations/webhooks, other Git providers, system-role editing, richer administrative pages, and automated browser-level visual/accessibility tests are not implemented yet. There is no automatic admin bypass of team/project access checks. Public registration requires the documented HTTPS application URL and configured PHP mail transport. Every protected route must continue to enforce authorization on the server.
 
 ## Repository layout
 
