@@ -51,7 +51,7 @@ try {
     $assert($runner->migrate() === [], 'migration runner is idempotent on a migrated schema');
 
     // Exercise email verification directly without invoking the server's real mail transport.
-    $verificationUserId = $userDirectoryForVerification = (new UserRepository($pdo))->createPendingAccount(
+    $verificationUserId = (new UserRepository($pdo))->createPendingAccount(
         'email-verification@example.test',
         password_hash('A-Strong-Verification-Password-48', PASSWORD_DEFAULT),
         'Verification Fixture'
@@ -76,6 +76,7 @@ try {
     $verifiedRow = $verifiedAccount->fetch(PDO::FETCH_ASSOC);
     $assert(is_array($verifiedRow) && $verifiedRow['status'] === 'active' && $verifiedRow['email_verified_at'] !== null, 'verification commits active status and email timestamp together');
     $assert(!$verificationRepository->verifyToken($verificationHash), 'email verification tokens cannot be replayed');
+    $pdo->prepare('DELETE FROM users WHERE id = :id')->execute(['id' => $verificationUserId]);
 
     // Exercise the daily GitHub cache through an injected transport; tests never call GitHub.
     $githubCache = new GitHubActivityCacheRepository($pdo);
