@@ -3020,7 +3020,7 @@
         if (teamId) await openTeam(teamId);
         else navigate("projects");
       }
-      else if (name === "accept-invitation") acceptInvitationModal();
+      else if (name === "accept-invitation") acceptInvitationModal(state.invitationToken);
       else if (name === "create-project") createProjectModal(action.dataset.teamId);
       else if (name === "create-task") createTaskModal(action.dataset.projectId);
       else if (name === "invite-member") inviteMember(action.dataset.teamId);
