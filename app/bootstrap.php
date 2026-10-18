@@ -21,6 +21,7 @@ use TeamCodeHub\Database\TaskRepository;
 use TeamCodeHub\Database\TaskCollaborationRepository;
 use TeamCodeHub\Database\TeamInvitationRepository;
 use TeamCodeHub\Database\UserRepository;
+use TeamCodeHub\Http\AdminUserController;
 use TeamCodeHub\Http\AuthController;
 use TeamCodeHub\Http\ChatController;
 use TeamCodeHub\Http\ChatReportController;
@@ -100,6 +101,12 @@ return static function (): void {
             new AuthenticationService(new UserRepository($pdo)),
             new ChatReportRepository($pdo),
         );
+    });
+
+    $modules->register('admin-user.controller', static function (): object {
+        $pdo = ConnectionFactory::connect(DatabaseConfig::fromEnvironment());
+        $users = new UserRepository($pdo);
+        return new AdminUserController(new AuthenticationService($users), $users);
     });
 
     $modules->register('github-activity.controller', static function (): object {
@@ -193,6 +200,9 @@ return static function (): void {
     );
     $router->get('/api/admin/reports', static fn (Request $request, array $params): Response =>
         $modules->get('chat-report.controller')->adminQueue($request)
+    );
+    $router->get('/api/admin/users', static fn (Request $request, array $params): Response =>
+        $modules->get('admin-user.controller')->index($request)
     );
     $router->post('/api/reports/{reportId}/review', static fn (Request $request, array $params): Response =>
         $modules->get('chat-report.controller')->review($request, $params)
