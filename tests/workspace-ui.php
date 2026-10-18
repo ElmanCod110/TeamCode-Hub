@@ -42,6 +42,7 @@ $accountLifecycleController = $read('app/Http/AccountLifecycleController.php');
 $emailVerificationRepository = $read('app/Database/EmailVerificationRepository.php');
 $accountLifecycleService = $read('app/Services/AccountLifecycleService.php');
 $emailDeliveryService = $read('app/Services/EmailDeliveryService.php');
+$teamInvitationController = $read('app/Http/TeamInvitationController.php');
 $passwordRecoveryController = $read('app/Http/PasswordRecoveryController.php');
 $passwordRecoveryService = $read('app/Services/PasswordRecoveryService.php');
 $passwordRecoveryRepository = $read('app/Database/PasswordRecoveryRepository.php');
@@ -138,7 +139,7 @@ $assert(str_contains($bootstrap, "get('/accept-invitation'") && str_contains($js
 $assert(str_contains($emailDeliveryService, 'sendTeamInvitationEmail') && str_contains($js, 'result.email_sent') && str_contains($js, 'Email delivery failed'), 'invitation UI prefers email delivery and offers a token fallback only on failure');
 $assert(str_contains($emailDeliveryService, '/accept-invitation#accept-invitation?token='), 'invitation email links use a fragment token and explicit acceptance flow');
 
-$assert(str_contains($passwordRecoveryController, 'GENERIC_RESPONSE') && str_contains($emailDeliveryService, '/accept-invitation#accept-invitation?token='), 'invitation email links use a fragment token and an explicit acceptance flow');
+$assert(str_contains($teamInvitationController, 'email_sent') && str_contains($teamInvitationController, 'sendTeamInvitationEmail') && str_contains($teamInvitationController, 'unset'), 'successful invitation delivery removes the raw token from the API response');
 $assert(str_contains($bootstrap, '/members/{userId}/access') && str_contains($js, 'change-member-access'), 'project member access-level controls are connected to the backend route');
 $assert(str_contains($js, '!member.is_project_creator') && str_contains($js, 'member.access_level === "member" ? "viewer" : "member"'), 'UI protects the project creator and offers explicit viewer/member transitions');
 $assert(str_contains($bootstrap, '/api/projects/{projectId}/members/candidates') && str_contains($js, '/members/candidates?q='), 'project member search route is connected to the frontend');
