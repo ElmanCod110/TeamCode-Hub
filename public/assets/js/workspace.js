@@ -977,7 +977,7 @@
             const invitation = result.invitation || {};
             showInvitationToken(invitation.token || "", email.value.trim(), result.email_sent === true);
             inviteForm.reset();
-            toast(result.email_sent ? "Invitation email sent." : "Email delivery failed. Use the one-time token fallback.");
+            toast(result.email_sent ? "Invitation email submitted to the mail transport." : "Email delivery failed. Use the one-time token fallback.");
             await renderPendingInvitations(team, memberContent);
           } catch (error) { toast(error.message, "error"); }
           finally { submit.disabled = false; }
@@ -1075,9 +1075,9 @@
     modal.setAttribute("aria-modal", "true");
     modal.setAttribute("aria-labelledby", "invitation-modal-title");
     const header = el("div", "tch-modal-header");
-    const invitationTitle = el("h2", "", emailSent ? "Invitation email sent" : "Invitation created"); invitationTitle.id = "invitation-modal-title";
+    const invitationTitle = el("h2", "", emailSent ? "Invitation email submitted" : "Invitation created"); invitationTitle.id = "invitation-modal-title";
     const description = emailSent
-      ? "A seven-day invitation link was sent to " + email + "."
+      ? "A seven-day invitation email was submitted to the mail transport for " + email + "."
       : "Email delivery failed for " + email + ". Use the one-time token below as a manual fallback.";
     append(header, append(el("div"), invitationTitle, el("p", "", description)),
       actionButton("×", "close-modal", "btn btn-ghost btn-icon", { "aria-label": "Close dialog" }));
