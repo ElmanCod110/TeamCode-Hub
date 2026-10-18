@@ -6,6 +6,11 @@ All API responses are JSON. Responses are not a stable public contract yet; this
 
 - `GET /api/auth/csrf` — starts the session and returns `{"csrf_token":"..."}`. Keep the session cookie and token.
 - `POST /api/auth/login` — body: `{"email":"...","password":"..."}`. Send the CSRF token using `X-Csrf-Token` or `csrf_token` in the JSON body.
+- `POST /api/auth/register` — body: `{"email":"person@example.com","display_name":"Example Person","password":"a-long-unique-password","confirm_password":"a-long-unique-password"}`. Requires CSRF protection, a valid email, a 1–80 byte UTF-8 display name, and a matching 12–72 byte password. Returns the same generic `202` response whether or not the email was already registered. New accounts remain `pending` and cannot sign in before verification.
+- `POST /api/auth/verification/resend` — body: `{"email":"person@example.com"}`. Requires CSRF protection and a valid email. Returns the same generic `202` response for known and unknown addresses; purpose-specific IP/email rate limiting and a 60-second per-account resend cooldown apply.
+- `POST /api/auth/verify-email` — body: `{"token":"<64 lowercase hex characters>"}`. Requires CSRF protection and a valid, unused 24-hour token. Token hashes are stored in MariaDB; successful verification consumes the token and activates the pending account in one transaction. Invalid, expired, and already-used tokens return the same generic error.
+- `GET /verify-email` — serves the workspace shell used by the email verification confirmation flow. Verification tokens are placed in the URL fragment, not the query string, and are submitted only after the user presses Verify email.
+
 - `GET /api/auth/me` — returns the authenticated user and assigned system roles; otherwise `401`.
 - `POST /api/auth/logout` — requires a valid CSRF token.
 - `POST /api/auth/profile` — body: `{"display_name":"New display name"}`. Requires authentication and CSRF protection. Updates only the current account's display name (1–80 bytes); email and system roles are not editable through this endpoint.
@@ -121,4 +126,4 @@ Only one report per reporter per reported person per UTC day is accepted. A vali
 
 ## Current limits
 
-Public registration, email verification, password recovery, automatic invitation email delivery, permanent team/project deletion, private repository access, Git write operations/webhooks, other Git providers, richer administrative pages, and browser-level visual/accessibility tests are not implemented yet. Project chat uses bounded HTTP polling rather than WebSockets or push delivery. Future routes must repeat authorization checks in their data-access path rather than trusting a prior UI check alone.
+Password recovery, automatic invitation email delivery, permanent team/project deletion, private repository access, Git write operations/webhooks, other Git providers, richer administrative pages, and browser-level visual/accessibility tests are not implemented yet. Project chat uses bounded HTTP polling rather than WebSockets or push delivery. Future routes must repeat authorization checks in their data-access path rather than trusting a prior UI check alone.
