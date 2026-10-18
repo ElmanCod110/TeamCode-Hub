@@ -327,8 +327,17 @@ return static function (): void {
     $router->post('/api/teams', static fn (Request $request, array $params): Response =>
         $modules->get('workspace.controller')->createTeam($request)
     );
+    $router->post('/api/teams/{teamId}/archive', static fn (Request $request, array $params): Response =>
+        $modules->get('workspace.controller')->archiveTeam($request, $params)
+    );
+    $router->post('/api/teams/{teamId}/restore', static fn (Request $request, array $params): Response =>
+        $modules->get('workspace.controller')->restoreTeam($request, $params)
+    );
     $router->post('/api/teams/{teamId}/edit', static fn (Request $request, array $params): Response =>
         $modules->get('workspace.controller')->updateTeam($request, $params)
+    );
+    $router->get('/api/teams/archived', static fn (Request $request, array $params): Response =>
+        $modules->get('workspace.controller')->listArchivedTeams()
     );
     $router->get('/api/teams/{teamId}', static fn (Request $request, array $params): Response =>
         $modules->get('workspace.controller')->showTeam($request, $params)
