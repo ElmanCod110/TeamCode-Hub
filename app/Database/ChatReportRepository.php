@@ -208,9 +208,11 @@ final class ChatReportRepository
 
             if ($report['reviewer_scope'] === 'team_manager') {
                 $access = $this->pdo->prepare(
-                    "SELECT 1 FROM team_memberships
-                     WHERE user_id = :user_id AND team_id = :team_id AND status = 'active'
-                       AND role IN ('owner', 'manager') LIMIT 1 FOR UPDATE"
+                    "SELECT 1
+                     FROM team_memberships tm
+                     INNER JOIN teams active_team ON active_team.id = tm.team_id AND active_team.status = 'active'
+                     WHERE tm.user_id = :user_id AND tm.team_id = :team_id AND tm.status = 'active'
+                       AND tm.role IN ('owner', 'manager') LIMIT 1 FOR UPDATE"
                 );
                 $access->execute(['user_id' => $actorId, 'team_id' => $report['team_id']]);
                 if ($access->fetchColumn() === false) {
