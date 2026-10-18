@@ -85,6 +85,82 @@ final class WorkspaceController
         return Response::json(['team' => $team]);
     }
 
+    /**
+     * Return only archived teams still owned by the authenticated user.
+     * The repository intentionally excludes archived teams managed by non-owners.
+     */
+    public function listArchivedTeams(): Response
+    {
+        $user = $this->currentUser();
+        if ($user === null) {
+            return Response::json(['error' => 'Authentication required.'], 401);
+        }
+        return Response::json(['teams' => $this->teams->listArchivedForOwner($user['id'])]);
+    }
+
+    /**
+     * Archive a team reversibly; the repository preserves all child data and revokes pending invitations.
+     */
+    public function archiveTeam(Request $request, array $params): Response
+    {
+        SecureSession::start();
+        if (!$this->validCsrf($request)) {
+            return Response::json(['error' => 'Invalid or expired request token.'], 419);
+        }
+
+        $user = $this->authentication->currentUser();
+        $teamId = $this->positiveId($params['teamId'] ?? null);
+        if ($user === null) {
+            return Response::json(['error' => 'Authentication required.'], 401);
+        }
+        if ($teamId === null) {
+            return Response::json(['error' => 'Team not found or owner permission denied.'], 404);
+        }
+
+        try {
+            $team = $this->teams->archiveForOwner($user['id'], $teamId);
+        } catch (DomainException) {
+            return Response::json(['error' => 'Team not found or owner permission denied.'], 404);
+        }
+
+        return Response::json([
+            'archived' => true,
+            'team' => ['id' => $team['id'], 'name' => $team['name'], 'status' => $team['status']],
+            'message' => 'The team is archived. Its projects and history are preserved, and pending invitations were revoked.',
+        ]);
+    }
+
+    /**
+     * Restore an archived team without recreating or rewriting its child records.
+     */
+    public function restoreTeam(Request $request, array $params): Response
+    {
+        SecureSession::start();
+        if (!$this->validCsrf($request)) {
+            return Response::json(['error' => 'Invalid or expired request token.'], 419);
+        }
+
+        $user = $this->authentication->currentUser();
+        $teamId = $this->positiveId($params['teamId'] ?? null);
+        if ($user === null) {
+            return Response::json(['error' => 'Authentication required.'], 401);
+        }
+        if ($teamId === null) {
+            return Response::json(['error' => 'Archived team not found or owner permission denied.'], 404);
+        }
+
+        try {
+            $team = $this->teams->restoreForOwner($user['id'], $teamId);
+        } catch (DomainException) {
+            return Response::json(['error' => 'Archived team not found or owner permission denied.'], 404);
+        }
+
+        return Response::json([
+            'restored' => true,
+            'team' => ['id' => $team['id'], 'name' => $team['name'], 'status' => $team['status']],
+        ]);
+    }
+
     public function showTeam(Request $request, array $params): Response
     {
         $user = $this->currentUser();
