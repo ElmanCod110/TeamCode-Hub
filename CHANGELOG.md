@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add a manual, main-only production delivery workflow with typed confirmation, production environment gate, pinned SSH host verification, destination validation, and non-destructive rsync.
+- Add CI contract tests for deployment safety and document required production secrets and controlled migration steps.
+- Reduce redundant CI traffic by running topic-branch validation through pull requests and reserving push-triggered CI for main.
+- Fix a workspace UI contract test to match idempotent `CREATE TABLE IF NOT EXISTS` migration statements.
+
 - Fix CSS/JavaScript delivery for hosts whose document root is the repository root by routing `/assets/*` to the public asset directory without exposing application source files.
 - Explicitly declare static CSS/JavaScript MIME types and apply immutable caching to versioned assets; bump workspace asset keys to avoid stale cached styles and scripts.
 - Run the previously unwired workspace UI contract test in CI and syntax-check the production `workspace.js` controller.
