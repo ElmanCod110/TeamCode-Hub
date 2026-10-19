@@ -32,7 +32,7 @@ $assert(str_contains($workflow, 'DEPLOY_KNOWN_HOSTS') && str_contains($workflow,
 $assert(str_contains($workflow, 'test -d') && str_contains($workflow, 'test -w'), 'deployment checks that the destination exists and is writable');
 $assert(str_contains($workflow, 'DEPLOY_PATH must be an absolute path') && str_contains($workflow, 'DEPLOY_PATH is too broad'), 'deployment rejects unsafe destination paths');
 $assert(str_contains($workflow, 'rsync -az --checksum'), 'deployment uses incremental rsync transfer');
-$assert(!preg_match('/rsync[^\n]*--delete/', $workflow), 'deployment never deletes remote files by default');
+$assert(!str_contains($workflow, '--delete'), 'deployment never deletes remote files by default');
 $assert(str_contains($workflow, 'if: always()') && str_contains($workflow, 'rm -f'), 'temporary SSH credentials are removed even after a failed deployment');
 $assert(!str_contains($workflow, 'bin/migrate.php') && !str_contains($workflow, 'bootstrap-admin.php'), 'deployment never runs database migrations or administrator bootstrap automatically');
 
