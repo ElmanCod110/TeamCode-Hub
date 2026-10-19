@@ -61,6 +61,9 @@ jobs:
       - name: Check workspace UI contracts
         run: php tests/workspace-ui.php
 
+      - name: Check deployment workflow safety
+        run: php tests/deployment-workflow.php
+
       - name: Check JavaScript syntax
         run: |
           node --check public/assets/js/ui.js
