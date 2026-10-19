@@ -20,6 +20,9 @@
 .workspace-switcher { display:flex; align-items:center; gap:10px; width:100%; padding:11px 10px; margin-bottom:24px; border:1px solid var(--border); border-radius:var(--r-lg); background:var(--surface); text-align:left; }
 .workspace-avatar { display:grid; place-items:center; width:35px; height:35px; flex:0 0 35px; border-radius:var(--r); background:var(--g100); color:var(--text); font-size:10px; font-weight:800; letter-spacing:-.04em; }
 .workspace-switcher-copy,.profile-copy { display:flex; flex-direction:column; gap:1px; min-width:0; flex:1; }
+.workspace-switcher { text-align:left; cursor:pointer; transition:background var(--t),border-color var(--t); }
+.workspace-switcher:hover { border-color:var(--border-strong); background:var(--surface-muted); }
+.workspace-switcher:focus-visible { outline:2px solid var(--g700); outline-offset:3px; }
 .workspace-switcher-copy strong,.profile-copy strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; font-weight:650; }
 .workspace-switcher-copy small,.profile-copy small { color:var(--text-muted); font-size:11px; }
 .switcher-caret { color:var(--text-muted); font-size:18px; }
@@ -36,12 +39,6 @@
 .side-nav-item.is-active .nav-count { background:rgb(255 255 255 / 14%); color:#fff; }
 .nav-count-alert { background:var(--danger-bg); color:var(--danger); }
 .sidebar-bottom { margin-top:auto; padding-top:25px; }
-.sidebar-help { display:flex; align-items:center; gap:10px; padding:12px 10px; margin-bottom:15px; border:1px solid var(--border); border-radius:var(--r-lg); }
-.help-mark { display:grid; place-items:center; width:28px; height:28px; border:1px solid var(--border); border-radius:50%; color:var(--text-secondary); font-size:12px; font-weight:700; }
-.sidebar-help strong,.sidebar-help small { display:block; }
-.sidebar-help strong { font-size:11px; font-weight:650; }
-.sidebar-help small { color:var(--text-muted); font-size:10px; }
-.help-arrow { margin-inline-start:auto; color:var(--text-muted); font-size:14px; }
 .sidebar-profile { position:relative; display:flex; align-items:center; gap:9px; padding:13px 4px 2px; border-top:1px solid var(--border); }
 .sidebar-profile .avatar { width:34px; height:34px; border-radius:10px; font-size:11px; }
 .profile-menu-button { width:29px; min-width:29px; height:29px; font-size:18px; }
