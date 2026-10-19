@@ -117,6 +117,7 @@ $assert(str_contains($rootHtaccess, 'RewriteRule ^public(?:/|$) - [F,L,NC]') && 
 $assert(str_contains($htaccess, 'AddType text/css .css') && str_contains($htaccess, 'AddType application/javascript .js'), 'public hosting declares correct external CSS and JavaScript MIME types');
 $assert(str_contains($htaccess, 'Cache-Control "public, max-age=31536000, immutable"'), 'versioned public assets have an explicit immutable cache policy');
 $assert(str_contains($workflow, 'php tests/workspace-ui.php') && str_contains($workflow, 'node --check public/assets/js/workspace.js'), 'CI runs workspace UI contracts and parses the production JavaScript controller');
+$assert(str_contains($workflow, 'cancel-in-progress: true') && str_contains($workflow, 'php-checks-${{ github.workflow }}-${{ github.ref }}'), 'CI cancels superseded checks for each branch instead of building an unbounded queue');
 $assert(str_contains($html, '/assets/css/workspace.css?v='), 'product stylesheet is loaded as an external versioned asset');
 $assert(str_contains($html, '/assets/js/workspace.js?v='), 'product controller is loaded as an external versioned asset');
 $assert(!preg_match('/<style(?:\s|>)/i', $html), 'workspace HTML contains no inline style blocks');
