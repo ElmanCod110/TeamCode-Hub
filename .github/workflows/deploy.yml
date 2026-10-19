@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   deploy:
-    if: ${{ inputs.confirm_production == 'DEPLOY' }}
+    if: ${{ inputs.confirm_production == 'DEPLOY' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 15
@@ -41,11 +41,11 @@ jobs:
               exit 1
             fi
           done
-          case "$DEPLOY_PATH" in
-            /*) ;;
-            *) echo "::error::DEPLOY_PATH must be an absolute remote path"; exit 1 ;;
-          esac
-          if [[ "$DEPLOY_PATH" == "/" || "$DEPLOY_PATH" == "/home" || "$DEPLOY_PATH" == "/var" ]]; then
+          if [[ ! "$DEPLOY_PATH" =~ ^/[A-Za-z0-9._/-]+$ ]]; then
+            echo "::error::DEPLOY_PATH must be an absolute path using only letters, numbers, dot, underscore, slash, or hyphen"
+            exit 1
+          fi
+          if [[ "$DEPLOY_PATH" == *"/../"* || "$DEPLOY_PATH" == */.. || "$DEPLOY_PATH" == "/" || "$DEPLOY_PATH" == "/home" || "$DEPLOY_PATH" == "/var" ]]; then
             echo "::error::DEPLOY_PATH is too broad to be a safe application target"
             exit 1
           fi
