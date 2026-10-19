@@ -1,0 +1,30 @@
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Keep repository metadata and secret dotfiles inaccessible.
+    RewriteRule (^|/)\.(?!well-known/) - [F,L]
+
+    # An optional repository-root document root must never expose the source tree.
+    # Only the public assets are mapped directly; every application URL goes through PHP.
+    RewriteRule ^public(?:/|$) - [F,L,NC]
+    RewriteRule ^\.well-known/ - [END]
+    RewriteRule ^assets/(.*)$ public/assets/$1 [END,NC]
+    RewriteRule ^ public/index.php [QSA,END]
+</IfModule>
+
+<IfModule mod_mime.c>
+    AddType text/css .css
+    AddType application/javascript .js
+</IfModule>
+
+<IfModule mod_headers.c>
+    <FilesMatch "\.(?:css|js)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set X-Frame-Options "DENY"
+    Header always set Content-Security-Policy "default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'"
+</IfModule>

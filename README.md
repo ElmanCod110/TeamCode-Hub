@@ -1,6 +1,6 @@
 # TeamCode Hub
 
-**Version:** 0.2.0-dev  
+**Version:** 0.2.2-dev  
 **Status:** Active development
 
 TeamCode Hub is a modular, security-focused collaboration platform for software teams, designed for conventional PHP hosting with cPanel/DirectAdmin and MySQL/MariaDB.
@@ -63,7 +63,7 @@ See [docs/API.md](docs/API.md) for request bodies, status codes, retention, and 
 
 ## Validation
 
-CI checks PHP syntax and smoke tests, design-system and workspace UI contracts, JavaScript syntax, and MariaDB integration tests on PHP 8.2, 8.3, and 8.4.
+CI checks PHP syntax and smoke tests, design-system and workspace UI contracts, deployment safety contracts, JavaScript syntax, and MariaDB integration tests on PHP 8.2, 8.3, and 8.4. Production delivery is manual-only from `main`, requires a typed confirmation and pinned SSH host key, and must be configured with environment-scoped deployment secrets; it never deletes remote files or runs migrations automatically.
 
 Run the lightweight local checks with:
 
@@ -71,8 +71,8 @@ Run the lightweight local checks with:
 php tests/run.php
 php tests/design-system.php
 php tests/workspace-ui.php
+php tests/deployment-workflow.php
 node --check public/assets/js/ui.js
-node --check public/assets/js/design-system-demo.js
 node --check public/assets/js/workspace.js
 ```
 

@@ -11,20 +11,20 @@ This document describes the shared visual and interaction foundation used by Tea
 | `public/assets/css/base.css` | Browser defaults, semantic element defaults, focus visibility, and reduced motion |
 | `public/assets/css/layout.css` | Containers, responsive grids, page shell, sidebar, and header layouts |
 | `public/assets/css/components.css` | Buttons, forms, badges, cards, alerts, tables, tabs, overlays, and feedback |
-| `public/assets/css/patterns.css` | Upload/range controls, avatar states, pagination, accordions, tooltips, workflow steps, quote/code, and footer patterns |
+| `public/assets/css/patterns.css` | Reusable upload/range controls, avatar states, pagination, accordions, tooltips, workflow steps, and content patterns |
 | `public/assets/css/utilities.css` | Small composable spacing, text, surface, and alignment helpers |
-| `public/assets/js/ui.js` | Accessible interactions shared by product pages |\n| `public/assets/css/workspace.css` | Product-specific workspace, dashboard, project, task, and chat presentation |\n| `public/assets/js/workspace.js` | Authenticated API integration and workspace interactions |\n| `public/app.html` | English workspace shell and sign-in form |
-| `public/assets/css/design-system-demo.css` | Styles unique to the reference showcase |
-| `public/assets/js/design-system-demo.js` | Demo-only button handlers |
-| `public/design-system.html` | English component reference page |
+| `public/assets/css/workspace.css` | Product-specific workspace, dashboard, team, project, task, and chat presentation |
+| `public/assets/js/ui.js` | Accessible interactions shared by product pages |
+| `public/assets/js/workspace.js` | Authenticated API integration and workspace interactions |
+| `public/app.html` | English workspace shell and sign-in form |
 
 ## Loading the design system
 
 Load the entry stylesheet and the shared UI controller from a page template. Keep product-specific styles and behavior in separate files and avoid inline style or script blocks.
 
 ```html
-<link rel="stylesheet" href="/assets/css/app.css?v=0.2.1-dev">
-<script src="/assets/js/ui.js?v=0.2.0-dev" defer></script>
+<link rel="stylesheet" href="/assets/css/app.css?v=0.2.2-dev">
+<script src="/assets/js/ui.js?v=0.2.1-dev" defer></script>
 ```
 
 The entry stylesheet imports tokens, base rules, layout, core components, extended patterns, and utilities in dependency order. Every imported stylesheet URL carries a cache key. When CSS changes, bump the CSS asset query keys in the entry imports and HTML entry points together. A production release should use its actual SemVer version.
@@ -85,14 +85,14 @@ Run:
 ```sh
 php tests/design-system.php
 node --check public/assets/js/ui.js
-node --check public/assets/js/design-system-demo.js
+node --check public/assets/js/workspace.js
 ```
 
 CI runs these checks in addition to PHP lint, smoke tests, and MariaDB integration tests. These checks do not replace manual browser review, assistive-technology testing, or visual regression testing.
 
 ## Current scope
 
-The showcase is a reference implementation of the style system, not a claim that the product dashboard, team/project screens, or chat interface are complete. Product screens must be built on the existing APIs and retain server-side authentication and authorization checks.
+The shared style layers are loaded by the actual workspace shell; they are not a standalone product or a substitute for connected application behavior. Team, project, task, file, and chat actions must use the existing APIs and retain server-side authentication and authorization checks.
 
 
 ## Extended component coverage

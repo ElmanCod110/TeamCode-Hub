@@ -56,6 +56,7 @@ $projectFileRepository = $read('app/Database/ProjectFileRepository.php');
 $projectFileMigration = $read('database/migrations/20261018000400_create_project_code_files.php');
 $response = $read('app/Core/Response.php');
 $workflow = $read('.github/workflows/ci.yml');
+$rootHtaccess = $read('.htaccess');
 $htaccess = $read('public/.htaccess');
 
 $assert(str_contains($html, '<html lang="en" dir="ltr"'), 'workspace declares English left-to-right document semantics');
@@ -70,6 +71,9 @@ foreach ($workspaceAssetMatches[1] as $assetUrl) {
 $assert(str_contains($html, 'data-theme="light"') && str_contains($read('public/assets/js/ui.js'), 'root.dataset.theme = next'), 'workspace theme switcher updates the shared light/dark design tokens');
 
 $assert(str_contains($html, 'id="login-form"') && str_contains($html, 'id="application"'), 'login and authenticated application shells are present');
+
+$assert(str_contains($html, 'class="workspace-switcher" type="button" data-page="teams"') && str_contains($html, 'id="sidebar-team-count"'), 'sidebar team shortcut navigates to the real teams view and reflects the live team count');
+$assert(!str_contains($html, 'Workspace guide') && !str_contains($css, '.sidebar-help'), 'non-functional decorative workspace guide markup and styles are absent');
 $assert(str_contains($html, 'id="register-form"') && str_contains($html, 'id="verification-resend-form"') && str_contains($html, 'id="verify-screen"'), 'public registration, resend, and explicit email verification forms are present');
 $assert(str_contains($js, 'registerAccount') && str_contains($js, 'resendVerification') && str_contains($js, 'state.verificationToken'), 'authentication UI connects registration, resend, and token confirmation flows');
 $assert(str_contains($bootstrap, "/api/auth/register") && str_contains($bootstrap, "/api/auth/verification/resend") && str_contains($bootstrap, "/api/auth/verify-email"), 'public account lifecycle endpoints are registered');
@@ -81,7 +85,7 @@ $assert(str_contains($html, 'id="nav-moderation-item"') && str_contains($html, '
 $assert(str_contains($html, 'data-page="github"') && str_contains($js, '/api/github/activity'), 'GitHub activity page is connected to its authenticated endpoint');
 $assert(str_contains($bootstrap, "'/api/projects/{projectId}/github'") && str_contains($bootstrap, 'project-github.controller'), 'project GitHub endpoints are registered through a dedicated controller');
 $assert(str_contains($bootstrap, "'/api/projects/{projectId}/files'") && str_contains($bootstrap, "'/api/projects/{projectId}/files/{fileId}'") && str_contains($bootstrap, "'/api/projects/{projectId}/files/{fileId}/edit'") && str_contains($bootstrap, "'/api/projects/{projectId}/files/{fileId}/history'") && str_contains($bootstrap, "'/api/projects/{projectId}/files/{fileId}/restore'"), 'project file listing, detail, edit, history, and restore routes are registered');
-$assert(str_contains($projectFileMigration, 'CREATE TABLE project_files') && str_contains($projectFileMigration, 'CREATE TABLE project_file_versions'), 'project file migration creates both private storage tables');
+$assert(str_contains($projectFileMigration, 'CREATE TABLE IF NOT EXISTS project_files') && str_contains($projectFileMigration, 'CREATE TABLE IF NOT EXISTS project_file_versions'), 'project file migration creates both private storage tables');
 $assert(str_contains($js, 'renderProjectFiles') && str_contains($js, 'createProjectFileModal') && str_contains($js, 'saveProjectFile') && str_contains($js, 'showProjectFileHistory'), 'project workspace connects file browsing, editing, saving, and history');
 $assert(str_contains($js, 'confirmDiscardProjectFileChanges') && str_contains($js, 'expected_version: Number(expectedVersion)'), 'file editor warns before discarding unsaved content and uses optimistic concurrency');
 $assert(str_contains($projectFileRepository, 'MAX_FILE_BYTES = 262144') && str_contains($projectFileRepository, 'MAX_PROJECT_BYTES = 10485760') && str_contains($projectFileRepository, 'MAX_PROJECT_HISTORY_BYTES = 20971520'), 'project file storage enforces per-file, project, and revision quotas');
@@ -104,6 +108,16 @@ $assert(str_contains($adminAccountRepository, 'You cannot disable your own accou
 $assert(str_contains($css, '.admin-user-actions') && str_contains($css, '.admin-audit-event') && str_contains($css, '.admin-audit-modal'), 'account actions and audit history have responsive styles');
 $assert(str_contains($css, '.github-feed') && str_contains($css, '.github-summary'), 'GitHub activity page has dedicated responsive presentation styles');
 $assert(str_contains($html, 'id="workspace-main"') && str_contains($html, 'class="skip-link"'), 'workspace provides a skip link and main landmark');
+
+$assert(str_contains($rootHtaccess, 'RewriteRule ^assets/(.*)$ public/assets/$1 [END,NC]'), 'repository-root hosting maps requested asset URLs into the public asset directory');
+$assert(str_contains($rootHtaccess, 'AddType text/css .css') && str_contains($rootHtaccess, 'AddType application/javascript .js'), 'root-hosted assets have explicit CSS and JavaScript MIME types');
+$assert(str_contains($rootHtaccess, 'Cache-Control "public, max-age=31536000, immutable"'), 'root-hosted versioned assets use immutable caching');
+$assert(str_contains($rootHtaccess, '<FilesMatch "\\.(?:css|js)$">') && str_contains($htaccess, '<FilesMatch "\\.(?:css|js)$">'), 'both document-root modes use a correct extension match for versioned static assets');
+$assert(str_contains($rootHtaccess, 'RewriteRule ^public(?:/|$) - [F,L,NC]') && str_contains($rootHtaccess, 'RewriteRule ^ public/index.php [QSA,END]'), 'repository-root hosting protects source files and routes app requests through the public front controller');
+$assert(str_contains($htaccess, 'AddType text/css .css') && str_contains($htaccess, 'AddType application/javascript .js'), 'public hosting declares correct external CSS and JavaScript MIME types');
+$assert(str_contains($htaccess, 'Cache-Control "public, max-age=31536000, immutable"'), 'versioned public assets have an explicit immutable cache policy');
+$assert(str_contains($workflow, 'php tests/workspace-ui.php') && str_contains($workflow, 'node --check public/assets/js/workspace.js'), 'CI runs workspace UI contracts and parses the production JavaScript controller');
+$assert(str_contains($workflow, 'cancel-in-progress: true') && str_contains($workflow, 'php-checks-${{ github.workflow }}-${{ github.ref }}'), 'CI cancels superseded checks for each branch instead of building an unbounded queue');
 $assert(str_contains($html, '/assets/css/workspace.css?v='), 'product stylesheet is loaded as an external versioned asset');
 $assert(str_contains($html, '/assets/js/workspace.js?v='), 'product controller is loaded as an external versioned asset');
 $assert(!preg_match('/<style(?:\s|>)/i', $html), 'workspace HTML contains no inline style blocks');
@@ -131,7 +145,7 @@ $assert(str_contains($passwordRecoveryService, "hash('sha256'") && str_contains(
 $assert(str_contains($js, '/api/dashboard') && str_contains($js, '/api/teams') && str_contains($js, '/api/projects/') && str_contains($js, '/api/notifications'), 'controller connects the existing dashboard, team, project, and notification APIs');
 $assert(str_contains($bootstrap, "/api/teams/{teamId}/edit") && str_contains($bootstrap, "/api/projects/{projectId}/edit"), 'team and project metadata update routes are registered');
 $workspaceController = $read('app/Http/WorkspaceController.php');
-$assert(str_contains($bootstrap, "->updateTeam(\\$request, \\$params)") && str_contains($bootstrap, "->updateProject(\\$request, \\$params)"), 'settings routes call the existing update handlers');
+$assert(str_contains($bootstrap, '->updateTeam($request, $params)') && str_contains($bootstrap, '->updateProject($request, $params)'), 'settings routes call the existing update handlers');
 $assert(str_contains($workspaceController, 'public function updateTeam(') && str_contains($workspaceController, 'public function updateProject('), 'registered settings handlers enforce validation and permissions');
 $assert(!str_contains($workspaceController, 'public function renameTeam(') && !str_contains($workspaceController, 'public function editProject('), 'unused duplicate settings handlers stay removed');
 $assert(str_contains($workspaceController, 'updateNameForOwner') && str_contains($workspaceController, 'updateMetadataForTeamManager'), 'settings controllers reuse transactional repository authorization boundaries');

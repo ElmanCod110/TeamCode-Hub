@@ -6,10 +6,10 @@
   <meta name="color-scheme" content="light dark">
   <meta name="description" content="TeamCode Hub — a focused workspace for teams, projects, tasks, and communication.">
   <title>TeamCode Hub — Workspace</title>
-  <link rel="stylesheet" href="/assets/css/app.css?v=0.2.1-dev">
-  <link rel="stylesheet" href="/assets/css/workspace.css?v=0.2.7-dev">
-  <script src="/assets/js/ui.js?v=0.2.0-dev" defer></script>
-  <script src="/assets/js/workspace.js?v=0.2.18-dev" defer></script>
+  <link rel="stylesheet" href="/assets/css/app.css?v=0.2.2-dev">
+  <link rel="stylesheet" href="/assets/css/workspace.css?v=0.2.8-dev">
+  <script src="/assets/js/ui.js?v=0.2.1-dev" defer></script>
+  <script src="/assets/js/workspace.js?v=0.2.19-dev" defer></script>
 </head>
 <body class="tch-workspace">
   <!-- Keyboard users can bypass navigation and jump directly to the current page content. -->
@@ -171,11 +171,11 @@
         </a>
         <button class="btn btn-ghost btn-icon sidebar-close" type="button" data-sidebar-close aria-label="Close navigation">×</button>
       </div>
-      <div class="workspace-switcher">
+      <button class="workspace-switcher" type="button" data-page="teams" aria-label="Open your teams">
         <span class="workspace-avatar" aria-hidden="true">TC</span>
-        <span class="workspace-switcher-copy"><strong>Team workspace</strong><small id="sidebar-team-count">Loading workspace…</small></span>
-        <span class="switcher-caret" aria-hidden="true">⌄</span>
-      </div>
+        <span class="workspace-switcher-copy"><strong>Your teams</strong><small id="sidebar-team-count">Loading teams…</small></span>
+        <span class="switcher-caret" aria-hidden="true">↗</span>
+      </button>
       <nav class="side-nav" aria-label="Workspace">
         <span class="side-nav-label">WORKSPACE</span>
         <button class="side-nav-item is-active" type="button" data-page="overview"><span class="nav-icon" data-icon="grid" aria-hidden="true"></span><span>Overview</span></button>
@@ -193,7 +193,6 @@
         <button class="side-nav-item" type="button" data-page="settings"><span class="nav-icon" data-icon="settings" aria-hidden="true"></span><span>Preferences</span></button>
       </nav>
       <div class="sidebar-bottom">
-        <div class="sidebar-help"><span class="help-mark" aria-hidden="true">?</span><span><strong>Need a hand?</strong><small>Workspace guide</small></span><span class="help-arrow" aria-hidden="true">↗</span></div>
         <div class="sidebar-profile dropdown">
           <span class="avatar avatar-dark" id="user-avatar">U</span>
           <span class="profile-copy"><strong id="sidebar-user-name">Your account</strong><small id="sidebar-user-role">Workspace member</small></span>

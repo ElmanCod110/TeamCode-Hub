@@ -3,12 +3,26 @@
 ## Before deployment
 
 - Configure the document root to the repository's `public/` directory where possible.
+- If the host cannot point its document root at `public/`, the repository-root `.htaccess` provides a locked-down fallback: it exposes only `/assets/*` from `public/assets/` and routes app paths through `public/index.php`. Do not disable the root rewrite rules, because they prevent direct access to repository source files.
 - Configure database environment variables through the host or a private configuration mechanism outside the web root.
 - Create a dedicated database user with only the permissions the application requires.
 - Enable HTTPS and configure session cookie security accordingly. If TLS terminates at a trusted reverse proxy, set `APP_HTTPS=true` only when the deployment topology guarantees HTTPS to the browser.
 - Disable displayed PHP errors in production and enable restricted server-side error logs.
 - Confirm private storage, configuration, backup, and log paths cannot be downloaded over HTTP.
 - Back up the database and files before applying schema changes.
+
+## GitHub Actions deployment (manual)
+
+The `.github/workflows/deploy.yml` workflow is a manual SSH-based delivery path. It only permits the `main` branch, requires typing `DEPLOY`, uses the GitHub `production` environment, verifies a pinned SSH host key, checks that the target directory already exists and is writable, and does not delete remote files. Configure environment-scoped secrets before using it:
+
+- `DEPLOY_HOST` — server hostname (no protocol or path).
+- `DEPLOY_USER` — dedicated deployment account with access only to the application directory.
+- `DEPLOY_SSH_PRIVATE_KEY` — private key for that account; never commit it.
+- `DEPLOY_KNOWN_HOSTS` — independently verified SSH host-key line(s), not output blindly trusted from a runtime `ssh-keyscan`.
+- `DEPLOY_PATH` — absolute application-root path containing the `app/` and `public/` directories; it must not be the filesystem root or a broad system directory.
+- `DEPLOY_PORT` — optional SSH port; defaults to `22`. For a non-standard port, the pinned `known_hosts` entry must use the matching `[host]:port` format.
+
+Set production environment reviewers and branch restrictions in GitHub repository settings. Point the web server document root to the deployed `public/` directory when possible. The workflow deliberately does not run database migrations or create an administrator automatically: take a backup, review pending migrations, and apply `php bin/migrate.php` from a trusted server-side CLI session as a separate controlled operation. Configure the required application environment variables on the server before enabling traffic. The first deployment must be tested on a staging target before production use.
 
 ## Registration and email verification
 

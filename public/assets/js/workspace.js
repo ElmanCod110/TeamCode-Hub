@@ -689,7 +689,13 @@
 
   function routeFromHash() {
     const hash = location.hash.replace(/^#/, "");
-    if (hash.startsWith("team/")) {\n      const teamId = Number(hash.split("/")[1]);\n      if (teamById(teamId)) openTeam(teamId);\n      else navigate("teams", false);\n      return;\n    }\n    if (hash.startsWith("project/")) {
+    if (hash.startsWith("team/")) {
+      const teamId = Number(hash.split("/")[1]);
+      if (teamById(teamId)) openTeam(teamId);
+      else navigate("teams", false);
+      return;
+    }
+    if (hash.startsWith("project/")) {
       const id = Number(hash.split("/")[1]);
       const project = projectById(id);
       if (project) openProject(project, false);

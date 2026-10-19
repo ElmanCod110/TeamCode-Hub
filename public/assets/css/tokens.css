@@ -43,6 +43,13 @@
   /* Keep secondary copy readable on white surfaces (WCAG AA contrast target). */
   --text-muted: var(--g500);
 
+  /* Compatibility aliases used by product-level workspace components. */
+  --text-primary: var(--text);
+  --surface-hover: var(--g100);
+  --surface-subtle: var(--surface-muted);
+  --surface-code: var(--surface-raised);
+  --radius-md: var(--r-lg);
+
   /* Corner radii. */
   --r-xs: 4px;
   --r-sm: 6px;
