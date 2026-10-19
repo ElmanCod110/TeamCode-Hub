@@ -87,6 +87,10 @@ $assert(str_contains($workspaceScript, '"X-Csrf-Token"') && str_contains($worksp
 $assert(str_contains($tokens, '--text-muted: var(--g500);'), 'muted text uses a readable neutral on light surfaces');
 $assert(str_contains($tokens, '--text-muted: #a1a1aa;'), 'muted text remains legible against dark surfaces');
 
+$assert(str_contains($tokens, '--text-primary: var(--text);'), 'workspace primary text alias resolves to the active theme text token');
+$assert(str_contains($tokens, '--surface-hover: var(--g100);') && str_contains($tokens, '--surface-subtle: var(--surface-muted);'), 'workspace hover and selected surfaces resolve from the active neutral palette');
+$assert(str_contains($tokens, '--surface-code: var(--surface-raised);') && str_contains($tokens, '--radius-md: var(--r-lg);'), 'source editor surface and legacy radius aliases are defined centrally');
+
 /* Verify every stylesheet imported by the entry point exists on disk. */
 preg_match_all('/@import\s+url\("([^"]+)"\)/', $entry, $importMatches);
 foreach ($importMatches[1] as $importUrl) {
