@@ -7,12 +7,13 @@ This document maps the English browser application to the existing server APIs. 
 - `/` — authenticated workspace shell; shows sign-in when there is no active session.
 - `/login` — the same progressive-enhancement shell, initially displaying sign-in when unauthenticated.
 - `/verify-email` — the workspace shell used to confirm a one-time token supplied in the URL fragment.
-- `/design-system.html` — component reference page.
 - `public/app.html` — semantic workspace shell.
 - `public/assets/css/app.css` and its token/base/layout/component/pattern/utility layers — shared design-system styles.
 - `public/assets/css/workspace.css` — product-only styles layered on the core design system.
 - `public/assets/js/workspace.js` — same-origin API client, navigation, rendering, forms, and chat polling.
 - `public/assets/js/ui.js` — shared design-system interactions.
+
+The preferred deployment sets the document root to `public/`. A repository-root document root is also supported by the top-level `.htaccess`, which maps `/assets/*` to `public/assets/*`, routes application paths to `public/index.php`, and blocks direct access to the `public/` prefix and repository files.
 
 Project repository links accept only public HTTPS GitHub URLs. The server shares one daily cached snapshot per repository and caps refresh attempts to 20 distinct repositories per UTC day.
 
@@ -103,4 +104,4 @@ php tests/workspace-ui.php
 node --check public/assets/js/workspace.js
 ```
 
-These checks validate the static asset contract and JavaScript syntax. They do not replace manual browser testing across supported devices, keyboard-only interaction, screen-reader review, or visual regression tests. The design-system showcase includes extended input, avatar, chip, accordion, workflow-step, pagination, and content patterns.
+These checks validate the static asset contract and JavaScript syntax. They do not replace manual browser testing across supported devices, keyboard-only interaction, screen-reader review, or visual regression tests. The style contract tests check actual production assets and route wiring; reusable patterns stay in the shared `patterns.css` layer instead of a separate demo page.
