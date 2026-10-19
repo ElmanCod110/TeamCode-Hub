@@ -73,7 +73,6 @@ php tests/design-system.php
 php tests/workspace-ui.php
 node --check public/assets/js/ui.js
 node --check public/assets/js/workspace.js
-php tests/workspace-ui.php
 ```
 
 ## Remaining product work
