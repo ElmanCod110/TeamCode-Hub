@@ -1,6 +1,6 @@
 # TeamCode Hub
 
-**Version:** 0.2.0-dev  
+**Version:** 0.2.1-dev  
 **Status:** Active development
 
 TeamCode Hub is a modular, security-focused collaboration platform for software teams, designed for conventional PHP hosting with cPanel/DirectAdmin and MySQL/MariaDB.
@@ -72,8 +72,8 @@ php tests/run.php
 php tests/design-system.php
 php tests/workspace-ui.php
 node --check public/assets/js/ui.js
-node --check public/assets/js/design-system-demo.js
 node --check public/assets/js/workspace.js
+php tests/workspace-ui.php
 ```
 
 ## Remaining product work
