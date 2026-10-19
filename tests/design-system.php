@@ -91,6 +91,20 @@ $assert(str_contains($tokens, '--text-primary: var(--text);'), 'workspace primar
 $assert(str_contains($tokens, '--surface-hover: var(--g100);') && str_contains($tokens, '--surface-subtle: var(--surface-muted);'), 'workspace hover and selected surfaces resolve from the active neutral palette');
 $assert(str_contains($tokens, '--surface-code: var(--surface-raised);') && str_contains($tokens, '--radius-md: var(--r-lg);'), 'source editor surface and legacy radius aliases are defined centrally');
 
+/* Catch undefined CSS custom properties across the real production stylesheets. */
+$allCss = implode("\n", [$entry, $tokens, $base, $layout, $components, $patterns, $utilities, $workspaceCss]);
+preg_match_all('/(--[a-zA-Z0-9_-]+)\\s*:/', $allCss, $definedMatches);
+preg_match_all('/var\\(\\s*(--[a-zA-Z0-9_-]+)/', $allCss, $referencedMatches);
+$definedTokens = array_fill_keys($definedMatches[1], true);
+/* --progress is intentionally supplied on individual progress indicators, not as a global token. */
+$dynamicTokens = ['--progress' => true];
+$undefinedTokens = array_values(array_diff(
+    array_unique($referencedMatches[1]),
+    array_keys($definedTokens),
+    array_keys($dynamicTokens)
+));
+$assert($undefinedTokens === [], 'production CSS has no undefined custom properties' . ($undefinedTokens ? ': ' . implode(', ', $undefinedTokens) : ''));
+
 /* Verify every stylesheet imported by the entry point exists on disk. */
 preg_match_all('/@import\s+url\("([^"]+)"\)/', $entry, $importMatches);
 foreach ($importMatches[1] as $importUrl) {
