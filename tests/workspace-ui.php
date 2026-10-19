@@ -71,6 +71,9 @@ foreach ($workspaceAssetMatches[1] as $assetUrl) {
 $assert(str_contains($html, 'data-theme="light"') && str_contains($read('public/assets/js/ui.js'), 'root.dataset.theme = next'), 'workspace theme switcher updates the shared light/dark design tokens');
 
 $assert(str_contains($html, 'id="login-form"') && str_contains($html, 'id="application"'), 'login and authenticated application shells are present');
+
+$assert(str_contains($html, 'class="workspace-switcher" type="button" data-page="teams"') && str_contains($html, 'id="sidebar-team-count"'), 'sidebar team shortcut navigates to the real teams view and reflects the live team count');
+$assert(!str_contains($html, 'Workspace guide') && !str_contains($css, '.sidebar-help'), 'non-functional decorative workspace guide markup and styles are absent');
 $assert(str_contains($html, 'id="register-form"') && str_contains($html, 'id="verification-resend-form"') && str_contains($html, 'id="verify-screen"'), 'public registration, resend, and explicit email verification forms are present');
 $assert(str_contains($js, 'registerAccount') && str_contains($js, 'resendVerification') && str_contains($js, 'state.verificationToken'), 'authentication UI connects registration, resend, and token confirmation flows');
 $assert(str_contains($bootstrap, "/api/auth/register") && str_contains($bootstrap, "/api/auth/verification/resend") && str_contains($bootstrap, "/api/auth/verify-email"), 'public account lifecycle endpoints are registered');
