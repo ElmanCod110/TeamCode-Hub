@@ -40,17 +40,17 @@ $components = $read('public/assets/css/components.css');
 $patterns = $read('public/assets/css/patterns.css');
 $utilities = $read('public/assets/css/utilities.css');
 $uiScript = $read('public/assets/js/ui.js');
-$demoScript = $read('public/assets/js/design-system-demo.js');
-$demoPage = $read('public/design-system.html');
-$demoCss = $read('public/assets/css/design-system-demo.css');
+$workspaceHtml = $read('public/app.html');
+$workspaceCss = $read('public/assets/css/workspace.css');
+$workspaceScript = $read('public/assets/js/workspace.js');
 
 $expectedImports = [
-    '@import url("./tokens.css?v=0.2.1-dev");',
-    '@import url("./base.css?v=0.2.1-dev");',
-    '@import url("./layout.css?v=0.2.1-dev");',
-    '@import url("./components.css?v=0.2.1-dev");',
-    '@import url("./patterns.css?v=0.2.1-dev");',
-    '@import url("./utilities.css?v=0.2.1-dev");',
+    '@import url("./tokens.css?v=0.2.2-dev");',
+    '@import url("./base.css?v=0.2.2-dev");',
+    '@import url("./layout.css?v=0.2.2-dev");',
+    '@import url("./components.css?v=0.2.2-dev");',
+    '@import url("./patterns.css?v=0.2.2-dev");',
+    '@import url("./utilities.css?v=0.2.2-dev");',
 ];
 $lastPosition = -1;
 foreach ($expectedImports as $import) {
@@ -60,7 +60,7 @@ foreach ($expectedImports as $import) {
 }
 
 $assert(str_contains($tokens, '--font-sans:') && str_contains($tokens, 'system-ui'), 'typography uses an installed system-font fallback stack');
-$assert(!preg_match('/fonts\.googleapis\.com|fonts\.gstatic\.com|use\.typekit\.net/i', $entry . $tokens . $base . $layout . $components . $patterns . $utilities . $demoCss), 'design-system CSS does not require a hosted font service');
+$assert(!preg_match('/fonts\.googleapis\.com|fonts\.gstatic\.com|use\.typekit\.net/i', $entry . $tokens . $base . $layout . $components . $patterns . $utilities), 'design-system CSS does not require a hosted font service');
 $assert(str_contains($tokens, 'data-theme="dark"'), 'an explicit dark theme token set is available');
 $assert(str_contains($base, 'prefers-reduced-motion: reduce'), 'base styles respect reduced-motion preferences');
 $assert(str_contains($base, ':focus-visible'), 'keyboard focus indicators are defined');
@@ -75,12 +75,14 @@ $assert(str_contains($patterns, '.swatches') && str_contains($patterns, '.type-l
 $assert(str_contains($patterns, '.btn-xs') && str_contains($patterns, '.check .box') && str_contains($patterns, '.tabs.pill'), 'legacy button, form-state, and pill-tab aliases are available');
 $assert(str_contains($uiScript, 'textContent = String(message'), 'toast content is inserted as text rather than interpreted HTML');
 $assert(str_contains($uiScript, 'data-modal-open') && str_contains($uiScript, 'data-dropdown-toggle'), 'interaction controller includes modal and dropdown behavior');
-$assert(str_contains($demoPage, '<html lang="en" dir="ltr"'), 'showcase document declares English left-to-right content');
-$assert(str_contains($demoPage, '/assets/css/app.css') && str_contains($demoPage, '/assets/js/ui.js'), 'showcase loads shared assets by external URLs');
-$assert(!preg_match('/\sstyle\s*=/i', $demoPage), 'showcase HTML contains no inline style attributes');
-$assert(!preg_match('/<script\s*>/i', $demoPage), 'showcase HTML contains no inline JavaScript blocks');
-$assert(str_contains($demoPage, '/assets/css/design-system-demo.css') && str_contains($demoPage, '/assets/js/design-system-demo.js'), 'showcase-specific behavior and styles are external assets');
-$assert(str_contains($demoScript, 'window.TCHUI.notify'), 'showcase buttons use the shared notification API');
+$assert(str_contains($workspaceHtml, '<html lang="en" dir="ltr"'), 'product shell declares English left-to-right content');
+$assert(str_contains($workspaceHtml, '/assets/css/app.css?v=0.2.2-dev') && str_contains($workspaceHtml, '/assets/css/workspace.css?v=0.2.8-dev'), 'product shell links shared and workspace stylesheets with refreshed cache keys');
+$assert(str_contains($workspaceHtml, '/assets/js/ui.js?v=0.2.1-dev') && str_contains($workspaceHtml, '/assets/js/workspace.js?v=0.2.19-dev'), 'product shell links both external controllers with refreshed cache keys');
+$assert(!preg_match('/\\sstyle\\s*=/i', $workspaceHtml) && !preg_match('/<style(?:\\s|>)/i', $workspaceHtml), 'product shell contains no inline styles');
+$assert(!preg_match('/<script(?![^>]*\\bsrc=)[^>]*>/i', $workspaceHtml), 'product shell contains no inline JavaScript');
+$assert(str_contains($workspaceCss, '.app-shell') && str_contains($workspaceCss, '.project-files-layout') && str_contains($workspaceCss, '.chat-messages'), 'product stylesheet covers actual workspace, source files, and chat views');
+$assert(str_contains($workspaceScript, '/api/teams') && str_contains($workspaceScript, '/api/projects/') && str_contains($workspaceScript, 'credentials: "same-origin"'), 'workspace controller connects team/project APIs with same-origin requests');
+$assert(str_contains($workspaceScript, '"X-Csrf-Token"') && str_contains($workspaceScript, 'function renderTeams'), 'workspace mutations retain CSRF protection and team rendering');
 
 $assert(str_contains($tokens, '--text-muted: var(--g500);'), 'muted text uses a readable neutral on light surfaces');
 $assert(str_contains($tokens, '--text-muted: #a1a1aa;'), 'muted text remains legible against dark surfaces');
@@ -92,14 +94,14 @@ foreach ($importMatches[1] as $importUrl) {
     $assert(is_file($root . '/' . $relativePath), 'entry stylesheet import resolves: ' . $relativePath);
 }
 
-/* Verify the showcase references existing local CSS and JavaScript assets. */
-preg_match_all('/(?:href|src)="(\/assets\/[^"]+)"/', $demoPage, $assetMatches);
+/* Verify the product shell references existing local CSS and JavaScript assets. */
+preg_match_all('/(?:href|src)="(\/assets\/[^"]+)"/', $workspaceHtml, $assetMatches);
 foreach ($assetMatches[1] as $assetUrl) {
     $relativePath = 'public' . strtok($assetUrl, '?');
-    $assert(is_file($root . '/' . $relativePath), 'showcase asset URL resolves: ' . $relativePath);
+    $assert(is_file($root . '/' . $relativePath), 'product asset URL resolves: ' . $relativePath);
 }
 
-$assert(str_contains($demoScript, 'demo-upload') && str_contains($demoScript, 'selectPage'), 'showcase upload preview and pagination examples are interactive');
-$assert(str_contains($demoScript, 'chip was removed locally'), 'showcase removable chips operate locally without a server request');
+$assert(str_contains($workspaceHtml, 'id="page-content"') && str_contains($workspaceHtml, 'id="application"'), 'workspace shell contains the actual app mount points');
+$assert(str_contains($workspaceScript, 'async function boot()') && str_contains($workspaceScript, 'window.TCHWorkspace'), 'workspace controller initializes and exposes its guarded controller');
 
 echo "\n{$assertions} design-system assertions passed.\n";
