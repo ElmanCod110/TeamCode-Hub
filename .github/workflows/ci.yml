@@ -52,6 +52,9 @@ jobs:
       - name: Check design-system assets
         run: php tests/design-system.php
 
+      - name: Check workspace UI contracts
+        run: php tests/workspace-ui.php
+
       - name: Check JavaScript syntax
         run: |
           node --check public/assets/js/ui.js
