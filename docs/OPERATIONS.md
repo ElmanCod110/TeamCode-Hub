@@ -3,6 +3,7 @@
 ## Before deployment
 
 - Configure the document root to the repository's `public/` directory where possible.
+- If the host cannot point its document root at `public/`, the repository-root `.htaccess` provides a locked-down fallback: it exposes only `/assets/*` from `public/assets/` and routes app paths through `public/index.php`. Do not disable the root rewrite rules, because they prevent direct access to repository source files.
 - Configure database environment variables through the host or a private configuration mechanism outside the web root.
 - Create a dedicated database user with only the permissions the application requires.
 - Enable HTTPS and configure session cookie security accordingly. If TLS terminates at a trusted reverse proxy, set `APP_HTTPS=true` only when the deployment topology guarantees HTTPS to the browser.
