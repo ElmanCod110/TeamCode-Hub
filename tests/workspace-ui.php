@@ -56,6 +56,7 @@ $projectFileRepository = $read('app/Database/ProjectFileRepository.php');
 $projectFileMigration = $read('database/migrations/20261018000400_create_project_code_files.php');
 $response = $read('app/Core/Response.php');
 $workflow = $read('.github/workflows/ci.yml');
+$rootHtaccess = $read('.htaccess');
 $htaccess = $read('public/.htaccess');
 
 $assert(str_contains($html, '<html lang="en" dir="ltr"'), 'workspace declares English left-to-right document semantics');
@@ -104,6 +105,12 @@ $assert(str_contains($adminAccountRepository, 'You cannot disable your own accou
 $assert(str_contains($css, '.admin-user-actions') && str_contains($css, '.admin-audit-event') && str_contains($css, '.admin-audit-modal'), 'account actions and audit history have responsive styles');
 $assert(str_contains($css, '.github-feed') && str_contains($css, '.github-summary'), 'GitHub activity page has dedicated responsive presentation styles');
 $assert(str_contains($html, 'id="workspace-main"') && str_contains($html, 'class="skip-link"'), 'workspace provides a skip link and main landmark');
+
+$assert(str_contains($rootHtaccess, 'RewriteRule ^assets/(.*)$ public/assets/$1 [END,NC]'), 'repository-root hosting maps requested asset URLs into the public asset directory');
+$assert(str_contains($rootHtaccess, 'RewriteRule ^public(?:/|$) - [F,L,NC]') && str_contains($rootHtaccess, 'RewriteRule ^ public/index.php [QSA,END]'), 'repository-root hosting protects source files and routes app requests through the public front controller');
+$assert(str_contains($htaccess, 'AddType text/css .css') && str_contains($htaccess, 'AddType application/javascript .js'), 'public hosting declares correct external CSS and JavaScript MIME types');
+$assert(str_contains($htaccess, 'Cache-Control "public, max-age=31536000, immutable"'), 'versioned public assets have an explicit immutable cache policy');
+$assert(str_contains($workflow, 'php tests/workspace-ui.php') && str_contains($workflow, 'node --check public/assets/js/workspace.js'), 'CI runs workspace UI contracts and parses the production JavaScript controller');
 $assert(str_contains($html, '/assets/css/workspace.css?v='), 'product stylesheet is loaded as an external versioned asset');
 $assert(str_contains($html, '/assets/js/workspace.js?v='), 'product controller is loaded as an external versioned asset');
 $assert(!preg_match('/<style(?:\s|>)/i', $html), 'workspace HTML contains no inline style blocks');
