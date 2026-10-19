@@ -5,8 +5,10 @@ concurrency:
   cancel-in-progress: true
 
 on:
+  # Pull requests validate topic branches; push runs are reserved for main to avoid
+  # duplicate CI runs for every commit on a branch that already has an open PR.
   push:
-    branches: [main, "feat/**", "fix/**", "test/**"]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
