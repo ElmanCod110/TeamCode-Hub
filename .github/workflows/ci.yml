@@ -55,7 +55,7 @@ jobs:
       - name: Check JavaScript syntax
         run: |
           node --check public/assets/js/ui.js
-          node --check public/assets/js/design-system-demo.js
+          node --check public/assets/js/workspace.js
 
       - name: Run MariaDB integration tests
         env:
