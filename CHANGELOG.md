@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Fix CSS/JavaScript delivery for hosts whose document root is the repository root by routing `/assets/*` to the public asset directory without exposing application source files.
+- Explicitly declare static CSS/JavaScript MIME types and apply immutable caching to versioned assets; bump workspace asset keys to avoid stale cached styles and scripts.
+- Run the previously unwired workspace UI contract test in CI and syntax-check the production `workspace.js` controller.
+- Remove the standalone visual showcase page and demo-only assets; retain shared design-system CSS that the live workspace uses.
+
+
 - Removed unused duplicate team/project settings handlers and aligned UI contract tests with the registered transactional update endpoints.
 
 - Add a project Files tab with a searchable private source-file directory, lightweight text editor, save/reload controls, and revision-history restore.
