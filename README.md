@@ -71,6 +71,7 @@ Run the lightweight local checks with:
 php tests/run.php
 php tests/design-system.php
 php tests/workspace-ui.php
+php tests/deployment-workflow.php
 node --check public/assets/js/ui.js
 node --check public/assets/js/workspace.js
 ```
