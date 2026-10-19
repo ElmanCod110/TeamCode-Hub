@@ -110,6 +110,8 @@ $assert(str_contains($css, '.github-feed') && str_contains($css, '.github-summar
 $assert(str_contains($html, 'id="workspace-main"') && str_contains($html, 'class="skip-link"'), 'workspace provides a skip link and main landmark');
 
 $assert(str_contains($rootHtaccess, 'RewriteRule ^assets/(.*)$ public/assets/$1 [END,NC]'), 'repository-root hosting maps requested asset URLs into the public asset directory');
+$assert(str_contains($rootHtaccess, 'AddType text/css .css') && str_contains($rootHtaccess, 'AddType application/javascript .js'), 'root-hosted assets have explicit CSS and JavaScript MIME types');
+$assert(str_contains($rootHtaccess, 'Cache-Control "public, max-age=31536000, immutable"'), 'root-hosted versioned assets use immutable caching');
 $assert(str_contains($rootHtaccess, 'RewriteRule ^public(?:/|$) - [F,L,NC]') && str_contains($rootHtaccess, 'RewriteRule ^ public/index.php [QSA,END]'), 'repository-root hosting protects source files and routes app requests through the public front controller');
 $assert(str_contains($htaccess, 'AddType text/css .css') && str_contains($htaccess, 'AddType application/javascript .js'), 'public hosting declares correct external CSS and JavaScript MIME types');
 $assert(str_contains($htaccess, 'Cache-Control "public, max-age=31536000, immutable"'), 'versioned public assets have an explicit immutable cache policy');
